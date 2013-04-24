@@ -15,6 +15,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import copy
 import extras
 import json
 import logging
@@ -464,8 +465,23 @@ class Scheduler(threading.Thread):
             self.log.info("Fetching references for %s" % project)
             self.merger.updateRepo(project)
 
+        # Larges parts of Zuul are actually depending on the Change objects in
+        # separate pipelines being different objects. In particular, the Change
+        # object in Zuul holds information about the current builds, etc. If
+        # two different pipelines shared a single Change, it would cause
+        # undefined behavior. Thus, we first fetch the change from Gerrit and
+        # then pass a copy to the pipelines to guarantee the pipelines
+        # independance. -- James E. Blair
+
+        # getChange() does a query to Gerrit, we only want to do it once.
+        fetched_change = event.getChange(project, self.trigger)
+
         for pipeline in self.pipelines.values():
-            change = event.getChange(project, self.trigger)
+            # Copy the fetched object to save a query to Gerrit. Make sure
+            # to pass the pipelines a copy (see note above).
+            # We do a shallow copy there to allow the copied change to
+            # refer to the same project object as the original.
+            change = copy.copy(fetched_change)
             if event.type == 'patchset-created':
                 pipeline.manager.removeOldVersionsOfChange(change)
             if not pipeline.manager.eventMatches(event):
