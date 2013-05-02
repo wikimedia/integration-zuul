@@ -205,6 +205,13 @@ class ExtendedJenkins(jenkins.Jenkins):
                                   params)
         self.jenkins_open(request)
 
+    def job_exists(self, name):
+        """Lame hack by Hashar to skip reading the job infos
+        from Jenkins.  That is very slow since wikimedia keeps
+        a ton of history.
+        Patch devised by James E. Blair from Opestack."""
+        return True
+
 
 class Jenkins(object):
     log = logging.getLogger("zuul.Jenkins")
