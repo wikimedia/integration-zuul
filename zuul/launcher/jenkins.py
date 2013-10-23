@@ -313,6 +313,7 @@ class Jenkins(object):
         # that by retrying for 30 seconds.
         launched = False
         errored = False
+        start_time = time.time()  # HASHAR Wikimedia hack
         for count in range(6):
             try:
                 self.jenkins.build_job(job.name, parameters=params)
@@ -334,6 +335,13 @@ class Jenkins(object):
                 # To keep the queue moving, declare this as a lost build
                 # so that the change will get dropped.
                 self.onBuildCompleted(build.uuid, 'LOST', None, None)
+
+        # HASHAR Wikimedia hack
+        self.log.debug(
+            "Started job %s (change %s) in %ss (tried %s time(s))" %
+                (job, change, time.time() - start_time, count)
+        )
+
         return build
 
     def findBuildInQueue(self, build):
