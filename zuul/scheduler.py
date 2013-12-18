@@ -803,7 +803,8 @@ class BasePipelineManager(object):
             # or restarted
             return False
 
-        self.updateBuildDescriptions(build.build_set)
+        # HASHAR Wikimedia hack
+        #self.updateBuildDescriptions(build.build_set)
         return True
 
     def handleFailedChange(self, change):
@@ -831,7 +832,8 @@ class BasePipelineManager(object):
 
         self.reportChanges()
         self.launchJobs()
-        self.updateBuildDescriptions(build.build_set)
+        # HASHAR Wikimedia hack
+        #self.updateBuildDescriptions(build.build_set)
         return True
 
     def reportChanges(self):
