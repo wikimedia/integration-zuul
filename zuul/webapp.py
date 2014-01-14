@@ -36,6 +36,10 @@ class WebApp(threading.Thread):
         self.server.server_close()
 
     def app(self, environ, start_response):
+        cache_headers = [
+            ('Cache-Control', 'no-cache'),
+        ]
+
         request = Request(environ)
         if request.path == '/status.json':
             try:
@@ -44,8 +48,9 @@ class WebApp(threading.Thread):
                 self.log.exception("Exception formatting status:")
                 raise
             start_response('200 OK', [('content-type', 'application/json'),
-                                      ('Access-Control-Allow-Origin', '*')])
+                                      ('Access-Control-Allow-Origin', '*')]
+                           + cache_headers)
             return [ret]
-        else:
-            start_response('404 Not Found', [('content-type', 'text/plain')])
+            start_response('404 Not Found', [('content-type', 'text/plain')]
+                           + cache_headers)
             return ['Not found.']
