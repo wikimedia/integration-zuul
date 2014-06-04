@@ -12,14 +12,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import extras
 import hmac
 from hashlib import sha1
 from time import time
 import os
 import random
 import string
-import swiftclient
 import urlparse
+
+swiftclient = extras.try_import('swiftclient')
 
 
 class Swift(object):
@@ -38,7 +40,7 @@ class Swift(object):
         self.connect()
 
     def connect(self):
-        if self.config.has_section('swift'):
+        if swiftclient and self.config.has_section('swift'):
             # required
             authurl = self.config.get('swift', 'authurl')
 
