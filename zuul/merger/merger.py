@@ -58,6 +58,9 @@ class Repo(object):
         repo.config_writer().write()
         self._initialized = True
 
+    def isInitialized(self):
+        return self._initialized
+
     def createRepoObject(self):
         try:
             self._ensure_cloned()
@@ -82,10 +85,23 @@ class Repo(object):
         repo.head.reset(index=True, working_tree=True)
         repo.git.clean('-x', '-f', '-d')
 
+    def prune(self):
+        repo = self.createRepoObject()
+        origin = repo.remotes.origin
+        stale_refs = origin.stale_refs
+        if stale_refs:
+            self.log.debug("Pruning stale refs: %s", stale_refs)
+            git.refs.RemoteReference.delete(repo, *stale_refs)
+
     def getBranchHead(self, branch):
         repo = self.createRepoObject()
         branch_head = repo.heads[branch]
         return branch_head.commit
+
+    def has_branch(self, branch):
+        repo = self.createRepoObject()
+        origin = repo.remotes.origin
+        return branch in origin.refs
 
     def getCommitFromRef(self, refname):
         repo = self.createRepoObject()
@@ -129,6 +145,10 @@ class Repo(object):
             origin.fetch(ref)
         except AssertionError:
             origin.fetch(ref)
+
+    def fetch_from(self, repository, refspec):
+        repo = self.createRepoObject()
+        repo.git.fetch(repository, refspec)
 
     def createZuulRef(self, ref, commit='HEAD'):
         repo = self.createRepoObject()
