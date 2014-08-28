@@ -87,3 +87,8 @@ cloning any projects it processes from those found in that directory.
 The URL of origin remote of the resulting clone will be reset to use
 the ``git_base_url`` and then the remote will be updated so that the
 repository has all the information in the upstream repository.
+
+The ``--cache-no-hardlinks`` option can be used to force git to
+always copy git objects from the cache directory. By default, if
+the cache directory is on the same disk as the workspace, git-clone
+will hardlink git objects to speed up the process and save space.

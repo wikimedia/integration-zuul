@@ -29,7 +29,8 @@ class Cloner(object):
 
     def __init__(self, git_base_url, projects, workspace, zuul_branch,
                  zuul_ref, zuul_url, branch=None, clone_map_file=None,
-                 project_branches=None, cache_dir=None):
+                 project_branches=None, cache_dir=None,
+                 cache_no_hardlinks=None):
 
         self.clone_map = []
         self.dests = None
@@ -37,6 +38,7 @@ class Cloner(object):
         self.branch = branch
         self.git_url = git_base_url
         self.cache_dir = cache_dir
+        self.cache_no_hardlinks = cache_no_hardlinks
         self.projects = projects
         self.workspace = workspace
         self.zuul_branch = zuul_branch or ''
@@ -73,8 +75,11 @@ class Cloner(object):
         if (self.cache_dir and
             os.path.exists(git_cache) and
             not os.path.exists(dest)):
-            # file:// tells git not to hard-link across repos
-            git_cache = 'file://%s' % git_cache
+
+            if self.cache_no_hardlinks:
+                # file:// tells git not to hard-link across repos
+                git_cache = 'file://%s' % git_cache
+
             self.log.info("Creating repo %s from cache %s",
                           project, git_cache)
             new_repo = git.Repo.clone_from(git_cache, dest)
