@@ -108,3 +108,8 @@ repository has all the information in the upstream repository.
 The default for ``--cache-dir`` is taken from the environment variable
 ``ZUUL_CACHE_DIR``. A value provided explicitly on the command line
 overrides the environment variable setting.
+
+The ``--cache-no-hardlinks`` option can be used to force git to
+always copy git objects from the cache directory. By default, if
+the cache directory is on the same disk as the workspace, git-clone
+will hardlink git objects to speed up the process and save space.
