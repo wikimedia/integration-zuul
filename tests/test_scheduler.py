@@ -23,9 +23,11 @@ import time
 import urllib
 import urllib2
 
+import gear
 import git
 import testtools
 
+import zuul.model
 import zuul.scheduler
 import zuul.rpcclient
 import zuul.reporter.gerrit
@@ -1676,6 +1678,35 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         self.assertEqual(self.countJobResults(self.history, 'RUN_ERROR'), 1)
         self.assertEqual(self.countJobResults(self.history, 'SUCCESS'), 3)
+
+    def test_retry_merge_on_gearman_error(self):
+        "Test merge:merge is reenqueued on Gearman server error"
+
+        # Instruct merger to fail with a Gearman error
+        def fake_not_connected_error(*args):
+            raise gear.NoConnectedServersError("Fake no connected Gearman servers")
+        old_submit_job = self.sched.merger.submitJob
+        self.sched.merger.submitJob = fake_not_connected_error
+
+        self.worker.hold_jobs_in_build = True
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.addApproval('CRVW', 2)
+        self.fake_gerrit.addEvent(A.addApproval('APRV', 1))
+        self.waitUntilSettled()
+
+        items = self.sched.layout.pipelines['gate'].getAllItems()
+        self.assertEquals(1, len(items))
+        build_sets = items[0].build_sets
+        self.assertEquals(1, len(build_sets))
+        self.assertEquals(zuul.model.BuildSet.NEW, build_sets[0].merge_state,
+                          "BuildSet merge state must be NEW after failling to "
+                          "prepare a ref")
+
+        # Clear the queue
+        self.sched.merger.submitJob = old_submit_job
+        self.worker.hold_jobs_in_build = False
+        self.worker.release()
 
     def test_statsd(self):
         "Test each of the statsd methods used in the scheduler"
