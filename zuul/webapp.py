@@ -122,4 +122,11 @@ class WebApp(threading.Thread):
 
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.last_modified = self.cache_time
+        # See http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9
+        reponse.cache_control = ", ".join( [
+            'public',
+            'max-age=%s' % self.cache_expiry,
+            's-maxage=%s' % self.cache_expiry,
+            'must-revalidate',
+        ])
         return response
