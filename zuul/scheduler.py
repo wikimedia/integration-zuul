@@ -1212,7 +1212,6 @@ class BasePipelineManager(object):
             return True
         if build_set.merge_state == build_set.PENDING:
             return False
-        build_set.merge_state = build_set.PENDING
         ref = build_set.ref
         if hasattr(item.change, 'refspec') and not ref:
             self.log.debug("Preparing ref for: %s" % item.change)
@@ -1230,6 +1229,7 @@ class BasePipelineManager(object):
             self.sched.merger.updateRepo(item.change.project.name,
                                          url, build_set,
                                          self.pipeline.precedence)
+        build_set.merge_state = build_set.PENDING
         return False
 
     def _launchJobs(self, item, jobs):
