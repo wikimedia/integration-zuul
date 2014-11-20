@@ -502,12 +502,12 @@ class Scheduler(threading.Thread):
         try:
             if statsd and build.pipeline:
                 jobname = build.job.name.replace('.', '_')
-                key = 'zuul.pipeline.%s.job.%s.%s' % (build.pipeline.name,
-                                                      jobname, build.result)
+                key = 'zuul.pipeline.%s.job.%s' % (build.pipeline.name,
+                                                   jobname)
                 if build.result in ['SUCCESS', 'FAILURE'] and build.start_time:
                     dt = int((build.end_time - build.start_time) * 1000)
                     statsd.timing(key, dt)
-                statsd.incr(key)
+                statsd.incr(key + '.' + build.result)
                 key = 'zuul.pipeline.%s.all_jobs' % build.pipeline.name
                 statsd.incr(key)
         except:
