@@ -51,15 +51,16 @@ Zuul parameters
 The Zuul cloner reuses Zuul parameters such as ZUUL_BRANCH, ZUUL_REF or
 ZUUL_PROJECT.  It will attempt to load them from the environment variables or
 you can pass them as parameters (in which case it will override the
-environment variable if it is set).  The matching command line parameters use
-the ``zuul`` prefix hence ZUUL_REF can be passed to the cloner using
-``--zuul-ref``.
+corresponding environment variable if it is set).  The matching command
+line parameters use the ``zuul`` prefix hence ZUUL_REF can be passed to
+the cloner using ``--zuul-ref``.
 
 Usage
 -----
 The general options that apply are:
 
 .. program-output:: zuul-cloner --help
+
 
 Clone order
 -----------

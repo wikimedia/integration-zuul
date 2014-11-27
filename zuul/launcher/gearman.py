@@ -273,6 +273,8 @@ class Gearman(object):
                       ZUUL_PROJECT=item.change.project.name)
         params['ZUUL_PIPELINE'] = pipeline.name
         params['ZUUL_URL'] = item.current_build_set.zuul_url
+
+        # When altering parameters, keep zuul/cmd/cloner.py in sync!
         if hasattr(item.change, 'refspec'):
             changes_str = '^'.join(
                 ['%s:%s:%s' % (i.change.project.name, i.change.branch,
