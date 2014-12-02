@@ -18,10 +18,19 @@ pipelines:
       gerrit:
         verified: -2
 
+  - name: post
+    manager: IndependentPipelineManager
+    trigger:
+      gerrit:
+        - event: ref-updated
+          ref: ^(?!refs/).*$
+
 projects:
 
   - name: org/project1
     gate:
+        - integration
+    post:
         - integration
 
   - name: org/project2

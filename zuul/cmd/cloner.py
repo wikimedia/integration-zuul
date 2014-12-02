@@ -141,6 +141,7 @@ class Cloner(zuul.cmd.ZuulApp):
             projects=self.args.projects,
             workspace=self.args.workspace,
             zuul_branch=self.args.zuul_branch,
+            zuul_project=self.args.zuul_project,
             zuul_ref=self.args.zuul_ref,
             zuul_url=self.args.zuul_url,
             branch=self.args.branch,
