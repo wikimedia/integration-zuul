@@ -247,6 +247,21 @@ class FakeChange(object):
                  "comment": "This is a comment"}
         return event
 
+    def getRefUpdatedEvent(self):
+        if self.data['status'] != 'MERGED':
+            raise Exception("Change is not merged")
+
+        event = {"type": "ref-updated",
+                 "submitter": {"name": "User Name"},
+                 "refUpdate": {
+                     "oldRev": None,
+                     "newRev": self.patchsets[-1]['revision'],
+                     "refName": self.branch,
+                     "project": self.project,
+                     }
+                 }
+        return event
+
     def addApproval(self, category, value, username='jenkins',
                     granted_on=None):
         if not granted_on:
