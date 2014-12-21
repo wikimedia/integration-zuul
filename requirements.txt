@@ -13,6 +13,14 @@ statsd>=1.0.0,<3.0
 voluptuous>=0.7
 gear>=0.5.4,<1.0.0
 apscheduler>=2.1.1,<3.0
-PrettyTable>=0.6,<0.8
-babel>=1.0
-six>=1.6.0
+
+# WMF hack: provided via tarballs
+#PrettyTable>=0.6,<0.8
+#babel>=1.0
+#six>=1.6.0
+
+# pytz is a dependency of Babel
+pytz-2014.4.tar.gz
+Babel-1.3.tar.gz
+prettytable-0.7.2.tar.bz2
+six-1.7.3.tar.gz
