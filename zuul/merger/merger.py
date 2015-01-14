@@ -55,7 +55,18 @@ class Repo(object):
         if self.username:
             repo.config_writer().set_value('user', 'name',
                                            self.username)
-        repo.config_writer().write()
+        config_writer = repo.config_writer()
+        try:
+            # GitConfigParser.write() acquires a lock but does not release it.
+            # The lock is released in the object's __del__ method, which is
+            # invoked when the object is about to be dereferenced. This is not
+            # a reliable means of ensuring the lock is released, because it can
+            # break if there is a circular reference keeping the object alive,
+            # or if another GitConfigParser object for the same repository is
+            # initiated while a reference to the existing one is still held.
+            config_writer.write()
+        finally:
+            config_writer._lock._release_lock()
         self._initialized = True
 
     def isInitialized(self):
