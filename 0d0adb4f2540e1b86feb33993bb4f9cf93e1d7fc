@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "ae6ac7d6_95e465a5",
+        "filename": "zuul/lib/cloner.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 129,
+      "author": {
+        "id": 255
+      },
+      "writtenOn": "2015-01-18T18:04:04Z",
+      "side": 1,
+      "message": "Note that repo.reset() calls repo.update() internally",
+      "revId": "0d0adb4f2540e1b86feb33993bb4f9cf93e1d7fc",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
