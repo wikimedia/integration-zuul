@@ -94,7 +94,7 @@ class Repo(object):
         # Reset to remote HEAD (usually origin/master)
         repo.head.reference = origin.refs['HEAD']
         repo.head.reset(index=True, working_tree=True)
-        repo.git.clean('-x', '-f', '-d')
+        repo.git.clean('-x', '-f', '-f', '-d')
 
     def prune(self):
         repo = self.createRepoObject()
