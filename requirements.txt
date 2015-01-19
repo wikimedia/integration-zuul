@@ -6,7 +6,6 @@ Paste
 WebOb
 paramiko
 GitPython>=0.3.2.1
-lockfile>=0.8
 python-daemon>=2.0.4
 extras
 statsd>=1.0.0,<3.0
