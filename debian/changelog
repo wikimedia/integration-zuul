@@ -1,3 +1,23 @@
+zuul (2.0.0-304-g685ca22-1) precise-wikimedia; urgency=low
+
+  * Snapshot from upstream, target is Wikimedia Ubuntu Precise which has some
+    updated packages for python modules packages.
+  * Adjust debian/gbp.conf to match our repository layout
+  * Bump debian/compat from 8 to 9
+  * Bump standard from 3.9.3 to 3.9.7
+  * Build for python 2.7 so we can get rid of the OrderDict and argparse
+    python modules which are only needed for python 2.6.
+  * Skip building sphinx doc entirely due to sphinx.programoutput not being
+    able to find the shipped commands (zuul, zuul-merger, zuul-cloner)
+  * Add dh-virtualenv to bring in additional dependencies not available in
+    Wikimedia Ubuntu Precise. Require an unreleased snapshot of dh-virtualenv
+    0.9, see:
+        https://phabricator.wikimedia.org/T91631
+        https://github.com/spotify/dh-virtualenv/issues/78
+
+
+ -- Antoine Musso <hashar@free.fr>  Sat, 07 Mar 2015 21:00:13 +0100
+
 zuul (1.3.0-1) UNRELEASED; urgency=low
 
   * Initial release (Closes: #705844)
