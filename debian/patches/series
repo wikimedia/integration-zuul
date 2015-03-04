@@ -2,3 +2,4 @@
 0002-Merger-ensure_cloned-now-looks-for-.git.patch
 0003-Update-merge-status-after-merge-merge-is-submitted.patch
 0004-Ensure-the-repository-configuration-lock-is-released.patch
+0005-Replace-python-shebang-with-python2.7.patch
