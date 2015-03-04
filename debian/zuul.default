@@ -1,0 +1,15 @@
+# START_DAEMON:
+#   Set to 1 to start the zuul daemon
+START_DAEMON=0
+
+# STATSD_HOST:
+#   hostname or IP to send statsd packets to.
+#export STATSD_HOST=localhost
+
+# STATSD_PORT:
+#   udp port to send statsd to.
+#export STATSD_PORT=8125
+
+# DAEMON_ARGS:
+#   Arguments passed to the Zuul server
+#DAEMON_ARGS='-c /etc/zuul/zuul-server.conf'
