@@ -1,0 +1,7 @@
+# START_DAEMON:
+#   Set to 1 to start the zuul-merger daemon
+START_DAEMON=0
+
+# DAEMON_ARGS:
+#   Arguments passed to the Zuul merger
+#DAEMON_ARGS='-c /etc/zuul/zuul-merger.conf'
