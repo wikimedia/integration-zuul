@@ -14,7 +14,7 @@ export OSLO_PACKAGE_VERSION=$(VERSION)
 
 override_dh_auto_build:
 	dh_auto_build
-	$(MAKE) -C doc html man BUILDDIR=$(CURDIR)/build/docs
+#	$(MAKE) -C doc html man BUILDDIR=$(CURDIR)/build/docs
 
 override_dh_auto_clean:
 	dh_auto_clean
