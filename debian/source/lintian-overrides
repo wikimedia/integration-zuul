@@ -1,0 +1,5 @@
+# dh-virtualenv is not recognized by lintian
+zuul source: python-depends-but-no-python-helper
+
+# Wikimedia distribution is 'precise-wikimedia'
+zuul source: bad-distribution-in-changes-file
