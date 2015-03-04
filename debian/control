@@ -6,17 +6,26 @@ Build-Depends: debhelper (>= 8.0.0),
  openstack-pkg-tools,
  python (>= 2.6)
 Build-Depends-Indep:
+ python-apscheduler (>= 2.1.1),
  python-extras,
+ python-fixtures (>= 0.3.14),
+ python-gear (>= 0.5.4),
  python-git (>= 0.3.2~RC1),
  python-jenkins,
+ python-keystoneclient (>=0.4.2),
  python-lockfile,
  python-nose,
  python-paramiko,
  python-paste,
+ python-pbr (>= 0.5.21),
  python-setuptools,
  python-sphinx (>= 1.0.7+dfsg),
+ python-sphinxcontrib.blockdiag (>= 0.5.5),
+ python-sphinxcontrib.programoutput,
  python-statsd,
- python-voluptuous (<< 0.7),
+ python-swiftclient (>= 1.6),
+ python-testtools (>= 0.9.32),
+ python-voluptuous (>= 0.7),
  python-webob,
  python-yaml
 Standards-Version: 3.9.3
@@ -30,21 +39,26 @@ Architecture: all
 Depends: adduser,
  libjs-jquery,
  libjs-underscore,
+ python-apscheduler (>= 2.1.1),
  python-daemon,
  python-extras,
+ python-gear (>= 0.5.4),
  python-git (>= 0.3.2~RC1),
  python-jenkins,
  python-lockfile,
  python-paramiko,
  python-paste,
- python-voluptuous (<< 0.7),
+ python-pbr (>= 0.5.21),
+ python-voluptuous (>= 0.7),
  python-webob,
  python-yaml,
  ${misc:Depends},
  ${python:Depends}
 Suggests:
  jenkins (>= 1.426),
- python-statsd
+ python-statsd,
+ python-keystoneclient (>= 0.4.2),
+ python-swiftclient (>= 1.6)
 Description: Trunk gating system
  Zuul is a program that is used to gate the source code repository of a project
  so that changes are only merged if they pass tests.
