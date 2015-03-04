@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 # Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+export DH_VERBOSE=1
 
 UPSTREAM_GIT = git://github.com/openstack-infra/zuul.git
 
@@ -10,11 +10,12 @@ include /usr/share/openstack-pkg-tools/pkgos.make
 export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
-	dh $@ --with python2,sphinxdoc
+	dh $@ --with python-virtualenv
 
 override_dh_auto_build:
 	dh_auto_build
-	$(MAKE) -C doc html man BUILDDIR=$(CURDIR)/build/docs
+	# Ubuntu Precise is missing blockdiag/pillow. Skip doc
+	#PYTHONPATH=. http_proxy='.' https_proxy='.' $(MAKE) -C doc html man BUILDDIR=$(CURDIR)/build/docs
 
 override_dh_auto_clean:
 	dh_auto_clean
@@ -22,9 +23,29 @@ override_dh_auto_clean:
 
 override_dh_auto_install:
 	dh_auto_install
-	install -D -m 0644 $(CURDIR)/etc/layout.yaml-sample $(CURDIR)/debian/etc/zuul/layout.yaml
-	install -D -m 0644 $(CURDIR)/etc/logging.conf-sample $(CURDIR)/debian/etc/zuul/logging.conf
-	install -D -m 0644 $(CURDIR)/etc/zuul.conf-sample $(CURDIR)/debian/etc/zuul/zuul.conf
+
+override_dh_installinit:
+	dh_installinit --name=zuul
+	dh_installinit --name=zuul-merger
+
+override_dh_virtualenv:
+	# Needs dh_virtualenv 0.9+ for --use-system-packages
+	# The .pyc are generated in postinst
+	PIP_NO_COMPILE=1 PYTHONDONTWRITEBYTECODE=true VIRTUALENV_VERBOSE=true dh_virtualenv \
+		--python '/usr/bin/python2.7' \
+		--use-system-packages \
+		--no-package ordereddict \
+		--no-package paramiko \
+		--no-package WebOb \
+		--extra-pip-arg '--no-compile' \
+		--pypi-url https://pypi.python.org/simple
+	find $(CURDIR)/debian/zuul/usr/share/python/zuul -type f -name '*.pyc' -delete
+	rm $(CURDIR)/debian/zuul/usr/share/python/zuul/bin/activate*
+	rm $(CURDIR)/debian/zuul/usr/share/python/zuul/bin/easy_install*
+	rm $(CURDIR)/debian/zuul/usr/share/python/zuul/bin/pip*
+	rm $(CURDIR)/debian/zuul/usr/share/python/zuul/bin/pybabel*
+	# python2.7 is populated in postinst and refreshed by dh-virtualenv trigger
+	rm $(CURDIR)/debian/zuul/usr/share/python/zuul/bin/python2.7
 
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
