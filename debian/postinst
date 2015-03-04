@@ -33,7 +33,7 @@ case "$1" in
 		chown -R zuul:zuul /var/lib/zuul
 		chown -R zuul:adm /var/log/zuul
 
-		chmod 0640 -R /etc/zuul/*
+		chmod 0640 -R /etc/zuul
 
 		chmod 0750 /etc/zuul
 		chmod 0750 /var/lib/zuul
