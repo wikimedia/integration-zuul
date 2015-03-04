@@ -1,0 +1,7 @@
+# virtualenv uses the python provided by virtualenv
+# there is a trigger to update it though
+zuul binary: wrong-path-for-interpreter *
+
+# Scripts shebang are rewritten by virtualenv and point to
+# /usr/share/python/zuul/bin/python2.7 which is a copy of the system python2.7
+zuul binary: python-script-but-no-python-dep usr/share/python/zuul/bin/*
