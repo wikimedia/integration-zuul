@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 # Uncomment this to turn on verbose mode.
-#export DH_VERBOSE=1
+export DH_VERBOSE=1
 
 UPSTREAM_GIT = git://github.com/openstack-infra/zuul.git
 
@@ -10,9 +10,14 @@ include /usr/share/openstack-pkg-tools/pkgos.make
 export OSLO_PACKAGE_VERSION=$(VERSION)
 
 %:
-	dh $@ --with python2,sphinxdoc
+#	dh $@ --with python2,sphinxdoc
+	dh $@ --with python-virtualenv
 
 override_dh_auto_build:
+#	# Append test requirements, can be dropped once we get dh-virtualenv 0.8+
+#	# which supports passing extra args to pip
+#	cat $(CURDIR)/test-requirements.txt >> requirements.txt
+
 	dh_auto_build
 #	$(MAKE) -C doc html man BUILDDIR=$(CURDIR)/build/docs
 	mkdir -p $(CURDIR)/build/docs/html
@@ -27,6 +32,13 @@ override_dh_auto_install:
 	install -D -m 0644 $(CURDIR)/etc/layout.yaml-sample $(CURDIR)/debian/etc/zuul/layout.yaml
 	install -D -m 0644 $(CURDIR)/etc/logging.conf-sample $(CURDIR)/debian/etc/zuul/logging.conf
 	install -D -m 0644 $(CURDIR)/etc/zuul.conf-sample $(CURDIR)/debian/etc/zuul/zuul.conf
+
+override_dh_virtualenv:
+	# Needs 0.8+
+	dh_virtualenv --setuptools \
+		--extra-pip-arg '-rtest-requirements.txt' \
+		--extra-pip-arg '--verbose' \
+		--pypi-url https://pypi.python.org/simple
 
 override_dh_auto_test:
 ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
