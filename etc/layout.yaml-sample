@@ -1,0 +1,66 @@
+pipelines:
+  - name: check
+    manager: IndependentPipelineManager
+    trigger:
+      gerrit:
+        - event: patchset-created
+    success:
+      gerrit:
+        verified: 1
+    failure:
+     gerrit:
+        verified: -1
+
+  - name: tests
+    manager: IndependentPipelineManager
+    trigger:
+      gerrit:
+        - event: patchset-created
+          email_filter: ^.*@example.org$
+    success:
+      gerrit:
+        verified: 1
+    failure:
+      gerrit:
+        verified: -1
+
+  - name: post
+    manager: IndependentPipelineManager
+    trigger:
+      gerrit:
+        - event: ref-updated
+          ref: ^(?!refs/).*$
+
+  - name: gate
+    manager: DependentPipelineManager
+    trigger:
+      gerrit:
+        - event: comment-added
+          approval:
+            - approved: 1
+    start:
+      gerrit:
+        verified: 0
+    success:
+      gerrit:
+        verified: 1
+    failure:
+      gerrit:
+        verified: -1
+
+jobs:
+  - name: ^.*-merge$
+    failure-message: Unable to merge change, please rebase and try again.
+
+projects:
+  - name: example/project
+    check:
+      - project-merge
+    tests:
+      - project-merge:
+        - project-test
+    gate:
+      - project-merge:
+        - project-test
+    post:
+      - project-publish

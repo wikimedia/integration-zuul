@@ -1,0 +1,10 @@
+pipelines:
+  - name: check
+    manager: IndependentPipelineManager
+
+projects:
+  - name: foo
+  # gate pipeline is not defined.
+    gate:
+      - test
+

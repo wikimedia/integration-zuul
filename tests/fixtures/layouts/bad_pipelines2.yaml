@@ -1,0 +1,7 @@
+pipelines:
+  # name is required for pipelines
+  - noname: check
+    manager: IndependentPipelineManager
+
+projects:
+  - name: foo
