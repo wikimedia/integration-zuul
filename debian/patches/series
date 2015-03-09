@@ -1,0 +1,4 @@
+0001-wmf-soften-requirements.patch
+0002-Merger-ensure_cloned-now-looks-for-.git.patch
+0003-Update-merge-status-after-merge-merge-is-submitted.patch
+0004-Ensure-the-repository-configuration-lock-is-released.patch
