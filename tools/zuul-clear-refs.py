@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 # Copyright 2014-2015 Antoine "hashar" Musso
 # Copyright 2014-2015 Wikimedia Foundation Inc.
 #
