@@ -1,0 +1,123 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "6e7c4fa4_77a6de0d",
+        "filename": "debian/links",
+        "patchSetId": 10
+      },
+      "lineNbr": 15,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-25T11:05:31Z",
+      "side": 1,
+      "message": "We need to keep the copy. A symlink would cause python to no more find the modules in the Zuul venv :(",
+      "revId": "011f8a481d4805b4032a9b4ad4fa1cdb099dcb18",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_97ab7ad3",
+        "filename": "debian/prerm",
+        "patchSetId": 10
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-25T11:05:31Z",
+      "side": 1,
+      "message": "Fixed indentation: tabs -\u003e spaces",
+      "revId": "011f8a481d4805b4032a9b4ad4fa1cdb099dcb18",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_f7b98e2a",
+        "filename": "debian/rules",
+        "patchSetId": 10
+      },
+      "lineNbr": 33,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-25T11:05:31Z",
+      "side": 1,
+      "message": "Dropping left over comment",
+      "revId": "011f8a481d4805b4032a9b4ad4fa1cdb099dcb18",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_17b76a36",
+        "filename": "debian/rules",
+        "patchSetId": 10
+      },
+      "lineNbr": 38,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-25T11:05:31Z",
+      "side": 1,
+      "message": "Dropping left over comment. We are not going to run tests.",
+      "revId": "011f8a481d4805b4032a9b4ad4fa1cdb099dcb18",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_b7879665",
+        "filename": "debian/rules",
+        "patchSetId": 10
+      },
+      "lineNbr": 40,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-25T11:05:31Z",
+      "side": 1,
+      "message": "Added a comment that .pyc are generated in postinst.",
+      "revId": "011f8a481d4805b4032a9b4ad4fa1cdb099dcb18",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_57b16240",
+        "filename": "debian/rules",
+        "patchSetId": 10
+      },
+      "lineNbr": 55,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-25T11:05:31Z",
+      "side": 1,
+      "message": "We need to keep the binary :(",
+      "revId": "011f8a481d4805b4032a9b4ad4fa1cdb099dcb18",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_379b86c2",
+        "filename": "debian/source/lintian-overrides",
+        "patchSetId": 10
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-25T11:05:31Z",
+      "side": 1,
+      "message": "Added a lintian override for:\n\n arch-dependent-file-in-usr-share usr/share/python/zuul/bin/python2.7\n\nWe need the binary copy to have python lookup modules in the zuul venv :(\n\nAlso overrides the binary-without-manpage warnings.\n\n\nWe are left with \"bad-distribution-in-changes-file precise-wikimedia\" but that is in the changes file and lintian does not support extracting the overrides from the tarball.",
+      "revId": "011f8a481d4805b4032a9b4ad4fa1cdb099dcb18",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
