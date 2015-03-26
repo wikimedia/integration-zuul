@@ -90,6 +90,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_d9dd9ce3",
+        "filename": "debian/gbp.conf",
+        "patchSetId": 12
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T12:27:02Z",
+      "side": 1,
+      "message": "The only changes are the dependencies in the debian/control file.  Some package are available in Trusty with the appropriate version so I have uncommented a few of them.  Beside that no differences.\n\nCan we do if else in control?  Or define several source packages having different Build-Deps?\n\nNote the packaging for Debian/Sid would no more use dh-virtualenv so it will have much more differences.",
+      "parentUuid": "6e7c4fa4_7960082e",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_99d88459",
         "filename": "debian/gbp.conf",
         "patchSetId": 12
@@ -230,6 +248,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_79e6c8ac",
+        "filename": "debian/rules",
+        "patchSetId": 12
+      },
+      "lineNbr": 45,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T12:27:02Z",
+      "side": 1,
+      "message": "Ok keeping the activate / easy_install stuff :)\n\nI am quite happy the embedded python2.7 binary is gone. Thanks!",
+      "parentUuid": "6e7c4fa4_99c40413",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_b9da2076",
         "filename": "debian/zuul-merger.init",
         "patchSetId": 12
@@ -347,6 +383,24 @@
       "side": 1,
       "message": "which init script? it shouldn\u0027t fail if /etc/default isn\u0027t there but use sensible defaults instead, the way you are suggesting is fine I think",
       "parentUuid": "6e7c4fa4_998c0434",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_b9f0e062",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 39,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T12:27:02Z",
+      "side": 1,
+      "message": "I have bothered it from /etc/init.d/minissdpd\n\nI have amended the change to provide sane default and pushed an update to our puppet repo: https://gerrit.wikimedia.org/r/#/c/199861/1",
+      "parentUuid": "6e7c4fa4_b9c9c02a",
       "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
