@@ -72,6 +72,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_7960082e",
+        "filename": "debian/gbp.conf",
+        "patchSetId": 12
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T12:03:00Z",
+      "side": 1,
+      "message": "I suspect you can get away with a single debian branch, do they differ much?",
+      "parentUuid": "6e7c4fa4_f90f38d6",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_99d88459",
         "filename": "debian/gbp.conf",
         "patchSetId": 12
@@ -194,6 +212,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_99c40413",
+        "filename": "debian/rules",
+        "patchSetId": 12
+      },
+      "lineNbr": 45,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T12:03:00Z",
+      "side": 1,
+      "message": "re: activate and friends, I don\u0027t see the point of just removing them from bin while the actual python code is in site-packages\n\nre: the binary, yeah that\u0027s what I was suggesting (and failed to communicate it)",
+      "parentUuid": "6e7c4fa4_3997f04c",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_b9da2076",
         "filename": "debian/zuul-merger.init",
         "patchSetId": 12
@@ -293,6 +329,24 @@
       "side": 1,
       "message": "I have borrowed that from a random init script.  Should we have some sane defaults defined in the init script before attempting to load /etc/default/zuul-merger ? I can imagine something like:\n\n START_DAEMON\u003d0\n DAEMON_ARGS\u003d\u0027\u0027\n [ -r /etc/default/$NAME ] \u0026\u0026  . /etc/default/$NAME\n\nBut I am afraid (I | we) will forget to keep in sync the defaults in the init script and the default file.  Maybe I am overthinking.",
       "parentUuid": "6e7c4fa4_79d00854",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_b9c9c02a",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 39,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T12:03:00Z",
+      "side": 1,
+      "message": "which init script? it shouldn\u0027t fail if /etc/default isn\u0027t there but use sensible defaults instead, the way you are suggesting is fine I think",
+      "parentUuid": "6e7c4fa4_998c0434",
       "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
