@@ -1,0 +1,191 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "6e7c4fa4_19e2342e",
+        "filename": "debian/docs",
+        "patchSetId": 12
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "remove the file?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_59f42ced",
+        "filename": "debian/gbp.conf",
+        "patchSetId": 12
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "not sure this is right, it should be a branch name like \"master\" not HEAD",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_79f9e8e3",
+        "filename": "debian/install",
+        "patchSetId": 12
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "remove the file?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_39dff06d",
+        "filename": "debian/prerm",
+        "patchSetId": 12
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "no path needed into the virtualenv here?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_b960e0a0",
+        "filename": "debian/rules",
+        "patchSetId": 12
+      },
+      "lineNbr": 45,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "couple of things:\n- not sure removing these is necessary, the real sources are shipped anyway in the virtualenv in site-packages\n- OTOH the python binary can be removed and it\u0027ll get copied upon installation inside the virtualenv IIRC?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_b9da2076",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "zuul-merger",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_59cbcca8",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 8,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "ditto",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_79d00854",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 39,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "do you really need to fail here as opposed to set defaults before sourcing /etc/default/$NAME ?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_f9e41838",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 99,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "(here and elsewhere) you can use $NAME",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_d9befcfa",
+        "filename": "debian/zuul.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 39,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "ditto, see comment for zuul-merger",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_f9bbb807",
+        "filename": "debian/zuul.triggers",
+        "patchSetId": 12
+      },
+      "lineNbr": 4,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-26T10:31:56Z",
+      "side": 1,
+      "message": "do we care about 2.6?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
