@@ -19,6 +19,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_f9f898be",
+        "filename": "debian/docs",
+        "patchSetId": 12
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "6e7c4fa4_19e2342e",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_59f42ced",
         "filename": "debian/gbp.conf",
         "patchSetId": 12
@@ -30,6 +48,41 @@
       "writtenOn": "2015-03-26T10:31:56Z",
       "side": 1,
       "message": "not sure this is right, it should be a branch name like \"master\" not HEAD",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_f90f38d6",
+        "filename": "debian/gbp.conf",
+        "patchSetId": 12
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "That is merely a hack to avoid having to pass  --git-debian-branch\u003d\u003cwhatever branch I am working on\u003e.  The repository branches in our repository are:\n\n master: a fork of upstream with some patches pending review on their side. Does not have a /debian/ directory\n upstream: upstream code we are based on\n\nThen I have created a branch for each debian package:\n\n debian/precise-wikimedia A merge of upstream + debian repository containing our pending patches as quilt patches in debian/patches\n debian/trusty-wikimedia Ditto but for our Trusty.\n\nBoth debian/* branches have  debian-branch \u003d HEAD so on my machine I would:\n\n git checkout debian/precise-wikimedia\n DEB_BUILD_OPTIONS\u003dnocheck git-buildpackage --git-dist\u003dprecise-wikimedia --git-pbuilder\n\nThen to build the trusty one, I s/precise/wikimedia/\n\n git checkout debian/trusty-wikimedia\n DEB_BUILD_OPTIONS\u003dnocheck git-buildpackage --git-dist\u003dtrusty-wikimedia --git-pbuilder\n\nI guess I could adjust my workflow to pass --git-debian-branch\u003dHEAD or the actual branch name.  But that is one more parameter to handle for my confused brain :-)",
+      "parentUuid": "6e7c4fa4_59f42ced",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_99d88459",
+        "filename": "debian/gbp.conf",
+        "patchSetId": 12
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "Getting rid of those. git-buildpackage default to upstream and the upstream source we care about is in the upstream branch.  Though one will need to have it checked out and up-to-date.",
       "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
@@ -53,6 +106,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_59de6c44",
+        "filename": "debian/install",
+        "patchSetId": 12
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "Left over from a previous package attempt. We were copying there a bunch of example etc files. Found it is better to populate ours via puppet.\n\nDone.",
+      "parentUuid": "6e7c4fa4_79f9e8e3",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_39dff06d",
         "filename": "debian/prerm",
         "patchSetId": 12
@@ -64,6 +135,24 @@
       "writtenOn": "2015-03-26T10:31:56Z",
       "side": 1,
       "message": "no path needed into the virtualenv here?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_19ec74f1",
+        "filename": "debian/prerm",
+        "patchSetId": 12
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "Good catch!",
+      "parentUuid": "6e7c4fa4_39dff06d",
       "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
@@ -87,6 +176,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_3997f04c",
+        "filename": "debian/rules",
+        "patchSetId": 12
+      },
+      "lineNbr": 45,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "\u003e not sure removing these is necessary, the real sources are shipped anyway in the virtualenv in site-packages\n\nThe activate* easy_install* pip* are copied by dh-virtualenv and we do not need them at all. So I am getting rid of the files to avoid shipping unneeded files. I think it generated some lintian errors as well.\nI have added the deletion of bin/pybabel which we dont need either.\n\nThe pyc file have to be generated on postinst so we don\u0027t want to ship them in the package.\n\n\n\u003e OTOH the python binary can be removed and it\u0027ll get copied upon installation inside the virtualenv IIRC?\n\nThe dh-virtualenv is run before and already copied the python2.7 binary. I found a trick: next patchset deletes it so it is no more in the .deb package then I just copy it from /usr/bin/python2.7 in postinst if it does not exist.",
+      "parentUuid": "6e7c4fa4_b960e0a0",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_b9da2076",
         "filename": "debian/zuul-merger.init",
         "patchSetId": 12
@@ -98,6 +205,24 @@
       "writtenOn": "2015-03-26T10:31:56Z",
       "side": 1,
       "message": "zuul-merger",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_b9922055",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "Done and I have updated our puppet manifest https://gerrit.wikimedia.org/r/#/c/199852/",
+      "parentUuid": "6e7c4fa4_b9da2076",
       "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
@@ -121,6 +246,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_5983cc07",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 8,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "Done and I have updated our puppet manifest https://gerrit.wikimedia.org/r/#/c/199852/",
+      "parentUuid": "6e7c4fa4_59cbcca8",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_79d00854",
         "filename": "debian/zuul-merger.init",
         "patchSetId": 12
@@ -132,6 +275,24 @@
       "writtenOn": "2015-03-26T10:31:56Z",
       "side": 1,
       "message": "do you really need to fail here as opposed to set defaults before sourcing /etc/default/$NAME ?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_998c0434",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 12
+      },
+      "lineNbr": 39,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "I have borrowed that from a random init script.  Should we have some sane defaults defined in the init script before attempting to load /etc/default/zuul-merger ? I can imagine something like:\n\n START_DAEMON\u003d0\n DAEMON_ARGS\u003d\u0027\u0027\n [ -r /etc/default/$NAME ] \u0026\u0026  . /etc/default/$NAME\n\nBut I am afraid (I | we) will forget to keep in sync the defaults in the init script and the default file.  Maybe I am overthinking.",
+      "parentUuid": "6e7c4fa4_79d00854",
       "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
@@ -183,6 +344,24 @@
       "writtenOn": "2015-03-26T10:31:56Z",
       "side": 1,
       "message": "do we care about 2.6?",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_5992ec4e",
+        "filename": "debian/zuul.triggers",
+        "patchSetId": 12
+      },
+      "lineNbr": 4,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T11:32:43Z",
+      "side": 1,
+      "message": "I have made the package python2.7 only so yeah removing python2.6 from the triggers :) Done.",
+      "parentUuid": "6e7c4fa4_f9bbb807",
       "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
