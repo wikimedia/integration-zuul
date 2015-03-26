@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "6e7c4fa4_d9b91c2b",
+        "filename": "debian/changelog",
+        "patchSetId": 11
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-03-26T10:06:12Z",
+      "side": 1,
+      "message": "I am suffixing the version with \u0027precise1\u0027 since the package will also be build for Trusty.  That will be less confusing to me.",
+      "revId": "ee3a7f6d5a5b7ea230c64a8b77fd4bfce2223824",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
