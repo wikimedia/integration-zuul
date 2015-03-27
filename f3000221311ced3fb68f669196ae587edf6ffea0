@@ -108,6 +108,24 @@
     },
     {
       "key": {
+        "uuid": "6e7c4fa4_272b3e30",
+        "filename": "debian/gbp.conf",
+        "patchSetId": 12
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-27T10:17:13Z",
+      "side": 1,
+      "message": "ack, I think that\u0027s fine for now but please stick a comment in there explaining why just so it is clear",
+      "parentUuid": "6e7c4fa4_d9dd9ce3",
+      "revId": "f3000221311ced3fb68f669196ae587edf6ffea0",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "6e7c4fa4_99d88459",
         "filename": "debian/gbp.conf",
         "patchSetId": 12
