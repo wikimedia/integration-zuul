@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "6e7c4fa4_a71e6e0f",
+        "filename": "debian/postinst",
+        "patchSetId": 14
+      },
+      "lineNbr": 47,
+      "author": {
+        "id": 1629
+      },
+      "writtenOn": "2015-03-27T10:29:47Z",
+      "side": 1,
+      "message": "for some reason I thought this was taken care of by dh-virtualenv?\n\nalso you should compare the paths as opposed testing for existence\n\nif ! cmp -s src dest; then\n  cp -a src dest\nfi",
+      "revId": "60143298f300925bc6f63b28ecb7d0b0ff0c5fd9",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
