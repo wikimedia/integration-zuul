@@ -16,6 +16,41 @@
       "revId": "60143298f300925bc6f63b28ecb7d0b0ff0c5fd9",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_93c03356",
+        "filename": "debian/postinst",
+        "patchSetId": 14
+      },
+      "lineNbr": 47,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-04-01T13:07:53Z",
+      "side": 1,
+      "message": "The trigger updates it for us. But yeah better be safe. Done!",
+      "parentUuid": "6e7c4fa4_a71e6e0f",
+      "revId": "60143298f300925bc6f63b28ecb7d0b0ff0c5fd9",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_33cfdf83",
+        "filename": "debian/zuul-merger.init",
+        "patchSetId": 14
+      },
+      "lineNbr": 96,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-04-01T13:07:53Z",
+      "side": 1,
+      "message": "I have replaced the hardcoded \u0027zuul-merger\u0027 by $NAME.\n\nThe puppet change https://gerrit.wikimedia.org/r/201181 \n\n\nWe can\u0027t do the same for the zuul.init script since $NAME\u003dzuul but the daemon is \u0027zuul-server\u0027.",
+      "revId": "60143298f300925bc6f63b28ecb7d0b0ff0c5fd9",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
     }
   ]
 }
