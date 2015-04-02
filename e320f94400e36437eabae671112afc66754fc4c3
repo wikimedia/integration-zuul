@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "6e7c4fa4_1355fa51",
+        "filename": "debian/postinst",
+        "patchSetId": 15
+      },
+      "lineNbr": 49,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-04-02T12:25:54Z",
+      "side": 1,
+      "message": "Bah:\n\n  /var/lib/dpkg/info/zuul.postinst: 49: [: cmp: unexpected operator\n\nHave to remove the surrounding brackets....",
+      "revId": "e320f94400e36437eabae671112afc66754fc4c3",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
