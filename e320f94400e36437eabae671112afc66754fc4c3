@@ -16,6 +16,23 @@
       "revId": "e320f94400e36437eabae671112afc66754fc4c3",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "6e7c4fa4_93210aae",
+        "filename": "debian/rules",
+        "patchSetId": 15
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2015-04-02T12:57:42Z",
+      "side": 1,
+      "message": "pkgos.make produces a bunch of variables for us:\n\n DEBVERS     ?\u003d $(shell dpkg-parsechangelog | sed -n -e \u0027s/^Version: //p\u0027)\n VERSION     ?\u003d $(shell echo \u0027$(DEBVERS)\u0027 | sed -e \u0027s/^[[:digit:]]*://\u0027 -e \u0027s/[-].*//\u0027)\n\nSetting OSLO_PACKAGE_VERSION is a hint for python-pbr to set the version of the software when it is retrieved via --version.\n\nThe pip installed version yields a version found forged pbr from git-describe:\n\n $ /usr/local/bin/zuul-cloner --version\n Zuul version: 2.0.0.318.g9cb4842\n\n\nSetting OSLO_PACKAGE_VERSION basically gives the version to pbr. From pkgos.make VERSION\u003d2.0.0 so the Debian package as of patchset 15 yields:\n\n $ /usr/bin/zuul-cloner --version\n Zuul version: 2.0.0\n\n\nPointing it to DEBVER which comes from the changelog yields a better result:\n\n $ /usr/bin/zuul-cloner --version\n Zuul version: 2.0.0-304-g685ca22-wmf1precise1",
+      "revId": "e320f94400e36437eabae671112afc66754fc4c3",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
     }
   ]
 }
