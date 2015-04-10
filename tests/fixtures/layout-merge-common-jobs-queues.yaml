@@ -1,0 +1,28 @@
+pipelines:
+  - name: gate
+    manager:
+      name: DependentPipelineManager
+      common-jobs:
+        - common-test1
+    precedence: low
+    trigger:
+      gerrit:
+        - event: comment-added
+          approval:
+            - approved: 1
+
+projects:
+  - name: projectA
+    gate:
+      - test-only-a
+      - common-test1
+
+  - name: projectB
+    gate:
+      - test-only-b
+      - common-test2
+
+  - name: projectC
+    gate:
+      - common-test1
+      - common-test2

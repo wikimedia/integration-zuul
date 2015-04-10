@@ -29,9 +29,10 @@ def toList(x):
 class LayoutSchema(object):
     include = {'python-file': str}
     includes = [include]
-
-    manager = v.Any('IndependentPipelineManager',
-                    'DependentPipelineManager')
+    manager_types = ('IndependentPipelineManager', 'DependentPipelineManager')
+    manager = v.Any(v.Schema({'name': v.Any(*manager_types),
+                              'common-jobs': toList(str)}),
+                    *manager_types)
 
     precedence = v.Any('normal', 'low', 'high')
 

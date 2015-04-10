@@ -328,6 +328,9 @@ class ChangeQueue(object):
     def getJobs(self):
         return self._jobs
 
+    def getJobNames(self):
+        return set(job.name for job in self._jobs)
+
     def addProject(self, project):
         if project not in self.projects:
             self.projects.append(project)

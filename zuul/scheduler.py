@@ -283,7 +283,11 @@ class Scheduler(threading.Thread):
             pipeline.window_decrease_factor = conf_pipeline.get(
                 'window-decrease-factor', 2)
 
-            manager = globals()[conf_pipeline['manager']](self, pipeline)
+            conf_manager = conf_pipeline['manager']
+            if isinstance(conf_manager, str):
+                # For backwards compatability
+                conf_manager = {'name': conf_manager}
+            manager = globals()[conf_manager['name']](self, pipeline, conf_manager)
             pipeline.setManager(manager)
             layout.pipelines[conf_pipeline['name']] = pipeline
 
@@ -931,7 +935,7 @@ class Scheduler(threading.Thread):
 class BasePipelineManager(object):
     log = logging.getLogger("zuul.BasePipelineManager")
 
-    def __init__(self, sched, pipeline):
+    def __init__(self, sched, pipeline, other_config={}):
         self.sched = sched
         self.pipeline = pipeline
         self.event_filters = []
@@ -1691,6 +1695,11 @@ class DependentPipelineManager(BasePipelineManager):
 
     def __init__(self, *args, **kwargs):
         super(DependentPipelineManager, self).__init__(*args, **kwargs)
+        if 'common-jobs' in args[2]:
+            self.common_jobs = set(args[2]['common-jobs'])
+            self.log.debug('Common jobs are: %s' % ', '.join(self.common_jobs))
+        else:
+            self.common_jobs = False
 
     def _postConfig(self, layout):
         super(DependentPipelineManager, self)._postConfig(layout)
@@ -1734,7 +1743,14 @@ class DependentPipelineManager(BasePipelineManager):
         for a in change_queues:
             merged_a = False
             for b in new_change_queues:
-                if not a.getJobs().isdisjoint(b.getJobs()):
+                merge_queues = False
+                if self.common_jobs:
+                    # If the queues have any of the designated common jobs in common, merge queues
+                    merge_queues = self.common_jobs.intersection(a.getJobNames().intersection(b.getJobNames()))
+                else:
+                    # Automatically merge if they have *any* common jobs
+                    merge_queues = not a.getJobs().isdisjoint(b.getJobs())
+                if merge_queues:
                     self.log.debug("Merging queue %s into %s" % (a, b))
                     b.mergeChangeQueue(a)
                     merged_a = True
