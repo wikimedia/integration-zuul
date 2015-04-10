@@ -1888,6 +1888,13 @@ class TestScheduler(ZuulTestCase):
         self.sched.reconfigure(self.config)
         self.assertEqual(len(self.sched.layout.pipelines['gate'].queues), 1)
 
+    def test_merging_common_jobs_queues(self):
+        "Test that change queues with explicitly specified common jobs are merged"
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-merge-common-jobs-queues.yaml')
+        self.sched.reconfigure(self.config)
+        self.assertEqual(len(self.sched.layout.pipelines['gate'].queues), 2)
+
     def test_node_label(self):
         "Test that a job runs on a specific node label"
         self.worker.registerFunction('build:node-project-test1:debian')
