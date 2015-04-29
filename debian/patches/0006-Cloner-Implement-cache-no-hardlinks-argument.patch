@@ -1,0 +1,91 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Thu, 28 Aug 2014 23:08:38 +0200
+Subject: Cloner: Implement cache-no-hardlinks argument
+
+The cache directory is prefixing with 'file://' which forces in
+git-clone to always copy files. This is intended for OpenStack usage.
+
+By default, git has a feature to hardlink files if the source
+and destination on the same disk. This saves space and speeds up
+the cloning process.
+
+This exposes that feature to users of zuul-cloner.
+
+Change-Id: Ib8796f9dc5ccfeac4a3c9b3d30629c7db0f84739
+---
+ doc/source/cloner.rst |  5 +++++
+ zuul/cmd/cloner.py    |  4 ++++
+ zuul/lib/cloner.py    | 11 ++++++++---
+ 3 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/doc/source/cloner.rst b/doc/source/cloner.rst
+index 2ddf0b5..cb24d12 100644
+--- a/doc/source/cloner.rst
++++ b/doc/source/cloner.rst
+@@ -87,3 +87,8 @@ cloning any projects it processes from those found in that directory.
+ The URL of origin remote of the resulting clone will be reset to use
+ the ``git_base_url`` and then the remote will be updated so that the
+ repository has all the information in the upstream repository.
++
++The ``--cache-no-hardlinks`` option can be used to force git to
++always copy git objects from the cache direcotry. By default, if
++the cache directory is on the same disk as the workspace, git-clone
++will hardlink git objects to speed up the process and save space.
+diff --git a/zuul/cmd/cloner.py b/zuul/cmd/cloner.py
+index d94df97..e783f5e 100755
+--- a/zuul/cmd/cloner.py
++++ b/zuul/cmd/cloner.py
+@@ -58,6 +58,9 @@ class Cloner(zuul.cmd.ZuulApp):
+                             help=('a directory that holds cached copies of '
+                                   'repos from which to make an initial clone.'
+                                   ))
++        parser.add_argument('--cache-no-hardlinks', dest='cache_no_hardlinks',
++                            help=('force git-clone to never use hardlinks when'
++                                  'fetching from the cache directory.'))
+         parser.add_argument('git_base_url',
+                             help='reference repo to clone from')
+         parser.add_argument('projects', nargs='+',
+@@ -147,6 +150,7 @@ class Cloner(zuul.cmd.ZuulApp):
+             clone_map_file=self.args.clone_map_file,
+             project_branches=project_branches,
+             cache_dir=self.args.cache_dir,
++            cache_no_hardlinks=self.args.cache_no_hardlinks
+         )
+         cloner.execute()
+ 
+diff --git a/zuul/lib/cloner.py b/zuul/lib/cloner.py
+index 89ebada..c8a170c 100644
+--- a/zuul/lib/cloner.py
++++ b/zuul/lib/cloner.py
+@@ -29,7 +29,8 @@ class Cloner(object):
+ 
+     def __init__(self, git_base_url, projects, workspace, zuul_branch,
+                  zuul_ref, zuul_url, branch=None, clone_map_file=None,
+-                 project_branches=None, cache_dir=None):
++                 project_branches=None, cache_dir=None,
++                 cache_no_hardlinks=None):
+ 
+         self.clone_map = []
+         self.dests = None
+@@ -37,6 +38,7 @@ class Cloner(object):
+         self.branch = branch
+         self.git_url = git_base_url
+         self.cache_dir = cache_dir
++        self.cache_no_hardlinks = cache_no_hardlinks
+         self.projects = projects
+         self.workspace = workspace
+         self.zuul_branch = zuul_branch
+@@ -73,8 +75,11 @@ class Cloner(object):
+         if (self.cache_dir and
+             os.path.exists(git_cache) and
+             not os.path.exists(dest)):
+-            # file:// tells git not to hard-link across repos
+-            git_cache = 'file://%s' % git_cache
++
++            if self.cache_no_hardlinks:
++                # file:// tells git not to hard-link across repos
++                git_cache = 'file://%s' % git_cache
++
+             self.log.info("Creating repo %s from cache %s",
+                           project, git_cache)
+             new_repo = git.Repo.clone_from(git_cache, dest)
