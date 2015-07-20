@@ -36,7 +36,7 @@ index 70c2b3f..4ec20a6 100644
  #
  # Licensed under the Apache License, Version 2.0 (the "License");
 diff --git a/tests/base.py b/tests/base.py
-index 46c7087..79b6c76 100755
+index 1cafc46..0047e77 100755
 --- a/tests/base.py
 +++ b/tests/base.py
 @@ -1,4 +1,4 @@
