@@ -1,0 +1,23 @@
+From: Julien Danjou <julien@danjou.info>
+Date: Mon, 19 Jan 2015 14:02:09 +0100
+Subject: Remove lockfile from requirements
+
+It's not used anymore.
+
+Change-Id: Ie344fac126ccad610e43b5cda36d4be93e1dc82a
+---
+ requirements.txt | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/requirements.txt b/requirements.txt
+index 60be50b..a458210 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -6,7 +6,6 @@ Paste
+ WebOb
+ paramiko
+ GitPython>=0.3.2.1
+-lockfile>=0.8
+ python-daemon>=2.0.4
+ extras
+ statsd>=1.0.0,<3.0

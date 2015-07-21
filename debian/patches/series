@@ -4,3 +4,4 @@
 0004-Ensure-the-repository-configuration-lock-is-released.patch
 0005-Replace-python-shebang-with-python2.7.patch
 0006-Cloner-Implement-cache-no-hardlinks-argument.patch
+0007-Remove-lockfile-from-requirements.patch
