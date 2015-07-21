@@ -1,3 +1,11 @@
+zuul (2.0.0-327-g3ebedde-wmf1precise1) precise-wikimedia; urgency=low
+
+  * Bump upstream 5984adc..3ebedde
+  * python-daemon to >= 2.0.4
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 21 Jul 2015 16:29:03 +0200
+
+
 zuul (2.0.0-306-g5984adc-wmf1precise1) precise-wikimedia; urgency=low
 
   * Bump GitPython from 0.3.2.RC1 to 0.3.2.1. Fetched by dh_virtualenv.

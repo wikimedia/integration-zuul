@@ -131,7 +131,7 @@ index 0000000..0cc53bd
 +            sub_repo.createRepoObject().remotes[0].url,
 +            message="Sub repository points to upstream project2")
 diff --git a/zuul/merger/merger.py b/zuul/merger/merger.py
-index 922c67e..25955f8 100644
+index 8774f10..f36b974 100644
 --- a/zuul/merger/merger.py
 +++ b/zuul/merger/merger.py
 @@ -40,7 +40,7 @@ class Repo(object):

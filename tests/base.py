@@ -79,6 +79,16 @@ def random_sha1():
     return hashlib.sha1(str(random.random())).hexdigest()
 
 
+def iterate_timeout(max_seconds, purpose):
+    start = time.time()
+    count = 0
+    while (time.time() < start + max_seconds):
+        count += 1
+        yield count
+        time.sleep(0)
+    raise Exception("Timeout waiting for %s" % purpose)
+
+
 class ChangeReference(git.Reference):
     _common_path_default = "refs/changes"
     _points_to_commits_only = True
@@ -252,14 +262,16 @@ class FakeChange(object):
                     granted_on=None):
         if not granted_on:
             granted_on = time.time()
-        approval = {'description': self.categories[category][0],
-                    'type': category,
-                    'value': str(value),
-                    'by': {
-                        'username': username,
-                        'email': username + '@example.com',
-                    },
-                    'grantedOn': int(granted_on)}
+        approval = {
+            'description': self.categories[category][0],
+            'type': category,
+            'value': str(value),
+            'by': {
+                'username': username,
+                'email': username + '@example.com',
+            },
+            'grantedOn': int(granted_on)
+        }
         for i, x in enumerate(self.patchsets[-1]['approvals'][:]):
             if x['by']['username'] == username and x['type'] == category:
                 del self.patchsets[-1]['approvals'][i]
@@ -349,7 +361,7 @@ class FakeChange(object):
 
     def setMerged(self):
         if (self.depends_on_change and
-            self.depends_on_change.data['status'] != 'MERGED'):
+                self.depends_on_change.data['status'] != 'MERGED'):
             return
         if self.fail_merge:
             return
@@ -410,7 +422,7 @@ class FakeGerrit(object):
         # project
         self.queries.append(query)
         l = [change.query() for change in self.changes.values()]
-        l.append({"type":"stats","rowCount":1,"runTimeMilliseconds":3})
+        l.append({"type": "stats", "rowCount": 1, "runTimeMilliseconds": 3})
         return l
 
     def startWatching(self, *args, **kw):
@@ -825,7 +837,8 @@ class ZuulTestCase(testtools.TestCase):
                 '%(levelname)-8s %(message)s'))
         if USE_TEMPDIR:
             tmp_root = self.useFixture(fixtures.TempDir(
-                    rootdir=os.environ.get("ZUUL_TEST_ROOT"))).path
+                rootdir=os.environ.get("ZUUL_TEST_ROOT"))
+            ).path
         else:
             tmp_root = os.environ.get("ZUUL_TEST_ROOT")
         self.test_root = os.path.join(tmp_root, "zuul-test")
@@ -924,7 +937,8 @@ class ZuulTestCase(testtools.TestCase):
         self.sched.registerTrigger(self.gerrit)
         self.timer = zuul.trigger.timer.Timer(self.config, self.sched)
         self.sched.registerTrigger(self.timer)
-        self.zuultrigger = zuul.trigger.zuultrigger.ZuulTrigger(self.config, self.sched)
+        self.zuultrigger = zuul.trigger.zuultrigger.ZuulTrigger(self.config,
+                                                                self.sched)
         self.sched.registerTrigger(self.zuultrigger)
 
         self.sched.registerReporter(
