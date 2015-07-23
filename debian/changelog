@@ -1,3 +1,12 @@
+zuul (2.0.0-327-g3ebedde-wmf3precise1) precise-wikimedia; urgency=medium
+
+  * 0008-Revert-Fix-passing-labels-to-Gerrit-when-they-are-no
+    Makes Zuul to send code-review and verified label votes using the shortcuts
+    --verified and --code-review since --label is case sensitive.
+   See https://phabricator.wikimedia.org/T106596
+
+ -- Antoine Musso <hashar@free.fr>  Thu, 23 Jul 2015 14:11:53 +0000
+
 zuul (2.0.0-327-g3ebedde-wmf2precise1) precise-wikimedia; urgency=medium
 
   * 0007-Remove-lockfile-from-requirements.patch
