@@ -36,7 +36,7 @@ index 70c2b3f..4ec20a6 100644
  #
  # Licensed under the Apache License, Version 2.0 (the "License");
 diff --git a/tests/base.py b/tests/base.py
-index 46c7087..79b6c76 100755
+index b872a85..28d6b76 100755
 --- a/tests/base.py
 +++ b/tests/base.py
 @@ -1,4 +1,4 @@
@@ -46,7 +46,7 @@ index 46c7087..79b6c76 100755
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tests/test_cloner.py b/tests/test_cloner.py
-index ab2683d..b0e2784 100644
+index 137c157..1ce4a0a 100644
 --- a/tests/test_cloner.py
 +++ b/tests/test_cloner.py
 @@ -1,4 +1,4 @@
@@ -86,7 +86,7 @@ index 120e37e..7e56cd1 100644
  # Copyright 2012-2014 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
-index e3c98ed..82312f8 100755
+index 43a5e79..1335ad1 100755
 --- a/tests/test_scheduler.py
 +++ b/tests/test_scheduler.py
 @@ -1,4 +1,4 @@
@@ -106,7 +106,7 @@ index b127c51..8a88261 100644
  # Copyright 2014 Hewlett-Packard Development Company, L.P.
  # Copyright 2014 Rackspace Australia
 diff --git a/tests/test_zuultrigger.py b/tests/test_zuultrigger.py
-index 9a90a98..22d8076 100644
+index 3f339be..35a1ea2 100644
 --- a/tests/test_zuultrigger.py
 +++ b/tests/test_zuultrigger.py
 @@ -1,4 +1,4 @@
@@ -156,7 +156,7 @@ index 766a4ef..00e529d 100644
  # Copyright 2013 OpenStack Foundation
  #
 diff --git a/zuul/cmd/cloner.py b/zuul/cmd/cloner.py
-index 8922161..d94df97 100755
+index d0bb966..551cb5e 100755
 --- a/zuul/cmd/cloner.py
 +++ b/zuul/cmd/cloner.py
 @@ -1,4 +1,4 @@
@@ -176,7 +176,7 @@ index dc3484a..6007368 100644
  # Copyright 2013-2014 OpenStack Foundation
  #
 diff --git a/zuul/cmd/server.py b/zuul/cmd/server.py
-index 25dab6f..db27b18 100755
+index 832eae4..6a245fe 100755
 --- a/zuul/cmd/server.py
 +++ b/zuul/cmd/server.py
 @@ -1,4 +1,4 @@

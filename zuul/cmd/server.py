@@ -150,6 +150,7 @@ class Server(zuul.cmd.ZuulApp):
         import zuul.webapp
         import zuul.rpclistener
 
+        signal.signal(signal.SIGUSR2, zuul.cmd.stack_dump_handler)
         if (self.config.has_option('gearman_server', 'start') and
             self.config.getboolean('gearman_server', 'start')):
             self.start_gear_server()
@@ -165,7 +166,8 @@ class Server(zuul.cmd.ZuulApp):
         merger = zuul.merger.client.MergeClient(self.config, self.sched)
         gerrit = zuul.trigger.gerrit.Gerrit(self.config, self.sched)
         timer = zuul.trigger.timer.Timer(self.config, self.sched)
-        zuultrigger = zuul.trigger.zuultrigger.ZuulTrigger(self.config, self.sched)
+        zuultrigger = zuul.trigger.zuultrigger.ZuulTrigger(self.config,
+                                                           self.sched)
         if self.config.has_option('zuul', 'status_expiry'):
             cache_expiry = self.config.getint('zuul', 'status_expiry')
         else:
@@ -203,7 +205,6 @@ class Server(zuul.cmd.ZuulApp):
 
         signal.signal(signal.SIGHUP, self.reconfigure_handler)
         signal.signal(signal.SIGUSR1, self.exit_handler)
-        signal.signal(signal.SIGUSR2, zuul.cmd.stack_dump_handler)
         signal.signal(signal.SIGTERM, self.term_handler)
         while True:
             try:

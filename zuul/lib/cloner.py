@@ -39,8 +39,8 @@ class Cloner(object):
         self.cache_dir = cache_dir
         self.projects = projects
         self.workspace = workspace
-        self.zuul_branch = zuul_branch
-        self.zuul_ref = zuul_ref
+        self.zuul_branch = zuul_branch or ''
+        self.zuul_ref = zuul_ref or ''
         self.zuul_url = zuul_url
         self.project_branches = project_branches or {}
 
@@ -80,8 +80,7 @@ class Cloner(object):
             new_repo = git.Repo.clone_from(git_cache, dest)
             self.log.info("Updating origin remote in repo %s to %s",
                           project, git_upstream)
-            origin = new_repo.remotes.origin.config_writer.set(
-                'url', git_upstream)
+            new_repo.remotes.origin.config_writer.set('url', git_upstream)
         else:
             self.log.info("Creating repo %s from upstream %s",
                           project, git_upstream)

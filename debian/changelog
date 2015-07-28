@@ -1,3 +1,22 @@
+zuul (2.0.0-327-g3ebedde-wmf3trusty1) trusty-wikimedia; urgency=medium
+
+  * Sync up with precise-wikimedia 2.0.0-327-g3ebedde-wmf3precise1
+
+  * Bump GitPython from 0.3.2.RC1 to 0.3.2.1. Fetched by dh_virtualenv.
+
+  * Bump upstream 5984adc..3ebedde
+  * python-daemon to >= 2.0.4
+
+  * 0007-Remove-lockfile-from-requirements.patch
+  * python-daemon 2.x shipped via the venv
+
+  * 0008-Revert-Fix-passing-labels-to-Gerrit-when-they-are-no
+    Makes Zuul to send code-review and verified label votes using the shortcuts
+    --verified and --code-review since --label is case sensitive.
+   See https://phabricator.wikimedia.org/T106596
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 28 Jul 2015 21:32:08 +0200
+
 zuul (2.0.0-304-g685ca22-wmf2trusty1) trusty-wikimedia; urgency=low
 
   * Sync with precise-wikimedia

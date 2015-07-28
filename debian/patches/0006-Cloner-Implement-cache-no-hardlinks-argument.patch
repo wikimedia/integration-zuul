@@ -32,7 +32,7 @@ index 2ddf0b5..cb24d12 100644
 +the cache directory is on the same disk as the workspace, git-clone
 +will hardlink git objects to speed up the process and save space.
 diff --git a/zuul/cmd/cloner.py b/zuul/cmd/cloner.py
-index d94df97..e783f5e 100755
+index 551cb5e..b507b4f 100755
 --- a/zuul/cmd/cloner.py
 +++ b/zuul/cmd/cloner.py
 @@ -58,6 +58,9 @@ class Cloner(zuul.cmd.ZuulApp):
@@ -54,7 +54,7 @@ index d94df97..e783f5e 100755
          cloner.execute()
  
 diff --git a/zuul/lib/cloner.py b/zuul/lib/cloner.py
-index 89ebada..c8a170c 100644
+index 2b35e41..df87243 100644
 --- a/zuul/lib/cloner.py
 +++ b/zuul/lib/cloner.py
 @@ -29,7 +29,8 @@ class Cloner(object):
@@ -74,7 +74,7 @@ index 89ebada..c8a170c 100644
 +        self.cache_no_hardlinks = cache_no_hardlinks
          self.projects = projects
          self.workspace = workspace
-         self.zuul_branch = zuul_branch
+         self.zuul_branch = zuul_branch or ''
 @@ -73,8 +75,11 @@ class Cloner(object):
          if (self.cache_dir and
              os.path.exists(git_cache) and
