@@ -1,3 +1,11 @@
+zuul (2.1.0-60-g1cc37f7-wmf1trusty1) trusty-wikimedia; urgency=medium
+
+  * Sync with precise-wikimedia
+  * Bump upstream from 3ebedde to 1cc37f7
+  * Embed python-daemon and python-gear
+
+ -- Antoine Musso <hashar@free.fr>  Mon, 02 Nov 2015 16:50:58 +0100
+
 zuul (2.0.0-304-g685ca22-wmf2trusty1) trusty-wikimedia; urgency=low
 
   * Sync with precise-wikimedia

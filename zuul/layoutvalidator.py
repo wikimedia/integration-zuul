@@ -20,6 +20,7 @@ import string
 
 from zuul.trigger import gerrit
 
+
 # Several forms accept either a single item or a list, this makes
 # specifying that in the schema easy (and explicit).
 def toList(x):
@@ -105,6 +106,7 @@ class LayoutSchema(object):
                 'merge-failure-message': str,
                 'footer-message': str,
                 'dequeue-on-new-patchset': bool,
+                'ignore-dependencies': bool,
                 'trigger': trigger,
                 'success': report_actions,
                 'failure': report_actions,
@@ -133,6 +135,11 @@ class LayoutSchema(object):
              'logserver-prefix': str,
              }
 
+    skip_if = {'project': str,
+               'branch': str,
+               'all-files-match-any': toList(str),
+               }
+
     job = {v.Required('name'): str,
            'queue-name': str,
            'failure-message': str,
@@ -145,6 +152,7 @@ class LayoutSchema(object):
            'branch': toList(str),
            'files': toList(str),
            'swift': toList(swift),
+           'skip-if': toList(skip_if),
            }
     jobs = [job]
 
@@ -152,11 +160,11 @@ class LayoutSchema(object):
 
     def validateJob(self, value, path=[]):
         if isinstance(value, list):
-            for (i, v) in enumerate(value):
-                self.validateJob(v, path + [i])
+            for (i, val) in enumerate(value):
+                self.validateJob(val, path + [i])
         elif isinstance(value, dict):
-            for k, v in value.items():
-                self.validateJob(v, path + [k])
+            for k, val in value.items():
+                self.validateJob(val, path + [k])
         else:
             self.job_name.schema(value)
 
@@ -193,6 +201,9 @@ class LayoutSchema(object):
         return parameters
 
     def getSchema(self, data):
+        if not isinstance(data, dict):
+            raise Exception("Malformed layout configuration: top-level type "
+                            "should be a dictionary")
         pipelines = data.get('pipelines')
         if not pipelines:
             pipelines = []
@@ -275,4 +286,3 @@ class LayoutValidator(object):
         for pipeline in data['pipelines']:
             if 'gerrit' in pipeline['trigger']:
                 gerrit.validate_trigger(pipeline['trigger'])
-

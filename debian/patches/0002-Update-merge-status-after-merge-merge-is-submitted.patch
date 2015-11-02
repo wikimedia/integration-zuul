@@ -28,22 +28,23 @@ Change-Id: I4d91a15aaae878ed231d50ab5f4f7a65f0d0e830
  2 files changed, 32 insertions(+), 1 deletion(-)
 
 diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
-index a7548c1..e3c98ed 100755
+index 4955de6..0c34684 100755
 --- a/tests/test_scheduler.py
 +++ b/tests/test_scheduler.py
-@@ -23,9 +23,11 @@ import time
- import urllib
+@@ -24,10 +24,12 @@
  import urllib2
+ import yaml
  
 +import gear
  import git
  import testtools
  
+ import zuul.change_matcher
 +import zuul.model
  import zuul.scheduler
  import zuul.rpcclient
  import zuul.reporter.gerrit
-@@ -1677,6 +1679,35 @@ class TestScheduler(ZuulTestCase):
+@@ -2003,6 +2005,35 @@ def test_rerun_on_error(self):
          self.assertEqual(self.countJobResults(self.history, 'RUN_ERROR'), 1)
          self.assertEqual(self.countJobResults(self.history, 'SUCCESS'), 3)
  
@@ -80,10 +81,10 @@ index a7548c1..e3c98ed 100755
          "Test each of the statsd methods used in the scheduler"
          import extras
 diff --git a/zuul/scheduler.py b/zuul/scheduler.py
-index def7429..9941053 100644
+index a9bd6b2..b6883e2 100644
 --- a/zuul/scheduler.py
 +++ b/zuul/scheduler.py
-@@ -1212,7 +1212,6 @@ class BasePipelineManager(object):
+@@ -1305,7 +1305,6 @@ def prepareRef(self, item):
              return True
          if build_set.merge_state == build_set.PENDING:
              return False
@@ -91,7 +92,7 @@ index def7429..9941053 100644
          ref = build_set.ref
          if hasattr(item.change, 'refspec') and not ref:
              self.log.debug("Preparing ref for: %s" % item.change)
-@@ -1230,6 +1229,7 @@ class BasePipelineManager(object):
+@@ -1323,6 +1322,7 @@ def prepareRef(self, item):
              self.sched.merger.updateRepo(item.change.project.name,
                                           url, build_set,
                                           self.pipeline.precedence)

@@ -45,7 +45,8 @@ class Swift(object):
         try:
             if self.config.has_section('swift'):
                 if (not self.config.has_option('swift', 'Send-Temp-Url-Key')
-                    or self.config.getboolean('swift', 'Send-Temp-Url-Key')):
+                    or self.config.getboolean('swift',
+                                              'Send-Temp-Url-Key')):
                     self.connect()
 
                     # Tell swift of our key
@@ -146,8 +147,10 @@ class Swift(object):
                 settings[key] = kwargs[altkey]
             elif self.config.has_option('swift', 'default_' + key):
                 settings[key] = self.config.get('swift', 'default_' + key)
+            # TODO: these are always strings; some should be converted
+            # to ints.
 
-        expires = int(time() + settings['expiry'])
+        expires = int(time() + int(settings['expiry']))
         redirect = ''
 
         url = os.path.join(self.storage_url, settings['container'],

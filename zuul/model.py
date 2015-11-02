@@ -73,6 +73,7 @@ class Pipeline(object):
         self.success_message = None
         self.footer_message = None
         self.dequeue_on_new_patchset = True
+        self.ignore_dependencies = False
         self.job_trees = {}  # project -> JobTree
         self.manager = None
         self.queues = []
@@ -111,15 +112,20 @@ class Pipeline(object):
                 return queue
         return None
 
+    def removeQueue(self, queue):
+        self.queues.remove(queue)
+
     def getJobTree(self, project):
         tree = self.job_trees.get(project)
         return tree
 
-    def getJobs(self, changeish):
-        tree = self.getJobTree(changeish.project)
+    def getJobs(self, item):
+        if not item.live:
+            return []
+        tree = self.getJobTree(item.change.project)
         if not tree:
             return []
-        return changeish.filterJobs(tree.getJobs())
+        return item.change.filterJobs(tree.getJobs())
 
     def _findJobsToRun(self, job_trees, item):
         torun = []
@@ -148,27 +154,29 @@ class Pipeline(object):
         return torun
 
     def findJobsToRun(self, item):
+        if not item.live:
+            return []
         tree = self.getJobTree(item.change.project)
         if not tree:
             return []
         return self._findJobsToRun(tree.job_trees, item)
 
     def haveAllJobsStarted(self, item):
-        for job in self.getJobs(item.change):
+        for job in self.getJobs(item):
             build = item.current_build_set.getBuild(job.name)
             if not build or not build.start_time:
                 return False
         return True
 
     def areAllJobsComplete(self, item):
-        for job in self.getJobs(item.change):
+        for job in self.getJobs(item):
             build = item.current_build_set.getBuild(job.name)
             if not build or not build.result:
                 return False
         return True
 
     def didAllJobsSucceed(self, item):
-        for job in self.getJobs(item.change):
+        for job in self.getJobs(item):
             if not job.voting:
                 continue
             build = item.current_build_set.getBuild(job.name)
@@ -184,7 +192,7 @@ class Pipeline(object):
         return True
 
     def didAnyJobFail(self, item):
-        for job in self.getJobs(item.change):
+        for job in self.getJobs(item):
             if not job.voting:
                 continue
             build = item.current_build_set.getBuild(job.name)
@@ -193,7 +201,9 @@ class Pipeline(object):
         return False
 
     def isHoldingFollowingChanges(self, item):
-        for job in self.getJobs(item.change):
+        if not item.live:
+            return False
+        for job in self.getJobs(item):
             if not job.hold_following_changes:
                 continue
             build = item.current_build_set.getBuild(job.name)
@@ -256,7 +266,6 @@ class Pipeline(object):
             j_queues.append(j_queue)
             j_queue['heads'] = []
             j_queue['window'] = queue.window
-            j_queue['dependent'] = queue.dependent
 
             j_changes = []
             for e in queue.queue:
@@ -266,8 +275,8 @@ class Pipeline(object):
                     j_changes = []
                 j_changes.append(e.formatJSON())
                 if (len(j_changes) > 1 and
-                    (j_changes[-2]['remaining_time'] is not None) and
-                    (j_changes[-1]['remaining_time'] is not None)):
+                        (j_changes[-2]['remaining_time'] is not None) and
+                        (j_changes[-1]['remaining_time'] is not None)):
                     j_changes[-1]['remaining_time'] = max(
                         j_changes[-2]['remaining_time'],
                         j_changes[-1]['remaining_time'])
@@ -303,8 +312,8 @@ class ChangeQueue(object):
     different projects; this is one of them.  For instance, there may
     a queue shared by interrelated projects foo and bar, and a second
     queue for independent project baz.  Pipelines have one or more
-    PipelineQueues."""
-    def __init__(self, pipeline, dependent=True, window=0, window_floor=1,
+    ChangeQueues."""
+    def __init__(self, pipeline, window=0, window_floor=1,
                  window_increase_type='linear', window_increase_factor=1,
                  window_decrease_type='exponential', window_decrease_factor=2):
         self.pipeline = pipeline
@@ -314,7 +323,6 @@ class ChangeQueue(object):
         self.projects = []
         self._jobs = set()
         self.queue = []
-        self.dependent = dependent
         self.window = window
         self.window_floor = window_floor
         self.window_increase_type = window_increase_type
@@ -340,7 +348,7 @@ class ChangeQueue(object):
             for job in self._jobs:
                 if job.queue_name:
                     if (self.assigned_name and
-                        job.queue_name != self.assigned_name):
+                            job.queue_name != self.assigned_name):
                         raise Exception("More than one name assigned to "
                                         "change queue: %s != %s" %
                                         (self.assigned_name, job.queue_name))
@@ -348,14 +356,15 @@ class ChangeQueue(object):
             self.name = self.assigned_name or self.generated_name
 
     def enqueueChange(self, change):
-        item = QueueItem(self.pipeline, change)
+        item = QueueItem(self, change)
         self.enqueueItem(item)
         item.enqueue_time = time.time()
         return item
 
     def enqueueItem(self, item):
         item.pipeline = self.pipeline
-        if self.dependent and self.queue:
+        item.queue = self
+        if self.queue:
             item.item_ahead = self.queue[-1]
             item.item_ahead.items_behind.append(item)
         self.queue.append(item)
@@ -374,8 +383,6 @@ class ChangeQueue(object):
         item.dequeue_time = time.time()
 
     def moveItem(self, item, item_ahead):
-        if not self.dependent:
-            return False
         if item.item_ahead == item_ahead:
             return False
         # Remove from current location
@@ -399,20 +406,20 @@ class ChangeQueue(object):
         # TODO merge semantics
 
     def isActionable(self, item):
-        if self.dependent and self.window:
+        if self.window:
             return item in self.queue[:self.window]
         else:
             return True
 
     def increaseWindowSize(self):
-        if self.dependent:
+        if self.window:
             if self.window_increase_type == 'linear':
                 self.window += self.window_increase_factor
             elif self.window_increase_type == 'exponential':
                 self.window *= self.window_increase_factor
 
     def decreaseWindowSize(self):
-        if self.dependent:
+        if self.window:
             if self.window_decrease_type == 'linear':
                 self.window = max(
                     self.window_floor,
@@ -445,12 +452,19 @@ class Job(object):
         self.failure_pattern = None
         self.success_pattern = None
         self.parameter_function = None
-        self.hold_following_changes = False
-        self.voting = True
+        # A metajob should only supply values for attributes that have
+        # been explicitly provided, so avoid setting boolean defaults.
+        if self.is_metajob:
+            self.hold_following_changes = None
+            self.voting = None
+        else:
+            self.hold_following_changes = False
+            self.voting = True
         self.branches = []
         self._branches = []
         self.files = []
         self._files = []
+        self.skip_if_matcher = None
         self.swift = {}
 
     def __str__(self):
@@ -458,6 +472,10 @@ class Job(object):
 
     def __repr__(self):
         return '<Job %s>' % (self.name)
+
+    @property
+    def is_metajob(self):
+        return self.name.startswith('^')
 
     def copy(self, other):
         if other.failure_message:
@@ -476,10 +494,15 @@ class Job(object):
         if other.files:
             self.files = other.files[:]
             self._files = other._files[:]
+        if other.skip_if_matcher:
+            self.skip_if_matcher = other.skip_if_matcher.copy()
         if other.swift:
             self.swift.update(other.swift)
-        self.hold_following_changes = other.hold_following_changes
-        self.voting = other.voting
+        # Only non-None values should be copied for boolean attributes.
+        if other.hold_following_changes is not None:
+            self.hold_following_changes = other.hold_following_changes
+        if other.voting is not None:
+            self.voting = other.voting
 
     def changeMatches(self, change):
         matches_branch = False
@@ -500,6 +523,9 @@ class Job(object):
         if self.files and not matches_file:
             return False
 
+        if self.skip_if_matcher and self.skip_if_matcher.matches(change):
+            return False
+
         return True
 
 
@@ -517,6 +543,9 @@ class JobTree(object):
             t = JobTree(job)
             self.job_trees.append(t)
             return t
+        for tree in self.job_trees:
+            if tree.job == job:
+                return tree
 
     def getJobs(self):
         jobs = []
@@ -650,8 +679,9 @@ class BuildSet(object):
 class QueueItem(object):
     """A changish inside of a Pipeline queue"""
 
-    def __init__(self, pipeline, change):
-        self.pipeline = pipeline
+    def __init__(self, queue, change):
+        self.pipeline = queue.pipeline
+        self.queue = queue
         self.change = change  # a changeish
         self.build_sets = []
         self.dequeued_needing_change = False
@@ -662,7 +692,8 @@ class QueueItem(object):
         self.enqueue_time = None
         self.dequeue_time = None
         self.reported = False
-        self.active = False
+        self.active = False  # Whether an item is within an active window
+        self.live = True  # Whether an item is intended to be processed at all
 
     def __repr__(self):
         if self.pipeline:
@@ -694,6 +725,7 @@ class QueueItem(object):
         changeish = self.change
         ret = {}
         ret['active'] = self.active
+        ret['live'] = self.live
         if hasattr(changeish, 'url') and changeish.url is not None:
             ret['url'] = changeish.url
         else:
@@ -706,7 +738,13 @@ class QueueItem(object):
         ret['items_behind'] = [i.change._id() for i in self.items_behind]
         ret['failing_reasons'] = self.current_build_set.failing_reasons
         ret['zuul_ref'] = self.current_build_set.ref
-        ret['project'] = changeish.project.name
+        if changeish.project:
+            ret['project'] = changeish.project.name
+        else:
+            # For cross-project dependencies with the depends-on
+            # project not known to zuul, the project is None
+            # Set it to a static value
+            ret['project'] = "Unknown Project"
         ret['enqueue_time'] = int(self.enqueue_time * 1000)
         ret['jobs'] = []
         if hasattr(changeish, 'owner'):
@@ -714,7 +752,7 @@ class QueueItem(object):
         else:
             ret['owner'] = None
         max_remaining = 0
-        for job in self.pipeline.getJobs(changeish):
+        for job in self.pipeline.getJobs(self):
             now = time.time()
             build = self.current_build_set.getBuild(job.name)
             elapsed = None
@@ -764,7 +802,6 @@ class QueueItem(object):
                 'canceled': build.canceled if build else None,
                 'retry': build.retry if build else None,
                 'number': build.number if build else None,
-                'parameters': build.parameters if build else None,
                 'worker': worker
             })
 
@@ -790,7 +827,7 @@ class QueueItem(object):
                 changeish.project.name,
                 changeish._id(),
                 self.item_ahead)
-        for job in self.pipeline.getJobs(changeish):
+        for job in self.pipeline.getJobs(self):
             build = self.current_build_set.getBuild(job.name)
             if build:
                 result = build.result
@@ -852,7 +889,7 @@ class Change(Changeish):
         self.refspec = None
 
         self.files = []
-        self.needs_change = None
+        self.needs_changes = []
         self.needed_by_changes = []
         self.is_current_patchset = True
         self.can_merge = False
@@ -885,8 +922,8 @@ class Change(Changeish):
 
     def getRelatedChanges(self):
         related = set()
-        if self.needs_change:
-            related.add(self.needs_change)
+        for c in self.needs_changes:
+            related.add(c)
         for c in self.needed_by_changes:
             related.add(c)
             related.update(c.getRelatedChanges())
@@ -937,7 +974,8 @@ class NullChange(Changeish):
         return None
 
     def equals(self, other):
-        if (self.project == other.project):
+        if (self.project == other.project
+            and other._id() is None):
             return True
         return False
 
@@ -1150,7 +1188,7 @@ class EventFilter(BaseFilter):
             matches_email_re = False
             for email_re in self.emails:
                 if (account_email is not None and
-                    email_re.search(account_email)):
+                        email_re.search(account_email)):
                     matches_email_re = True
             if self.emails and not matches_email_re:
                 return False
@@ -1253,8 +1291,7 @@ class Layout(object):
         if name in self.jobs:
             return self.jobs[name]
         job = Job(name)
-        if name.startswith('^'):
-            # This is a meta-job
+        if job.is_metajob:
             regex = re.compile(name)
             self.metajobs.append((regex, job))
         else:
