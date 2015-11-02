@@ -24,10 +24,10 @@ Change-Id: Ie869f0b147577d3b2a0b57afba4474ee07753210
  1 file changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/zuul/merger/merger.py b/zuul/merger/merger.py
-index f36b974..c286375 100644
+index 1e881bf..61a4719 100644
 --- a/zuul/merger/merger.py
 +++ b/zuul/merger/merger.py
-@@ -55,7 +55,18 @@ class Repo(object):
+@@ -70,7 +70,18 @@ def _ensure_cloned(self):
          if self.username:
              repo.config_writer().set_value('user', 'name',
                                             self.username)
