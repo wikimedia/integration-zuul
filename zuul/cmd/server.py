@@ -62,7 +62,10 @@ class Server(zuul.cmd.ZuulApp):
         signal.signal(signal.SIGHUP, signal.SIG_IGN)
         self.read_config()
         self.setup_logging('zuul', 'log_config')
-        self.sched.reconfigure(self.config)
+        try:
+            self.sched.reconfigure(self.config)
+        except Exception:
+            self.log.exception("Reconfiguration failed:")
         signal.signal(signal.SIGHUP, self.reconfigure_handler)
 
     def exit_handler(self, signum, frame):
@@ -118,7 +121,12 @@ class Server(zuul.cmd.ZuulApp):
             import gear
             statsd_host = os.environ.get('STATSD_HOST')
             statsd_port = int(os.environ.get('STATSD_PORT', 8125))
+            if self.config.has_option('gearman_server', 'listen_address'):
+                host = self.config.get('gearman_server', 'listen_address')
+            else:
+                host = None
             gear.Server(4730,
+                        host=host,
                         statsd_host=statsd_host,
                         statsd_port=statsd_port,
                         statsd_prefix='zuul.geard')

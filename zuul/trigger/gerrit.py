@@ -13,6 +13,7 @@
 # under the License.
 
 import logging
+import re
 import threading
 import time
 import urllib2
@@ -25,6 +26,7 @@ class GerritEventConnector(threading.Thread):
     """Move events from Gerrit to the scheduler."""
 
     log = logging.getLogger("zuul.GerritEventConnector")
+    delay = 5.0
 
     def __init__(self, gerrit, sched, trigger):
         super(GerritEventConnector, self).__init__()
@@ -36,12 +38,20 @@ class GerritEventConnector(threading.Thread):
 
     def stop(self):
         self._stopped = True
-        self.gerrit.addEvent(None)
+        self.gerrit.addEvent((None, None))
 
     def _handleEvent(self):
-        data = self.gerrit.getEvent()
+        ts, data = self.gerrit.getEvent()
         if self._stopped:
             return
+        # Gerrit can produce inconsistent data immediately after an
+        # event, So ensure that we do not deliver the event to Zuul
+        # until at least a certain amount of time has passed.  Note
+        # that if we receive several events in succession, we will
+        # only need to delay for the first event.  In essence, Zuul
+        # should always be a constant number of seconds behind Gerrit.
+        now = time.time()
+        time.sleep(max((ts + self.delay) - now, 0.0))
         event = TriggerEvent()
         event.type = data.get('type')
         event.trigger_name = self.trigger.name
@@ -93,7 +103,6 @@ class GerritEventConnector(threading.Thread):
                                     refresh=True)
 
         self.sched.addEvent(event)
-        self.gerrit.eventDone()
 
     def run(self):
         while True:
@@ -103,6 +112,8 @@ class GerritEventConnector(threading.Thread):
                 self._handleEvent()
             except:
                 self.log.exception("Exception moving Gerrit event:")
+            finally:
+                self.gerrit.eventDone()
 
 
 class Gerrit(object):
@@ -110,6 +121,9 @@ class Gerrit(object):
     log = logging.getLogger("zuul.Gerrit")
     replication_timeout = 300
     replication_retry_interval = 5
+
+    depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$",
+                               re.MULTILINE | re.IGNORECASE)
 
     def __init__(self, config, sched):
         self._change_cache = {}
@@ -258,7 +272,7 @@ class Gerrit(object):
                     return True
                 elif sr['status'] == 'NOT_READY':
                     for label in sr['labels']:
-                        if label['status'] == 'OK':
+                        if label['status'] in ['OK', 'MAY']:
                             continue
                         elif label['status'] in ['NEED', 'REJECT']:
                             # It may be our own rejection, so we ignore
@@ -304,7 +318,7 @@ class Gerrit(object):
             change = NullChange(project)
         return change
 
-    def _getChange(self, number, patchset, refresh=False):
+    def _getChange(self, number, patchset, refresh=False, history=None):
         key = '%s,%s' % (number, patchset)
         change = None
         if key in self._change_cache:
@@ -318,7 +332,7 @@ class Gerrit(object):
         key = '%s,%s' % (change.number, change.patchset)
         self._change_cache[key] = change
         try:
-            self.updateChange(change)
+            self.updateChange(change, history)
         except Exception:
             del self._change_cache[key]
             raise
@@ -342,7 +356,43 @@ class Gerrit(object):
                                    (record.get('number'),))
         return changes
 
-    def updateChange(self, change):
+    def _getDependsOnFromCommit(self, message):
+        records = []
+        seen = set()
+        for match in self.depends_on_re.findall(message):
+            if match in seen:
+                self.log.debug("Ignoring duplicate Depends-On: %s" %
+                               (match,))
+                continue
+            seen.add(match)
+            query = "change:%s" % (match,)
+            self.log.debug("Running query %s to find needed changes" %
+                           (query,))
+            records.extend(self.gerrit.simpleQuery(query))
+        return records
+
+    def _getNeededByFromCommit(self, change_id):
+        records = []
+        seen = set()
+        query = 'message:%s' % change_id
+        self.log.debug("Running query %s to find changes needed-by" %
+                       (query,))
+        results = self.gerrit.simpleQuery(query)
+        for result in results:
+            for match in self.depends_on_re.findall(
+                result['commitMessage']):
+                if match != change_id:
+                    continue
+                key = (result['number'], result['currentPatchSet']['number'])
+                if key in seen:
+                    continue
+                self.log.debug("Found change %s,%s needs %s from commit" %
+                               (key[0], key[1], change_id))
+                seen.add(key)
+                records.append(result)
+        return records
+
+    def updateChange(self, change, history=None):
         self.log.info("Updating information for %s,%s" %
                       (change.number, change.patchset))
         data = self.gerrit.query(change.number)
@@ -358,18 +408,19 @@ class Gerrit(object):
         change.branch = data['branch']
         change.url = data['url']
         max_ps = 0
-        change.files = []
+        files = []
         for ps in data['patchSets']:
             if ps['number'] == change.patchset:
                 change.refspec = ps['ref']
                 for f in ps.get('files', []):
-                    change.files.append(f['file'])
+                    files.append(f['file'])
             if int(ps['number']) > int(max_ps):
                 max_ps = ps['number']
         if max_ps == change.patchset:
             change.is_current_patchset = True
         else:
             change.is_current_patchset = False
+        change.files = files
 
         change.is_merged = self._isMerged(change)
         change.approvals = data['currentPatchSet'].get('approvals', [])
@@ -382,22 +433,60 @@ class Gerrit(object):
             # for dependencies.
             return change
 
-        change.needs_changes = []
+        if history is None:
+            history = []
+        else:
+            history = history[:]
+        history.append(change.number)
+
+        needs_changes = []
         if 'dependsOn' in data:
             parts = data['dependsOn'][0]['ref'].split('/')
             dep_num, dep_ps = parts[3], parts[4]
-            dep = self._getChange(dep_num, dep_ps)
-            if not dep.is_merged:
-                change.needs_changes.append(dep)
+            if dep_num in history:
+                raise Exception("Dependency cycle detected: %s in %s" % (
+                    dep_num, history))
+            self.log.debug("Getting git-dependent change %s,%s" %
+                           (dep_num, dep_ps))
+            dep = self._getChange(dep_num, dep_ps, history=history)
+            if (not dep.is_merged) and dep not in needs_changes:
+                needs_changes.append(dep)
 
-        change.needed_by_changes = []
+        for record in self._getDependsOnFromCommit(data['commitMessage']):
+            dep_num = record['number']
+            dep_ps = record['currentPatchSet']['number']
+            if dep_num in history:
+                raise Exception("Dependency cycle detected: %s in %s" % (
+                    dep_num, history))
+            self.log.debug("Getting commit-dependent change %s,%s" %
+                           (dep_num, dep_ps))
+            dep = self._getChange(dep_num, dep_ps, history=history)
+            if (not dep.is_merged) and dep not in needs_changes:
+                needs_changes.append(dep)
+        change.needs_changes = needs_changes
+
+        needed_by_changes = []
         if 'neededBy' in data:
             for needed in data['neededBy']:
                 parts = needed['ref'].split('/')
                 dep_num, dep_ps = parts[3], parts[4]
                 dep = self._getChange(dep_num, dep_ps)
-                if not dep.is_merged and dep.is_current_patchset:
-                    change.needed_by_changes.append(dep)
+                if (not dep.is_merged) and dep.is_current_patchset:
+                    needed_by_changes.append(dep)
+
+        for record in self._getNeededByFromCommit(data['id']):
+            dep_num = record['number']
+            dep_ps = record['currentPatchSet']['number']
+            self.log.debug("Getting commit-needed change %s,%s" %
+                           (dep_num, dep_ps))
+            # Because a commit needed-by may be a cross-repo
+            # dependency, cause that change to refresh so that it will
+            # reference the latest patchset of its Depends-On (this
+            # change).
+            dep = self._getChange(dep_num, dep_ps, refresh=True)
+            if (not dep.is_merged) and dep.is_current_patchset:
+                needed_by_changes.append(dep)
+        change.needed_by_changes = needed_by_changes
 
         return change
 

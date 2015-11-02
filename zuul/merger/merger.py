@@ -20,6 +20,21 @@ import logging
 import zuul.model
 
 
+def reset_repo_to_head(repo):
+    # This lets us reset the repo even if there is a file in the root
+    # directory named 'HEAD'.  Currently, GitPython does not allow us
+    # to instruct it to always include the '--' to disambiguate.  This
+    # should no longer be necessary if this PR merges:
+    #   https://github.com/gitpython-developers/GitPython/pull/319
+    try:
+        repo.git.reset('--hard', 'HEAD', '--')
+    except git.GitCommandError as e:
+        # git nowadays may use 1 as status to indicate there are still unstaged
+        # modifications after the reset
+        if e.status != 1:
+            raise
+
+
 class ZuulReference(git.Reference):
     _common_path_default = "refs/zuul"
     _points_to_commits_only = True
@@ -40,7 +55,7 @@ class Repo(object):
             self.log.exception("Unable to initialize repo for %s" % remote)
 
     def _ensure_cloned(self):
-        repo_is_cloned = os.path.exists(self.local_path)
+        repo_is_cloned = os.path.exists(os.path.join(self.local_path, '.git'))
         if self._initialized and repo_is_cloned:
             return
         # If the repo does not exist, clone the repo.
@@ -71,9 +86,9 @@ class Repo(object):
         return repo
 
     def reset(self):
-        repo = self.createRepoObject()
         self.log.debug("Resetting repository %s" % self.local_path)
         self.update()
+        repo = self.createRepoObject()
         origin = repo.remotes.origin
         for ref in origin.refs:
             if ref.remote_head == 'HEAD':
@@ -82,7 +97,7 @@ class Repo(object):
 
         # Reset to remote HEAD (usually origin/master)
         repo.head.reference = origin.refs['HEAD']
-        repo.head.reset(index=True, working_tree=True)
+        reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
 
     def prune(self):
@@ -114,7 +129,8 @@ class Repo(object):
         repo = self.createRepoObject()
         self.log.debug("Checking out %s" % ref)
         repo.head.reference = ref
-        repo.head.reset(index=True, working_tree=True)
+        reset_repo_to_head(repo)
+        return repo.head.commit
 
     def cherryPick(self, ref):
         repo = self.createRepoObject()
@@ -152,7 +168,7 @@ class Repo(object):
 
     def createZuulRef(self, ref, commit='HEAD'):
         repo = self.createRepoObject()
-        self.log.debug("CreateZuulRef %s at %s" % (ref, commit))
+        self.log.debug("CreateZuulRef %s at %s on %s" % (ref, commit, repo))
         ref = ZuulReference.create(repo, ref, commit)
         return ref.commit
 

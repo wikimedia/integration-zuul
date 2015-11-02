@@ -65,7 +65,7 @@ class TestZuulTrigger(ZuulTestCase):
         for job in self.history:
             if job.changes == '1,1':
                 self.assertEqual(job.name, 'project-gate')
-            elif job.changes == '2,1':
+            elif job.changes == '1,1 2,1':
                 self.assertEqual(job.name, 'project-check')
             elif job.changes == '1,1 3,1':
                 self.assertEqual(job.name, 'project-gate')
@@ -107,12 +107,13 @@ class TestZuulTrigger(ZuulTestCase):
         self.assertEqual(E.reported, 0)
         self.assertEqual(
             B.messages[0],
-            "Merge Failed.\n\nThis change was unable to be automatically "
-            "merged with the current state of the repository. Please rebase "
-            "your change and upload a new patchset.")
+            "Merge Failed.\n\nThis change or one of its cross-repo "
+            "dependencies was unable to be automatically merged with the "
+            "current state of its repository. Please rebase the change and "
+            "upload a new patchset.")
 
-        self.assertEqual(self.fake_gerrit.queries[0],
-                         "project:org/project status:open")
+        self.assertTrue("project:org/project status:open" in
+                        self.fake_gerrit.queries)
 
         # Reconfigure and run the test again.  This is a regression
         # check to make sure that we don't end up with a stale trigger
@@ -133,8 +134,9 @@ class TestZuulTrigger(ZuulTestCase):
         self.assertEqual(E.reported, 1)
         self.assertEqual(
             E.messages[0],
-            "Merge Failed.\n\nThis change was unable to be automatically "
-            "merged with the current state of the repository. Please rebase "
-            "your change and upload a new patchset.")
+            "Merge Failed.\n\nThis change or one of its cross-repo "
+            "dependencies was unable to be automatically merged with the "
+            "current state of its repository. Please rebase the change and "
+            "upload a new patchset.")
         self.assertEqual(self.fake_gerrit.queries[1],
                          "project:org/project status:open")

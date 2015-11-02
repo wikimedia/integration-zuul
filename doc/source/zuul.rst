@@ -56,6 +56,10 @@ gearman_server
   Whether to start the internal Gearman server (default: False).
   ``start=true``
 
+**listen_address**
+  IP address or domain name on which to listen (default: all addresses).
+  ``listen_address=127.0.0.1``
+
 **log_config**
   Path to log config file for internal Gearman server.
   ``log_config=/etc/zuul/gearman-logging.yaml``
@@ -569,6 +573,15 @@ explanation of each of the parameters::
   well.  To suppress this behavior (and allow jobs to continue
   running), set this to ``false``.  Default: ``true``.
 
+**ignore-dependencies**
+  In any kind of pipeline (dependent or independent), Zuul will
+  attempt to enqueue all dependencies ahead of the current change so
+  that they are tested together (independent pipelines report the
+  results of each change regardless of the results of changes ahead).
+  To ignore dependencies completely in an independent pipeline, set
+  this to ``true``.  This option is ignored by dependent pipelines.
+  The default is: ``false``.
+
 **success**
   Describes where Zuul should report to if all the jobs complete
   successfully.
@@ -626,7 +639,7 @@ explanation of each of the parameters::
   Default: ``linear``.
 
 **window-increase-factor**
-  DependentPipelineManagers only. The value to be added or mulitplied
+  DependentPipelineManagers only. The value to be added or multiplied
   against the previous window value to determine the new window after
   successful change merges.
   Default: ``1``.
@@ -800,6 +813,47 @@ each job as it builds a list from the project specification.
   file patterns listed here.  This field is treated as a regular
   expression and multiple expressions may be listed.
 
+**skip-if (optional)**
+
+  This job should not be run if all the patterns specified by the
+  optional fields listed below match on their targets.  When multiple
+  sets of parameters are provided, this job will be skipped if any set
+  matches.  For example: ::
+
+    jobs:
+      - name: check-tempest-dsvm-neutron
+        skip-if:
+          - project: ^openstack/neutron$
+            branch: ^stable/juno$
+            all-files-match-any:
+              - ^neutron/tests/.*$
+              - ^tools/.*$
+          - all-files-match-any:
+              - ^doc/.*$
+              - ^.*\.rst$
+
+  With this configuration, the job would be skipped for a neutron
+  patchset for the stable/juno branch provided that every file in the
+  change matched at least one of the specified file regexes.  The job
+  will also be skipped for any patchset that modified only the doc
+  tree or rst files.
+
+  *project* (optional)
+    The regular expression to match against the project of the change.
+
+  *branch* (optional)
+    The regular expression to match against the branch or ref of the
+    change.
+
+  *all-files-match-any* (optional)
+    A list of regular expressions intended to match the files involved
+    in the change.  This parameter will be considered matching a
+    change only if all files in a change match at least one of these
+    expressions.
+
+    The pattern for '/COMMIT_MSG' is always matched on and does not
+    have to be included.
+
 **voting (optional)**
   Boolean value (``true`` or ``false``) that indicates whatever
   a job is voting or not.  Default: ``true``.
@@ -874,9 +928,10 @@ Here is an example of setting the failure message for jobs that check
 whether a change merges cleanly::
 
   - name: ^.*-merge$
-    failure-message: This change was unable to be automatically merged
-    with the current state of the repository. Please rebase your
-    change and upload a new patchset.
+    failure-message: This change or one of its cross-repo dependencies
+    was unable to be automatically merged with the current state of
+    its repository. Please rebase the change and upload a new
+    patchset.
 
 Projects
 """"""""
@@ -987,7 +1042,7 @@ also be added::
       - foobar-extra-special-job
 
 Individual jobs may optionally be added to pipelines (e.g. check,
-gate, et cetera) for a project, in addtion to those provided by
+gate, et cetera) for a project, in addition to those provided by
 templates.
 
 The order of the jobs listed in the project (which only affects the
@@ -1042,13 +1097,11 @@ read these saved events and act on them.
 If you need to abort Zuul and intend to manually requeue changes for
 jobs which were running in its pipelines, prior to terminating you can
 use the zuul-changes.py tool script to simplify the process. For
-example, this would give you a list of Gerrit commands to reverify or
-recheck changes for the gate and check pipelines respectively::
+example, this would give you a list of zuul-enqueue commands to requeue
+changes for the gate and check pipelines respectively::
 
-  ./tools/zuul-changes.py --review-host=review.openstack.org \
-      http://zuul.openstack.org/ gate 'reverify'
-  ./tools/zuul-changes.py --review-host=review.openstack.org \
-      http://zuul.openstack.org/ check 'recheck'
+  ./tools/zuul-changes.py http://zuul.openstack.org/ gate
+  ./tools/zuul-changes.py http://zuul.openstack.org/ check
 
 If you send a SIGUSR2 to the zuul-server process, or the forked process
 that runs the Gearman daemon, Zuul will dump a stack trace for each
