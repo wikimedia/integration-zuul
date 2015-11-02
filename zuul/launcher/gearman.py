@@ -231,6 +231,8 @@ class Gearman(object):
                 s_config = {}
                 s_config.update((k, v.format(item=item, job=job,
                                              change=item.change))
+                                if isinstance(v, basestring)
+                                else (k, v)
                                 for k, v in s.items())
 
                 (swift_instructions['URL'],
@@ -263,16 +265,19 @@ class Gearman(object):
                                                        params))
 
     def launch(self, job, item, pipeline, dependent_items=[]):
-        self.log.info("Launch job %s for change %s with dependent changes %s" %
-                      (job, item.change,
-                       [x.change for x in dependent_items]))
+        uuid = str(uuid4().hex)
+        self.log.info(
+            "Launch job %s (uuid: %s) for change %s with dependent "
+            "changes %s" % (
+                job, uuid, item.change,
+                [x.change for x in dependent_items]))
         dependent_items = dependent_items[:]
         dependent_items.reverse()
-        uuid = str(uuid4().hex)
         params = dict(ZUUL_UUID=uuid,
                       ZUUL_PROJECT=item.change.project.name)
         params['ZUUL_PIPELINE'] = pipeline.name
         params['ZUUL_URL'] = item.current_build_set.zuul_url
+        params['ZUUL_VOTING'] = job.voting and '1' or '0'
         if hasattr(item.change, 'refspec'):
             changes_str = '^'.join(
                 ['%s:%s:%s' % (i.change.project.name, i.change.branch,
@@ -338,8 +343,7 @@ class Gearman(object):
         build.parameters = params
 
         if job.name == 'noop':
-            build.result = 'SUCCESS'
-            self.sched.onBuildCompleted(build)
+            self.sched.onBuildCompleted(build, 'SUCCESS')
             return build
 
         gearman_job = gear.Job(name, json.dumps(params),
@@ -402,14 +406,15 @@ class Gearman(object):
             self.log.debug("Removed build %s from queue" % build)
             return
 
+        time.sleep(1)
+
         self.log.debug("Still unable to find build %s to cancel" % build)
         if build.number:
             self.log.debug("Build %s has just started" % build)
-        else:
-            self.log.error("Build %s has not started but was not"
-                           "found in queue; canceling anyway" % build)
-        self.cancelRunningBuild(build)
-        self.log.debug("Canceled possibly running build %s" % build)
+            self.log.debug("Canceled running build %s" % build)
+            self.cancelRunningBuild(build)
+            return
+        self.log.debug("Unable to cancel build %s" % build)
 
     def onBuildCompleted(self, job, result=None):
         if job.unique in self.meta_jobs:
@@ -426,8 +431,7 @@ class Gearman(object):
                     build.retry = True
                 self.log.info("Build %s complete, result %s" %
                               (job, result))
-                build.result = result
-                self.sched.onBuildCompleted(build)
+                self.sched.onBuildCompleted(build, result)
             # The test suite expects the build to be removed from the
             # internal dict after it's added to the report queue.
             del self.builds[job.unique]

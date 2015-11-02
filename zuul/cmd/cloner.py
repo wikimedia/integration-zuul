@@ -25,10 +25,6 @@ import zuul.lib.cloner
 
 ZUUL_ENV_SUFFIXES = (
     'branch',
-    'change',
-    'patchset',
-    'pipeline',
-    'project',
     'ref',
     'url',
 )
@@ -65,23 +61,23 @@ class Cloner(zuul.cmd.ZuulApp):
 
         project_env = parser.add_argument_group(
             'project tuning'
-            )
+        )
         project_env.add_argument(
             '--branch',
             help=('branch to checkout instead of Zuul selected branch, '
                   'for example to specify an alternate branch to test '
                   'client library compatibility.')
-            )
+        )
         project_env.add_argument(
             '--project-branch', nargs=1, action='append',
             metavar='PROJECT=BRANCH',
             help=('project-specific branch to checkout which takes precedence '
                   'over --branch if it is provided; may be specified multiple '
                   'times.')
-            )
+        )
 
         zuul_env = parser.add_argument_group(
-            'zuul environnement',
+            'zuul environment',
             'Let you override $ZUUL_* environment variables.'
         )
         for zuul_suffix in ZUUL_ENV_SUFFIXES:
@@ -92,15 +88,14 @@ class Cloner(zuul.cmd.ZuulApp):
             )
 
         args = parser.parse_args()
+        # Validate ZUUL_* arguments. If ref is provided then URL is required.
+        zuul_args = [zuul_opt for zuul_opt, val in vars(args).items()
+                     if zuul_opt.startswith('zuul') and val is not None]
+        if 'zuul_ref' in zuul_args and 'zuul_url' not in zuul_args:
+            parser.error("Specifying a Zuul ref requires a Zuul url. "
+                         "Define Zuul arguments either via environment "
+                         "variables or using options above.")
 
-        # Validate ZUUL_* arguments
-        zuul_missing = [zuul_opt for zuul_opt, val in vars(args).items()
-                        if zuul_opt.startswith('zuul') and val is None]
-        if zuul_missing:
-            parser.error(("Some Zuul parameters are not set:\n\t%s\n"
-                          "Define them either via environment variables or "
-                          "using options above." %
-                          "\n\t".join(sorted(zuul_missing))))
         self.args = args
 
     def setup_logging(self, color=False, verbose=False):

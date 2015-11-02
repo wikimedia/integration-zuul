@@ -40,14 +40,16 @@ import fixtures
 import six.moves.urllib.parse as urlparse
 import statsd
 import testtools
+from git import GitCommandError
 
 import zuul.scheduler
 import zuul.webapp
 import zuul.rpclistener
 import zuul.launcher.gearman
 import zuul.lib.swift
-import zuul.merger.server
 import zuul.merger.client
+import zuul.merger.merger
+import zuul.merger.server
 import zuul.reporter.gerrit
 import zuul.reporter.smtp
 import zuul.trigger.gerrit
@@ -76,6 +78,16 @@ def repack_repo(path):
 
 def random_sha1():
     return hashlib.sha1(str(random.random())).hexdigest()
+
+
+def iterate_timeout(max_seconds, purpose):
+    start = time.time()
+    count = 0
+    while (time.time() < start + max_seconds):
+        count += 1
+        yield count
+        time.sleep(0)
+    raise Exception("Timeout waiting for %s" % purpose)
 
 
 class ChangeReference(git.Reference):
@@ -134,7 +146,7 @@ class FakeChange(object):
                                                         self.latest_patchset),
                                      'refs/tags/init')
         repo.head.reference = ref
-        repo.head.reset(index=True, working_tree=True)
+        zuul.merger.merger.reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
 
         path = os.path.join(self.upstream_root, self.project)
@@ -156,7 +168,7 @@ class FakeChange(object):
 
         r = repo.index.commit(msg)
         repo.head.reference = 'master'
-        repo.head.reset(index=True, working_tree=True)
+        zuul.merger.merger.reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
         repo.heads['master'].checkout()
         return r
@@ -247,37 +259,39 @@ class FakeChange(object):
                  "comment": "This is a comment"}
         return event
 
-    def addApproval(self, category, value, username='jenkins',
-                    granted_on=None):
+    def addApproval(self, category, value, username='reviewer_john',
+                    granted_on=None, message=''):
         if not granted_on:
             granted_on = time.time()
-        approval = {'description': self.categories[category][0],
-                    'type': category,
-                    'value': str(value),
-                    'by': {
-                        'username': username,
-                        'email': username + '@example.com',
-                    },
-                    'grantedOn': int(granted_on)}
+        approval = {
+            'description': self.categories[category][0],
+            'type': category,
+            'value': str(value),
+            'by': {
+                'username': username,
+                'email': username + '@example.com',
+            },
+            'grantedOn': int(granted_on)
+        }
         for i, x in enumerate(self.patchsets[-1]['approvals'][:]):
             if x['by']['username'] == username and x['type'] == category:
                 del self.patchsets[-1]['approvals'][i]
         self.patchsets[-1]['approvals'].append(approval)
         event = {'approvals': [approval],
-                 'author': {'email': 'user@example.com',
-                            'name': 'User Name',
-                            'username': 'username'},
+                 'author': {'email': 'author@example.com',
+                            'name': 'Patchset Author',
+                            'username': 'author_phil'},
                  'change': {'branch': self.branch,
                             'id': 'Iaa69c46accf97d0598111724a38250ae76a22c87',
                             'number': str(self.number),
-                            'owner': {'email': 'user@example.com',
-                                      'name': 'User Name',
-                                      'username': 'username'},
+                            'owner': {'email': 'owner@example.com',
+                                      'name': 'Change Owner',
+                                      'username': 'owner_jane'},
                             'project': self.project,
                             'subject': self.subject,
                             'topic': 'master',
                             'url': 'https://hostname/459'},
-                 'comment': '',
+                 'comment': message,
                  'patchSet': self.patchsets[-1],
                  'type': 'comment-added'}
         self.data['submitRecords'] = self.getSubmitRecords()
@@ -348,7 +362,7 @@ class FakeChange(object):
 
     def setMerged(self):
         if (self.depends_on_change and
-            self.depends_on_change.data['status'] != 'MERGED'):
+                self.depends_on_change.data['status'] != 'MERGED'):
             return
         if self.fail_merge:
             return
@@ -365,11 +379,18 @@ class FakeChange(object):
 
 
 class FakeGerrit(object):
-    def __init__(self, *args, **kw):
+    log = logging.getLogger("zuul.test.FakeGerrit")
+
+    def __init__(self, hostname, username, port=29418, keyfile=None,
+                 changes_dbs={}):
+        self.hostname = hostname
+        self.username = username
+        self.port = port
+        self.keyfile = keyfile
         self.event_queue = Queue.Queue()
         self.fixture_dir = os.path.join(FIXTURE_DIR, 'gerrit')
         self.change_number = 0
-        self.changes = {}
+        self.changes = changes_dbs.get(hostname, {})
         self.queries = []
 
     def addFakeChange(self, project, branch, subject, status='NEW'):
@@ -381,7 +402,7 @@ class FakeGerrit(object):
         return c
 
     def addEvent(self, data):
-        return self.event_queue.put(data)
+        return self.event_queue.put((time.time(), data))
 
     def getEvent(self):
         return self.event_queue.get()
@@ -392,7 +413,27 @@ class FakeGerrit(object):
     def review(self, project, changeid, message, action):
         number, ps = changeid.split(',')
         change = self.changes[int(number)]
+
+        # Add the approval back onto the change (ie simulate what gerrit would
+        # do).
+        # Usually when zuul leaves a review it'll create a feedback loop where
+        # zuul's review enters another gerrit event (which is then picked up by
+        # zuul). However, we can't mimic this behaviour (by adding this
+        # approval event into the queue) as it stops jobs from checking what
+        # happens before this event is triggered. If a job needs to see what
+        # happens they can add their own verified event into the queue.
+        # Nevertheless, we can update change with the new review in gerrit.
+
+        for cat in ['CRVW', 'VRFY', 'APRV']:
+            if cat in action:
+                change.addApproval(cat, action[cat], username=self.username)
+
+        if 'label' in action:
+            parts = action['label'].split('=')
+            change.addApproval(parts[0], parts[2], username=self.username)
+
         change.messages.append(message)
+
         if 'submit' in action:
             change.setMerged()
         if message:
@@ -405,11 +446,21 @@ class FakeGerrit(object):
         return {}
 
     def simpleQuery(self, query):
-        # This is currently only used to return all open changes for a
-        # project
+        self.log.debug("simpleQuery: %s" % query)
         self.queries.append(query)
-        l = [change.query() for change in self.changes.values()]
-        l.append({"type":"stats","rowCount":1,"runTimeMilliseconds":3})
+        if query.startswith('change:'):
+            # Query a specific changeid
+            changeid = query[len('change:'):]
+            l = [change.query() for change in self.changes.values()
+                 if change.data['id'] == changeid]
+        elif query.startswith('message:'):
+            # Query the content of a commit message
+            msg = query[len('message:'):].strip()
+            l = [change.query() for change in self.changes.values()
+                 if msg in change.data['commitMessage']]
+        else:
+            # Query all open changes
+            l = [change.query() for change in self.changes.values()]
         return l
 
     def startWatching(self, *args, **kw):
@@ -454,6 +505,7 @@ class FakeGerritTrigger(zuul.trigger.gerrit.Gerrit):
     def __init__(self, upstream_root, *args):
         super(FakeGerritTrigger, self).__init__(*args)
         self.upstream_root = upstream_root
+        self.gerrit_connector.delay = 0.0
 
     def getGitUrl(self, project):
         return os.path.join(self.upstream_root, project.name)
@@ -794,11 +846,11 @@ class FakeSwiftClientConnection(swiftclient.client.Connection):
         return endpoint, ''
 
 
-class ZuulTestCase(testtools.TestCase):
+class BaseTestCase(testtools.TestCase):
     log = logging.getLogger("zuul.test")
 
     def setUp(self):
-        super(ZuulTestCase, self).setUp()
+        super(BaseTestCase, self).setUp()
         test_timeout = os.environ.get('OS_TEST_TIMEOUT', 0)
         try:
             test_timeout = int(test_timeout)
@@ -822,9 +874,16 @@ class ZuulTestCase(testtools.TestCase):
                 level=logging.DEBUG,
                 format='%(asctime)s %(name)-32s '
                 '%(levelname)-8s %(message)s'))
+
+
+class ZuulTestCase(BaseTestCase):
+
+    def setUp(self):
+        super(ZuulTestCase, self).setUp()
         if USE_TEMPDIR:
             tmp_root = self.useFixture(fixtures.TempDir(
-                    rootdir=os.environ.get("ZUUL_TEST_ROOT"))).path
+                rootdir=os.environ.get("ZUUL_TEST_ROOT"))
+            ).path
         else:
             tmp_root = os.environ.get("ZUUL_TEST_ROOT")
         self.test_root = os.path.join(tmp_root, "zuul-test")
@@ -859,6 +918,7 @@ class ZuulTestCase(testtools.TestCase):
         self.init_repo("org/conflict-project")
         self.init_repo("org/noop-project")
         self.init_repo("org/experimental-project")
+        self.init_repo("org/no-jobs-project")
 
         self.statsd = FakeStatsd()
         os.environ['STATSD_HOST'] = 'localhost'
@@ -905,7 +965,19 @@ class ZuulTestCase(testtools.TestCase):
             args = [self.smtp_messages] + list(args)
             return FakeSMTP(*args, **kw)
 
-        zuul.lib.gerrit.Gerrit = FakeGerrit
+        # Set a changes database so multiple FakeGerrit's can report back to
+        # a virtual canonical database given by the configured hostname
+        self.gerrit_changes_dbs = {
+            self.config.get('gerrit', 'server'): {}
+        }
+
+        def FakeGerritFactory(*args, **kw):
+            kw['changes_dbs'] = self.gerrit_changes_dbs
+            return FakeGerrit(*args, **kw)
+
+        self.useFixture(fixtures.MonkeyPatch('zuul.lib.gerrit.Gerrit',
+                                             FakeGerritFactory))
+
         self.useFixture(fixtures.MonkeyPatch('smtplib.SMTP', FakeSMTPFactory))
 
         self.gerrit = FakeGerritTrigger(
@@ -923,7 +995,8 @@ class ZuulTestCase(testtools.TestCase):
         self.sched.registerTrigger(self.gerrit)
         self.timer = zuul.trigger.timer.Timer(self.config, self.sched)
         self.sched.registerTrigger(self.timer)
-        self.zuultrigger = zuul.trigger.zuultrigger.ZuulTrigger(self.config, self.sched)
+        self.zuultrigger = zuul.trigger.zuultrigger.ZuulTrigger(self.config,
+                                                                self.sched)
         self.sched.registerTrigger(self.zuultrigger)
 
         self.sched.registerReporter(
@@ -961,6 +1034,10 @@ class ZuulTestCase(testtools.TestCase):
                 repos.append(obj)
         self.assertEqual(len(repos), 0)
         self.assertEmptyQueues()
+        for pipeline in self.sched.layout.pipelines.values():
+            if isinstance(pipeline.manager,
+                          zuul.scheduler.IndependentPipelineManager):
+                self.assertEqual(len(pipeline.queues), 0)
 
     def shutdown(self):
         self.log.debug("Shutting down after tests")
@@ -1006,7 +1083,7 @@ class ZuulTestCase(testtools.TestCase):
         repo.create_tag('init')
 
         repo.head.reference = master
-        repo.head.reset(index=True, working_tree=True)
+        zuul.merger.merger.reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
 
         self.create_branch(project, 'mp')
@@ -1025,15 +1102,18 @@ class ZuulTestCase(testtools.TestCase):
         repo.index.commit('%s commit' % branch)
 
         repo.head.reference = repo.heads['master']
-        repo.head.reset(index=True, working_tree=True)
+        zuul.merger.merger.reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
 
     def ref_has_change(self, ref, change):
         path = os.path.join(self.git_root, change.project)
         repo = git.Repo(path)
-        for commit in repo.iter_commits(ref):
-            if commit.message.strip() == ('%s-1' % change.subject):
-                return True
+        try:
+            for commit in repo.iter_commits(ref):
+                if commit.message.strip() == ('%s-1' % change.subject):
+                    return True
+        except GitCommandError:
+            pass
         return False
 
     def job_has_changes(self, *args):
@@ -1074,6 +1154,12 @@ class ZuulTestCase(testtools.TestCase):
 
         while len(self.gearman_server.functions) < count:
             time.sleep(0)
+
+    def orderedRelease(self):
+        # Run one build at a time to ensure non-race order:
+        while len(self.builds):
+            self.release(self.builds[0])
+            self.waitUntilSettled()
 
     def release(self, job):
         if isinstance(job, FakeBuild):
@@ -1127,8 +1213,6 @@ class ZuulTestCase(testtools.TestCase):
         return True
 
     def areAllBuildsWaiting(self):
-        ret = True
-
         builds = self.launcher.builds.values()
         for build in builds:
             client_job = None
@@ -1140,35 +1224,34 @@ class ZuulTestCase(testtools.TestCase):
             if not client_job:
                 self.log.debug("%s is not known to the gearman client" %
                                build)
-                ret = False
-                continue
+                return False
             if not client_job.handle:
                 self.log.debug("%s has no handle" % client_job)
-                ret = False
-                continue
+                return False
             server_job = self.gearman_server.jobs.get(client_job.handle)
             if not server_job:
                 self.log.debug("%s is not known to the gearman server" %
                                client_job)
-                ret = False
-                continue
+                return False
             if not hasattr(server_job, 'waiting'):
                 self.log.debug("%s is being enqueued" % server_job)
-                ret = False
-                continue
+                return False
             if server_job.waiting:
                 continue
             worker_job = self.worker.gearman_jobs.get(server_job.unique)
             if worker_job:
+                if build.number is None:
+                    self.log.debug("%s has not reported start" % worker_job)
+                    return False
                 if worker_job.build.isWaiting():
                     continue
                 else:
                     self.log.debug("%s is running" % worker_job)
-                    ret = False
+                    return False
             else:
                 self.log.debug("%s is unassigned" % server_job)
-                ret = False
-        return ret
+                return False
+        return True
 
     def waitUntilSettled(self):
         self.log.debug("Waiting until settled...")
@@ -1191,10 +1274,10 @@ class ZuulTestCase(testtools.TestCase):
                 self.sched.trigger_event_queue.join()
                 self.sched.result_event_queue.join()
                 self.sched.run_handler_lock.acquire()
-                if (self.sched.trigger_event_queue.empty() and
+                if (not self.merge_client.build_sets and
+                    self.sched.trigger_event_queue.empty() and
                     self.sched.result_event_queue.empty() and
                     self.fake_gerrit.event_queue.empty() and
-                    not self.merge_client.build_sets and
                     self.haveAllBuildsReported() and
                     self.areAllBuildsWaiting()):
                     self.sched.run_handler_lock.release()

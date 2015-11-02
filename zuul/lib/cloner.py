@@ -39,8 +39,8 @@ class Cloner(object):
         self.cache_dir = cache_dir
         self.projects = projects
         self.workspace = workspace
-        self.zuul_branch = zuul_branch
-        self.zuul_ref = zuul_ref
+        self.zuul_branch = zuul_branch or ''
+        self.zuul_ref = zuul_ref or ''
         self.zuul_url = zuul_url
         self.project_branches = project_branches or {}
 
@@ -80,8 +80,7 @@ class Cloner(object):
             new_repo = git.Repo.clone_from(git_cache, dest)
             self.log.info("Updating origin remote in repo %s to %s",
                           project, git_upstream)
-            origin = new_repo.remotes.origin.config_writer.set(
-                'url', git_upstream)
+            new_repo.remotes.origin.config_writer.set('url', git_upstream)
         else:
             self.log.info("Creating repo %s from upstream %s",
                           project, git_upstream)
@@ -126,33 +125,47 @@ class Cloner(object):
 
         repo = self.cloneUpstream(project, dest)
 
-        repo.update()
         # Ensure that we don't have stale remotes around
         repo.prune()
+        # We must reset after pruning because reseting sets HEAD to point
+        # at refs/remotes/origin/master, but `git branch` which prune runs
+        # explodes if HEAD does not point at something in refs/heads.
+        # Later with repo.checkout() we set HEAD to something that
+        # `git branch` is happy with.
+        repo.reset()
 
         indicated_branch = self.branch or self.zuul_branch
         if project in self.project_branches:
             indicated_branch = self.project_branches[project]
 
-        override_zuul_ref = re.sub(self.zuul_branch, indicated_branch,
-                                   self.zuul_ref)
+        if indicated_branch:
+            override_zuul_ref = re.sub(self.zuul_branch, indicated_branch,
+                                       self.zuul_ref)
+        else:
+            override_zuul_ref = None
 
-        if repo.hasBranch(indicated_branch):
-            self.log.debug("upstream repo has branch %s", indicated_branch)
+        if indicated_branch and repo.hasBranch(indicated_branch):
+            self.log.info("upstream repo has branch %s", indicated_branch)
             fallback_branch = indicated_branch
         else:
-            self.log.debug("upstream repo is missing branch %s",
-                           self.branch)
+            self.log.info("upstream repo is missing branch %s",
+                          self.branch)
             # FIXME should be origin HEAD branch which might not be 'master'
             fallback_branch = 'master'
 
-        fallback_zuul_ref = re.sub(self.zuul_branch, fallback_branch,
-                                   self.zuul_ref)
+        if self.zuul_branch:
+            fallback_zuul_ref = re.sub(self.zuul_branch, fallback_branch,
+                                       self.zuul_ref)
+        else:
+            fallback_zuul_ref = None
 
-        if (self.fetchFromZuul(repo, project, override_zuul_ref)
-            or (fallback_zuul_ref != override_zuul_ref and
-                self.fetchFromZuul(repo, project, fallback_zuul_ref))
-            ):
+        # If we have a non empty zuul_ref to use, use it. Otherwise we fall
+        # back to checking out the branch.
+        if ((override_zuul_ref and
+            self.fetchFromZuul(repo, project, override_zuul_ref)) or
+            (fallback_zuul_ref and
+             fallback_zuul_ref != override_zuul_ref and
+            self.fetchFromZuul(repo, project, fallback_zuul_ref))):
             # Work around a bug in GitPython which can not parse FETCH_HEAD
             gitcmd = git.Git(dest)
             fetch_head = gitcmd.rev_parse('FETCH_HEAD')
@@ -161,11 +174,11 @@ class Cloner(object):
                           project, fetch_head)
         else:
             # Checkout branch
-            self.log.debug("Falling back to branch %s", fallback_branch)
+            self.log.info("Falling back to branch %s", fallback_branch)
             try:
-                repo.checkout('remotes/origin/%s' % fallback_branch)
+                commit = repo.checkout('remotes/origin/%s' % fallback_branch)
             except (ValueError, GitCommandError):
                 self.log.exception("Fallback branch not found: %s",
                                    fallback_branch)
-            self.log.info("Prepared %s repo with branch %s",
-                          project, fallback_branch)
+            self.log.info("Prepared %s repo with branch %s at commit %s",
+                          project, fallback_branch, commit)
