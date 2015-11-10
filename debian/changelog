@@ -1,3 +1,7 @@
+zuul (2.1.0-60-g1cc37f7-wmf1jessie1) jessie-wikimedia; urgency=medium
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 10 Nov 2015 22:14:01 +0100
+
 zuul (2.1.0-60-g1cc37f7-wmf1trusty1) trusty-wikimedia; urgency=medium
 
   * Sync with precise-wikimedia
