@@ -2,4 +2,4 @@
 host=gerrit.wikimedia.org
 port=29418
 project=integration/zuul.git
-defaultbranch=debian/precise-wikimedia
+defaultbranch=debian/jessie-wikimedia
