@@ -1,3 +1,9 @@
+zuul (2.1.0-60-g1cc37f7-wmf2trusty1) trusty-wikimedia; urgency=medium
+
+  * Sync with precise-wikimedia (refresh zuul-cloner no-hardlinks patch)
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 13 Nov 2015 14:36:02 +0100
+
 zuul (2.1.0-60-g1cc37f7-wmf1trusty1) trusty-wikimedia; urgency=medium
 
   * Sync with precise-wikimedia
