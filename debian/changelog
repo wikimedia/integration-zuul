@@ -1,3 +1,11 @@
+zuul (2.1.0-60-g1cc37f7-wmf2precise1) precise-wikimedia; urgency=medium
+
+  * Refresh patch 0005-Cloner-Implement-cache-no-hardlinks-argument.patch to
+    latest upstream version https://review.openstack.org/#/c/117626/11
+    Closes https://phabricator.wikimedia.org/T97106
+
+ -- Antoine Musso <hashar@free.fr> Fri, 13 Nov 2015 14:15:50 +0100
+
 zuul (2.1.0-60-g1cc37f7-wmf1precise1) precise-wikimedia; urgency=medium
 
   * Bump upstream from 3ebedde to 1cc37f7
