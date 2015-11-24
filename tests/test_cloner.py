@@ -15,6 +15,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import fixtures
 import logging
 import os
 import shutil
@@ -117,6 +118,28 @@ class TestCloner(ZuulTestCase):
         self.worker.hold_jobs_in_build = False
         self.worker.release()
         self.waitUntilSettled()
+
+    def test_recognize_bare_cache(self):
+        cache_root = os.path.join(self.test_root, "cache")
+        upstream_repo_path = os.path.join(self.upstream_root, 'org/project1')
+        cache_bare_path = os.path.join(cache_root, 'org/project1.git')
+        cache_repo = git.Repo.clone_from(upstream_repo_path, cache_bare_path,
+                                         bare=True)
+        self.assertTrue(type(cache_repo.bare), msg='Cache repo is bare')
+
+        log_fixture = self.useFixture(fixtures.FakeLogger(level=logging.INFO))
+        cloner = zuul.lib.cloner.Cloner(
+            git_base_url=self.upstream_root,
+            projects=['org/project1'],
+            workspace=self.workspace_root,
+            zuul_branch='HEAD',
+            zuul_ref='HEAD',
+            zuul_url=self.git_root,
+            cache_dir=cache_root
+        )
+        cloner.execute()
+        self.assertIn('Creating repo org/project1 from cache file://%s' % (
+                      cache_bare_path), log_fixture.output)
 
     def test_one_branch(self):
         self.worker.hold_jobs_in_build = True
