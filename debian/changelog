@@ -1,3 +1,11 @@
+zuul (2.1.0-60-g1cc37f7-wmf3trusty) precise-wikimedia; urgency=medium
+
+  * Sync with precise-wikimedia
+  * 0007-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
+    upstream version: https://review.openstack.org/#/c/249207/2
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 24 Nov 2015 16:56:26 +0100
+
 zuul (2.1.0-60-g1cc37f7-wmf2trusty1) trusty-wikimedia; urgency=medium
 
   * Sync with precise-wikimedia (refresh zuul-cloner no-hardlinks patch)
