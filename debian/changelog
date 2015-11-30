@@ -1,4 +1,12 @@
-zuul (2.1.0-60-g1cc37f7-wmf3trusty) precise-wikimedia; urgency=medium
+zuul (2.1.0-60-g1cc37f7-wmf4trusty1) trusty-wikimedia; urgency=critical
+
+  * Sync with precise-wikimedia
+  * 0008-wmf-pin-python-daemon-2.1.0.patch
+    Solves https://phabricator.wikimedia.org/T119741
+
+ -- Antoine Musso <hashar@free.fr>  Mon, 30 Nov 2015 16:54:05 +0100
+
+zuul (2.1.0-60-g1cc37f7-wmf3trusty) trusty-wikimedia; urgency=medium
 
   * Sync with precise-wikimedia
   * 0007-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
