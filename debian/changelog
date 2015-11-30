@@ -1,3 +1,11 @@
+zuul (2.1.0-60-g1cc37f7-wmf4jessie1) jessie-wikimedia; urgency=critical
+
+  * sync with precise-wikimedia
+  * 0008-wmf-pin-python-daemon-2.1.0.patch
+    Solves https://phabricator.wikimedia.org/T119741
+
+ -- Antoine Musso <hashar@free.fr>  Mon, 30 Nov 2015 16:58:08 +0100
+
 zuul (2.1.0-60-g1cc37f7-wmf3jessie1) jessie-wikimedia; urgency=medium
 
   * sync with precise-wikimedia

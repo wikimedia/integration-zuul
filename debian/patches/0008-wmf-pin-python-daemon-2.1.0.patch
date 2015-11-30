@@ -1,0 +1,28 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Thu, 26 Nov 2015 23:17:47 +0100
+Subject: wmf: pin python-daemon <2.1.0
+
+Causes Zuul scheduler to fails layout validation with:
+
+daemon.daemon.DaemonOSEnvironmentError: Unable to change process owner
+([Errno 1] Operation not permitted)
+
+Bug: T119741
+Change-Id: Ia0d3a6f5979183bca76d3553f3e3b3dcf43350f2
+---
+ requirements.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/requirements.txt b/requirements.txt
+index e82ad04..e4e083c 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -6,7 +6,7 @@ Paste
+ WebOb
+ paramiko
+ GitPython>=0.3.3
+-python-daemon>=2.0.4
++python-daemon>=2.0.4,<2.1.0
+ extras
+ statsd>=1.0.0,<3.0
+ voluptuous>=0.7
