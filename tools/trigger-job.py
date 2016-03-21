@@ -18,6 +18,7 @@
 # parameters.
 
 import argparse
+import sys
 import time
 import json
 from uuid import uuid4
@@ -35,31 +36,22 @@ def main():
                         help='Project name')
     parser.add_argument('--pipeline', dest='pipeline', default='release',
                         help='Zuul pipeline')
-    parser.add_argument('--refname', dest='refname',
-                        help='Ref name')
-    parser.add_argument('--oldrev', dest='oldrev',
-                        default='0000000000000000000000000000000000000000',
-                        help='Old revision (SHA)')
-    parser.add_argument('--newrev', dest='newrev',
-                        help='New revision (SHA)')
+    parser.add_argument('--branch', dest='branch',
+                        help='Branch name')
     parser.add_argument('--url', dest='url',
-                        default='http://zuul.openstack.org/p', help='Zuul URL')
-    parser.add_argument('--logpath', dest='logpath', required=True,
-                        help='Path for log files.')
+                        default='https://gerrit.wikimedia.org/r/p',
+                        help='Git base URL')
     args = parser.parse_args()
 
     data = {'ZUUL_PIPELINE': args.pipeline,
             'ZUUL_PROJECT': args.project,
             'ZUUL_UUID': str(uuid4().hex),
-            'ZUUL_REF': args.refname,
-            'ZUUL_REFNAME': args.refname,
-            'ZUUL_OLDREV': args.oldrev,
-            'ZUUL_NEWREV': args.newrev,
-            'ZUUL_SHORT_OLDREV': args.oldrev[:7],
-            'ZUUL_SHORT_NEWREV': args.newrev[:7],
-            'ZUUL_COMMIT': args.newrev,
+            'ZUUL_REF': args.branch,
+            'ZUUL_BRANCH': args.branch,
+            'ZUUL_REFNAME': args.branch,
+            'ZUUL_COMMIT': args.branch,
             'ZUUL_URL': args.url,
-            'LOG_PATH': args.logpath,
+            'OFFLINE_NODE_WHEN_COMPLETE': 1,
             }
 
     c.addServer('127.0.0.1', 4730)
@@ -71,7 +63,14 @@ def main():
     c.submitJob(job)
 
     while not job.complete:
+        sys.stdout.write('.')
+        sys.stdout.flush()
         time.sleep(1)
+    if job.failure:
+        print "Job failed!"
+        return 1
+    print "Job passed"
+    print job.data
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
