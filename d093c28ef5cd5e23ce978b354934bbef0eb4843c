@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "ee33df1d_8d872966",
+        "filename": "tools/trigger-job.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 70,
+      "author": {
+        "id": 1718
+      },
+      "writtenOn": "2016-03-21T11:44:27Z",
+      "side": 1,
+      "message": "use print(...) here and below",
+      "revId": "d093c28ef5cd5e23ce978b354934bbef0eb4843c",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
