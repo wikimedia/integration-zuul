@@ -1,3 +1,10 @@
+zuul (2.1.0-95-g66c8e52-wmf1precise1) precise-wikimedia; urgency=medium
+
+  * Slowly catch up with upstream
+  * 0008-wmf-pin-python-daemon-2.1.0 is no more needed.
+
+ -- Antoine <hashar@free.fr>  Mon, 30 May 2016 13:55:52 +0200
+
 zuul (2.1.0-60-g1cc37f7-wmf4precise1) precise-wikimedia; urgency=critical
 
   * 0008-wmf-pin-python-daemon-2.1.0.patch

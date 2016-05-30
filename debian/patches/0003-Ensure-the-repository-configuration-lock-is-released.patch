@@ -27,7 +27,7 @@ diff --git a/zuul/merger/merger.py b/zuul/merger/merger.py
 index 1e881bf..61a4719 100644
 --- a/zuul/merger/merger.py
 +++ b/zuul/merger/merger.py
-@@ -70,7 +70,18 @@ def _ensure_cloned(self):
+@@ -70,7 +70,18 @@ class Repo(object):
          if self.username:
              repo.config_writer().set_value('user', 'name',
                                             self.username)
