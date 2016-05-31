@@ -1,7 +1,5 @@
 0001-wmf-soften-requirements.patch
-0002-Update-merge-status-after-merge-merge-is-submitted.patch
-0003-Ensure-the-repository-configuration-lock-is-released.patch
-0004-Replace-python-shebang-with-python2.7.patch
-0005-Cloner-Implement-cache-no-hardlinks-argument.patch
-0006-Revert-Fix-passing-labels-to-Gerrit-when-they-are-no.patch
-0007-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
+0002-Ensure-the-repository-configuration-lock-is-released.patch
+0003-Replace-python-shebang-with-python2.7.patch
+0004-Cloner-Implement-cache-no-hardlinks-argument.patch
+0005-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
