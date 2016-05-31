@@ -1,9 +1,30 @@
+zuul (2.1.0-151-g30a433b-wmf1precise1) precise-wikimedia; urgency=medium
+
+  * Bump upstream version
+  * Should deal with circular dependencies which caused a complete deadlock of
+    the Zuul scheduler: https://phabricator.wikimedia.org/T129938
+  * Fix typo in previous changelog entry
+  * Make myself the Maintainer
+  * Patch maintenance:
+  * wmf-soften-requirements:
+    - apscheduler 3.0.x is now shipped via dh_virtualenv
+      Note 3.1.0 fails with old setuptools
+    - soften pbr, 1.1.0 is just for tests
+  * Update-merge-status-after-merge-merge-is-submitted
+    - merged upstream
+  * Revert-Fix-passing-labels-to-Gerrit-when-they-are-no
+    - no more needed with upstream "connections" refactoring
+  * Rebased the couple Zuul cloner patches
+  * Bump GitPython 2.0.3..2.0.5
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 31 May 2016 11:05:32 +0200
+
 zuul (2.1.0-95-g66c8e52-wmf1precise1) precise-wikimedia; urgency=medium
 
   * Slowly catch up with upstream
   * 0008-wmf-pin-python-daemon-2.1.0 is no more needed.
 
- -- Antoine <hashar@free.fr>  Mon, 30 May 2016 13:55:52 +0200
+ -- Antoine Musso <hashar@free.fr>  Mon, 30 May 2016 13:55:52 +0200
 
 zuul (2.1.0-60-g1cc37f7-wmf4precise1) precise-wikimedia; urgency=critical
 
