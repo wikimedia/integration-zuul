@@ -1,3 +1,11 @@
+zuul (2.1.0-151-g30a433b-wmf2precise1) precise-wikimedia; urgency=medium
+
+  * Pick some upstream patches:
+    [9b41a0b] Properly shutdown apscheduler on reconfigure
+    [fc1b58a] GerritWatcher: add poll_timeout
+
+ -- Antoine Musso <hashar@free.fr> Thu, 02 Jun 2016 15:42:45 +0200
+
 zuul (2.1.0-151-g30a433b-wmf1precise1) precise-wikimedia; urgency=medium
 
   * Bump upstream version

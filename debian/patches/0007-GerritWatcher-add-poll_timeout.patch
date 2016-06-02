@@ -1,0 +1,35 @@
+From: Tristan Cacqueray <tdecacqu@redhat.com>
+Date: Sun, 31 Jan 2016 11:15:36 -0500
+Subject: GerritWatcher: add poll_timeout
+
+So that zuul reload process can happen when gerrit stream is silent.
+Otherwise the main loop doesn't exit out of the poll call and doesn't
+evaluate the "while not self._stopped" location.
+
+Change-Id: If3129a65da6119acf69ad00e2e78c7ec82a49941
+Closes-Bug: https://storyboard.openstack.org/#!/story/2000472
+---
+ zuul/connection/gerrit.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
+index 4671ff9..a1854f4 100644
+--- a/zuul/connection/gerrit.py
++++ b/zuul/connection/gerrit.py
+@@ -132,6 +132,7 @@ class GerritEventConnector(threading.Thread):
+ 
+ class GerritWatcher(threading.Thread):
+     log = logging.getLogger("gerrit.GerritWatcher")
++    poll_timeout = 500
+ 
+     def __init__(self, gerrit_connection, username, hostname, port=29418,
+                  keyfile=None):
+@@ -154,7 +155,7 @@ class GerritWatcher(threading.Thread):
+         poll = select.poll()
+         poll.register(stdout.channel)
+         while not self._stopped:
+-            ret = poll.poll()
++            ret = poll.poll(self.poll_timeout)
+             for (fd, event) in ret:
+                 if fd == stdout.channel.fileno():
+                     if event == select.POLLIN:

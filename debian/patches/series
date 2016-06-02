@@ -3,3 +3,5 @@
 0003-Replace-python-shebang-with-python2.7.patch
 0004-Cloner-Implement-cache-no-hardlinks-argument.patch
 0005-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
+0006-Properly-shutdown-apscheduler-on-reconfigure.patch
+0007-GerritWatcher-add-poll_timeout.patch
