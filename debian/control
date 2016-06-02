@@ -1,5 +1,5 @@
 Source: zuul
-Maintainer: Antoine Musso <hashar@free.fr>
+Maintainer: Paul Belanger <paul.belanger@polybeacon.com>
 Uploaders: Antoine Musso <hashar@free.fr>
 Section: python
 Priority: optional
@@ -33,7 +33,7 @@ Build-Depends: debhelper (>= 9),
 #python-statsd (>= 1.0.0, <3.0)
  python-voluptuous (>= 0.7),
  python-gear (>= 0.5.4),
-#python-apscheduler (>= 2.1.1),
+ python-apscheduler (>= 2.1.1),
 #python-prettytable (>= 0.6),
  python-tz,
 #python-babel (>= 1.0),
@@ -84,7 +84,7 @@ Depends: adduser,
  python-extras,
  python-voluptuous (>= 0.7),
  python-gear (>= 0.5.4),
-#python-apscheduler (>= 2.1.1),
+ python-apscheduler (>= 2.1.1),
  python-six (>= 1.6.0),
  python-tz,
  ${misc:Depends},

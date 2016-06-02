@@ -55,7 +55,7 @@ index a922a34..63825e4 100755
          cloner.execute()
  
 diff --git a/zuul/lib/cloner.py b/zuul/lib/cloner.py
-index f0235a6..3a12a40 100644
+index 0ac7f0f..c404d9e 100644
 --- a/zuul/lib/cloner.py
 +++ b/zuul/lib/cloner.py
 @@ -29,7 +29,8 @@ class Cloner(object):
@@ -76,10 +76,10 @@ index f0235a6..3a12a40 100644
          self.projects = projects
          self.workspace = workspace
          self.zuul_branch = zuul_branch or ''
-@@ -74,8 +76,11 @@ class Cloner(object):
+@@ -73,8 +75,11 @@ class Cloner(object):
          if (self.cache_dir and
              os.path.exists(git_cache) and
-             not repo_is_cloned):
+             not os.path.exists(dest)):
 -            # file:// tells git not to hard-link across repos
 -            git_cache = 'file://%s' % git_cache
 +

@@ -1,0 +1,102 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Thu, 16 Oct 2014 15:32:14 +0200
+Subject: Update merge status after merge:merge is submitted
+
+When preparing a reference, we set the merge state to PENDING before
+having emitted the merge:merge.  If any exception occurs when submitting
+the merge:merge job, the buildset is left PENDING and is never retried
+because prepareRef early exit in such case.
+
+Move the merge_state change after the job has been submitted. An
+exception would let the state as is (ie NEW) and thus indicate it should
+be retried.
+
+prepareRef happens before processing jobs and we do not have a way to
+pause the scheduler.  So I overrided the merger.submitJob() to throw an
+exception, the scheduler keep processing until the event fail.  From
+there we can assert the merge is still pending (BuildSet.NEW) then
+resume the submitJob() method to clear the queue properly.
+
+I ran the test with the change, and it fails properly (there is still a
+change stuck in queue).
+
+Closes-Bug: #1358517
+Change-Id: I4d91a15aaae878ed231d50ab5f4f7a65f0d0e830
+---
+ tests/test_scheduler.py | 31 +++++++++++++++++++++++++++++++
+ zuul/scheduler.py       |  2 +-
+ 2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
+index a257440..52ef91a 100755
+--- a/tests/test_scheduler.py
++++ b/tests/test_scheduler.py
+@@ -24,10 +24,12 @@ import urllib
+ import urllib2
+ import yaml
+ 
++import gear
+ import git
+ import testtools
+ 
+ import zuul.change_matcher
++import zuul.model
+ import zuul.scheduler
+ import zuul.rpcclient
+ import zuul.reporter.gerrit
+@@ -2051,6 +2053,35 @@ class TestScheduler(ZuulTestCase):
+         self.assertEqual(self.countJobResults(self.history, 'RUN_ERROR'), 1)
+         self.assertEqual(self.countJobResults(self.history, 'SUCCESS'), 3)
+ 
++    def test_retry_merge_on_gearman_error(self):
++        "Test merge:merge is reenqueued on Gearman server error"
++
++        # Instruct merger to fail with a Gearman error
++        def fake_not_connected_error(*args):
++            raise gear.NoConnectedServersError("Fake no connected Gearman servers")
++        old_submit_job = self.sched.merger.submitJob
++        self.sched.merger.submitJob = fake_not_connected_error
++
++        self.worker.hold_jobs_in_build = True
++
++        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
++        A.addApproval('CRVW', 2)
++        self.fake_gerrit.addEvent(A.addApproval('APRV', 1))
++        self.waitUntilSettled()
++
++        items = self.sched.layout.pipelines['gate'].getAllItems()
++        self.assertEquals(1, len(items))
++        build_sets = items[0].build_sets
++        self.assertEquals(1, len(build_sets))
++        self.assertEquals(zuul.model.BuildSet.NEW, build_sets[0].merge_state,
++                          "BuildSet merge state must be NEW after failling to "
++                          "prepare a ref")
++
++        # Clear the queue
++        self.sched.merger.submitJob = old_submit_job
++        self.worker.hold_jobs_in_build = False
++        self.worker.release()
++
+     def test_statsd(self):
+         "Test each of the statsd methods used in the scheduler"
+         import extras
+diff --git a/zuul/scheduler.py b/zuul/scheduler.py
+index 2355801..ead1229 100644
+--- a/zuul/scheduler.py
++++ b/zuul/scheduler.py
+@@ -1343,7 +1343,6 @@ class BasePipelineManager(object):
+             return True
+         if build_set.merge_state == build_set.PENDING:
+             return False
+-        build_set.merge_state = build_set.PENDING
+         ref = build_set.ref
+         if hasattr(item.change, 'refspec') and not ref:
+             self.log.debug("Preparing ref for: %s" % item.change)
+@@ -1361,6 +1360,7 @@ class BasePipelineManager(object):
+             self.sched.merger.updateRepo(item.change.project.name,
+                                          url, build_set,
+                                          self.pipeline.precedence)
++        build_set.merge_state = build_set.PENDING
+         return False
+ 
+     def _launchJobs(self, item, jobs):
