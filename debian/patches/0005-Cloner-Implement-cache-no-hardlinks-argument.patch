@@ -19,25 +19,25 @@ Change-Id: Ib8796f9dc5ccfeac4a3c9b3d30629c7db0f84739
  3 files changed, 18 insertions(+), 3 deletions(-)
 
 diff --git a/doc/source/cloner.rst b/doc/source/cloner.rst
-index 2ddf0b5..60c8764 100644
+index 70577cc..c0ca990 100644
 --- a/doc/source/cloner.rst
 +++ b/doc/source/cloner.rst
-@@ -87,3 +87,8 @@ cloning any projects it processes from those found in that directory.
- The URL of origin remote of the resulting clone will be reset to use
- the ``git_base_url`` and then the remote will be updated so that the
- repository has all the information in the upstream repository.
+@@ -108,3 +108,8 @@ repository has all the information in the upstream repository.
+ The default for ``--cache-dir`` is taken from the environment variable
+ ``ZUUL_CACHE_DIR``. A value provided explicitly on the command line
+ overrides the environment variable setting.
 +
 +The ``--cache-no-hardlinks`` option can be used to force git to
 +always copy git objects from the cache directory. By default, if
 +the cache directory is on the same disk as the workspace, git-clone
 +will hardlink git objects to speed up the process and save space.
 diff --git a/zuul/cmd/cloner.py b/zuul/cmd/cloner.py
-index 09bda3e..5e42e72 100755
+index a922a34..63825e4 100755
 --- a/zuul/cmd/cloner.py
 +++ b/zuul/cmd/cloner.py
-@@ -54,6 +54,10 @@ def parse_arguments(self):
-                             help=('a directory that holds cached copies of '
-                                   'repos from which to make an initial clone.'
+@@ -57,6 +57,10 @@ class Cloner(zuul.cmd.ZuulApp):
+                                   'Can also be set via ZUUL_CACHE_DIR '
+                                   'environment variable.'
                                    ))
 +        parser.add_argument('--cache-no-hardlinks', dest='cache_no_hardlinks',
 +                            action='store_true',
@@ -46,7 +46,7 @@ index 09bda3e..5e42e72 100755
          parser.add_argument('git_base_url',
                              help='reference repo to clone from')
          parser.add_argument('projects', nargs='+',
-@@ -142,6 +146,7 @@ def main(self):
+@@ -145,6 +149,7 @@ class Cloner(zuul.cmd.ZuulApp):
              clone_map_file=self.args.clone_map_file,
              project_branches=project_branches,
              cache_dir=self.args.cache_dir,
@@ -68,7 +68,7 @@ index 0ac7f0f..c404d9e 100644
  
          self.clone_map = []
          self.dests = None
-@@ -37,6 +38,7 @@ def __init__(self, git_base_url, projects, workspace, zuul_branch,
+@@ -37,6 +38,7 @@ class Cloner(object):
          self.branch = branch
          self.git_url = git_base_url
          self.cache_dir = cache_dir
@@ -76,7 +76,7 @@ index 0ac7f0f..c404d9e 100644
          self.projects = projects
          self.workspace = workspace
          self.zuul_branch = zuul_branch or ''
-@@ -73,8 +75,11 @@ def cloneUpstream(self, project, dest):
+@@ -73,8 +75,11 @@ class Cloner(object):
          if (self.cache_dir and
              os.path.exists(git_cache) and
              not os.path.exists(dest)):

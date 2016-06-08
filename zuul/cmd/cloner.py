@@ -33,7 +33,7 @@ ZUUL_ENV_SUFFIXES = (
 class Cloner(zuul.cmd.ZuulApp):
     log = logging.getLogger("zuul.Cloner")
 
-    def parse_arguments(self):
+    def parse_arguments(self, args=sys.argv[1:]):
         """Parse command line arguments and returns argparse structure"""
         parser = argparse.ArgumentParser(
             description='Zuul Project Gating System Cloner.')
@@ -51,8 +51,11 @@ class Cloner(zuul.cmd.ZuulApp):
                             version=self._get_version(),
                             help='show zuul version')
         parser.add_argument('--cache-dir', dest='cache_dir',
+                            default=os.environ.get('ZUUL_CACHE_DIR'),
                             help=('a directory that holds cached copies of '
-                                  'repos from which to make an initial clone.'
+                                  'repos from which to make an initial clone. '
+                                  'Can also be set via ZUUL_CACHE_DIR '
+                                  'environment variable.'
                                   ))
         parser.add_argument('git_base_url',
                             help='reference repo to clone from')
@@ -87,7 +90,7 @@ class Cloner(zuul.cmd.ZuulApp):
                 default=os.environ.get(env_name)
             )
 
-        args = parser.parse_args()
+        args = parser.parse_args(args)
         # Validate ZUUL_* arguments. If ref is provided then URL is required.
         zuul_args = [zuul_opt for zuul_opt, val in vars(args).items()
                      if zuul_opt.startswith('zuul') and val is not None]

@@ -36,7 +36,7 @@ index 70c2b3f..4ec20a6 100644
  #
  # Licensed under the Apache License, Version 2.0 (the "License");
 diff --git a/tests/base.py b/tests/base.py
-index 5ddb160..8bb0f01 100755
+index 57b30b5..acf03b9 100755
 --- a/tests/base.py
 +++ b/tests/base.py
 @@ -1,4 +1,4 @@
@@ -76,7 +76,7 @@ index 454f3cc..55d16a0 100644
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  # Copyright 2014 Wikimedia Foundation Inc.
 diff --git a/tests/test_requirements.py b/tests/test_requirements.py
-index 4316925..85751ce 100644
+index 3ae56ad..202010c 100644
 --- a/tests/test_requirements.py
 +++ b/tests/test_requirements.py
 @@ -1,4 +1,4 @@
@@ -86,7 +86,7 @@ index 4316925..85751ce 100644
  # Copyright 2012-2014 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
-index 0c34684..3b755b7 100755
+index 52ef91a..407387a 100755
 --- a/tests/test_scheduler.py
 +++ b/tests/test_scheduler.py
 @@ -1,4 +1,4 @@
@@ -146,7 +146,7 @@ index d754815..a0bf1ad 100644
  # Copyright 2013 OpenStack Foundation
  #
 diff --git a/zuul/cmd/client.py b/zuul/cmd/client.py
-index 6e14ff5..0948147 100644
+index 59ac419..e31f467 100644
 --- a/zuul/cmd/client.py
 +++ b/zuul/cmd/client.py
 @@ -1,4 +1,4 @@
@@ -156,7 +156,7 @@ index 6e14ff5..0948147 100644
  # Copyright 2013 OpenStack Foundation
  #
 diff --git a/zuul/cmd/cloner.py b/zuul/cmd/cloner.py
-index e4a0e7b..09bda3e 100755
+index c616aa1..a922a34 100755
 --- a/zuul/cmd/cloner.py
 +++ b/zuul/cmd/cloner.py
 @@ -1,4 +1,4 @@

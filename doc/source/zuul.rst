@@ -426,6 +426,12 @@ explanation of each of the parameters::
     provides.  This field is treated as a regular expression, and
     multiple refs may be listed.
 
+    *ignore-deletes*
+    When a branch is deleted, a ref-updated event is emitted with a newrev
+    of all zeros specified. The ``ignore-deletes`` field is a boolean value
+    that describes whether or not these newrevs trigger ref-updated events.
+    The default is True, which will not trigger ref-updated events.
+
     *approval*
     This is only used for ``comment-added`` events.  It only matches if
     the event has a matching approval associated with it.  Example:
@@ -471,7 +477,13 @@ explanation of each of the parameters::
     of approval be present for the current patchset of the change (the
     approval could be added by the event in question).  It follows the
     same syntax as the :ref:`"approval" pipeline requirement below
-    <pipeline-require-approval>`.
+    <pipeline-require-approval>`. For each specified criteria there must
+    exist a matching approval.
+
+    *reject-approval*
+    This takes a list of approvals in the same format as
+    *require-approval* but will fail to enter the pipeline if there is
+    a matching approval.
 
   **timer**
     This trigger will run based on a cron-style time specification.
@@ -507,7 +519,13 @@ explanation of each of the parameters::
     of approval be present for the current patchset of the change (the
     approval could be added by the event in question).  It follows the
     same syntax as the :ref:`"approval" pipeline requirement below
-    <pipeline-require-approval>`.
+    <pipeline-require-approval>`. For each specified criteria there must
+    exist a matching approval.
+
+    *reject-approval*
+    This takes a list of approvals in the same format as
+    *require-approval* but will fail to enter the pipeline if there is
+    a matching approval.
 
 
 **require**
@@ -566,6 +584,23 @@ explanation of each of the parameters::
   reported by the trigger.  For example, when using the Gerrit
   trigger, status values such as ``NEW`` or ``MERGED`` may be useful.
 
+**reject**
+  If this section is present, it establishes pre-requisites that can
+  block an item from being enqueued. It can be considered a negative
+  version of **require**.
+
+  **approval**
+  This takes a list of approvals. If an approval matches the provided
+  criteria the change can not be entered into the pipeline. It follows
+  the same syntax as the :ref:`"require approval" pipeline above
+  <pipeline-require-approval>`.
+
+  Example to reject a change with any negative vote::
+
+    reject:
+      approval:
+        - code-review: [-1, -2]
+
 **dequeue-on-new-patchset**
   Normally, if a new patchset is uploaded to a change that is in a
   pipeline, the existing entry in the pipeline will be removed (with
@@ -606,6 +641,18 @@ explanation of each of the parameters::
   Uses the same syntax as **success**, but describes what Zuul should
   do when a change is added to the pipeline manager.  This can be used,
   for example, to reset the value of the Verified review category.
+
+**disabled**
+  Uses the same syntax as **success**, but describes what Zuul should
+  do when a pipeline is disabled.
+  See ``disable-after-consecutive-failures``.
+
+**disable-after-consecutive-failures**
+  If set, a pipeline can enter a ''disabled'' state if too many changes
+  in a row fail. When this value is exceeded the pipeline will stop
+  reporting to any of the ``success``, ``failure`` or ``merge-failure``
+  reporters and instead only report to the ``disabled`` reporters.
+  (No ``start`` reports are made when a pipeline is disabled).
 
 **precedence**
   Indicates how the build scheduler should prioritize jobs for

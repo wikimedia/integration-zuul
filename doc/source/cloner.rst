@@ -61,6 +61,23 @@ The general options that apply are:
 
 .. program-output:: zuul-cloner --help
 
+
+Ref lookup order
+''''''''''''''''
+
+The Zuul cloner will attempt to lookup references in this order:
+
+ 1) Zuul reference for the indicated branch
+ 2) Zuul reference for the master branch
+ 3) The tip of the indicated branch
+ 4) The tip of the master branch
+
+The "indicated branch" is one of the following:
+
+ A) The project-specific override branch (from project_branches arg)
+ B) The user specified branch (from the branch arg)
+ C) ZUUL_BRANCH (from the zuul_branch arg)
+
 Clone order
 -----------
 
@@ -87,3 +104,7 @@ cloning any projects it processes from those found in that directory.
 The URL of origin remote of the resulting clone will be reset to use
 the ``git_base_url`` and then the remote will be updated so that the
 repository has all the information in the upstream repository.
+
+The default for ``--cache-dir`` is taken from the environment variable
+``ZUUL_CACHE_DIR``. A value provided explicitly on the command line
+overrides the environment variable setting.

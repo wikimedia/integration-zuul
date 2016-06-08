@@ -38,12 +38,12 @@ class LayoutSchema(object):
 
     variable_dict = v.Schema({}, extra=True)
 
-    require_approval = v.Schema({'username': str,
-                                 'email-filter': str,
-                                 'email': str,
-                                 'older-than': str,
-                                 'newer-than': str,
-                                 }, extra=True)
+    approval = v.Schema({'username': str,
+                         'email-filter': str,
+                         'email': str,
+                         'older-than': str,
+                         'newer-than': str,
+                         }, extra=True)
 
     gerrit_trigger = {v.Required('event'):
                       toList(v.Any('patchset-created',
@@ -61,8 +61,10 @@ class LayoutSchema(object):
                       'username': toList(str),
                       'branch': toList(str),
                       'ref': toList(str),
+                      'ignore-deletes': bool,
                       'approval': toList(variable_dict),
-                      'require-approval': toList(require_approval),
+                      'require-approval': toList(approval),
+                      'reject-approval': toList(approval),
                       }
 
     timer_trigger = {v.Required('time'): str}
@@ -71,7 +73,8 @@ class LayoutSchema(object):
                     toList(v.Any('parent-change-enqueued',
                                  'project-change-merged')),
                     'pipeline': toList(str),
-                    'require-approval': toList(require_approval),
+                    'require-approval': toList(approval),
+                    'reject-approval': toList(approval),
                     }
 
     trigger = v.Required({'gerrit': toList(gerrit_trigger),
@@ -85,10 +88,12 @@ class LayoutSchema(object):
                                },
                       }
 
-    require = {'approval': toList(require_approval),
+    require = {'approval': toList(approval),
                'open': bool,
                'current-patchset': bool,
                'status': toList(str)}
+
+    reject = {'approval': toList(approval)}
 
     window = v.All(int, v.Range(min=0))
     window_floor = v.All(int, v.Range(min=1))
@@ -101,6 +106,7 @@ class LayoutSchema(object):
                 'precedence': precedence,
                 'description': str,
                 'require': require,
+                'reject': reject,
                 'success-message': str,
                 'failure-message': str,
                 'merge-failure-message': str,
@@ -112,6 +118,9 @@ class LayoutSchema(object):
                 'failure': report_actions,
                 'merge-failure': report_actions,
                 'start': report_actions,
+                'disabled': report_actions,
+                'disable-after-consecutive-failures':
+                    v.All(int, v.Range(min=1)),
                 'window': window,
                 'window-floor': window_floor,
                 'window-increase-type': window_type,
