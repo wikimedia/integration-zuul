@@ -23,10 +23,10 @@ Change-Id: I74fa0367605bf395df0380c81468c96f0b5b6e84
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/zuul/lib/gerrit.py b/zuul/lib/gerrit.py
-index 90faf40..f4b6d10 100644
+index 1434389..d2e155c 100644
 --- a/zuul/lib/gerrit.py
 +++ b/zuul/lib/gerrit.py
-@@ -120,7 +120,7 @@ def review(self, project, change, message, action={}):
+@@ -120,7 +120,7 @@ class Gerrit(object):
              if v is True:
                  cmd += ' --%s' % k
              else:

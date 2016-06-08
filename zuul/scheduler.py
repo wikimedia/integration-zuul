@@ -30,7 +30,7 @@ import yaml
 import layoutvalidator
 import model
 from model import ActionReporter, Pipeline, Project, ChangeQueue
-from model import EventFilter, ChangeishFilter
+from model import EventFilter, ChangeishFilter, NullChange
 from zuul import change_matcher
 from zuul import version as zuul_version
 
@@ -245,8 +245,8 @@ class Scheduler(threading.Thread):
             if not os.path.exists(config_path):
                 raise Exception("Unable to read layout config file at %s" %
                                 config_path)
-        config_file = open(config_path)
-        data = yaml.load(config_file)
+        with open(config_path) as config_file:
+            data = yaml.load(config_file)
 
         validator = layoutvalidator.LayoutValidator()
         validator.validate(data)
@@ -286,7 +286,8 @@ class Scheduler(threading.Thread):
                 'ignore-dependencies', False)
 
             action_reporters = {}
-            for action in ['start', 'success', 'failure', 'merge-failure']:
+            for action in ['start', 'success', 'failure', 'merge-failure',
+                           'disabled']:
                 action_reporters[action] = []
                 if conf_pipeline.get(action):
                     for reporter_name, params \
@@ -300,11 +301,15 @@ class Scheduler(threading.Thread):
             pipeline.start_actions = action_reporters['start']
             pipeline.success_actions = action_reporters['success']
             pipeline.failure_actions = action_reporters['failure']
+            pipeline.disabled_actions = action_reporters['disabled']
             if len(action_reporters['merge-failure']) > 0:
                 pipeline.merge_failure_actions = \
                     action_reporters['merge-failure']
             else:
                 pipeline.merge_failure_actions = action_reporters['failure']
+
+            pipeline.disable_at = conf_pipeline.get(
+                'disable-after-consecutive-failures', None)
 
             pipeline.window = conf_pipeline.get('window', 20)
             pipeline.window_floor = conf_pipeline.get('window-floor', 3)
@@ -321,13 +326,16 @@ class Scheduler(threading.Thread):
             pipeline.setManager(manager)
             layout.pipelines[conf_pipeline['name']] = pipeline
 
-            if 'require' in conf_pipeline:
-                require = conf_pipeline['require']
+            if 'require' in conf_pipeline or 'reject' in conf_pipeline:
+                require = conf_pipeline.get('require', {})
+                reject = conf_pipeline.get('reject', {})
                 f = ChangeishFilter(
                     open=require.get('open'),
                     current_patchset=require.get('current-patchset'),
                     statuses=toList(require.get('status')),
-                    required_approvals=toList(require.get('approval')))
+                    required_approvals=toList(require.get('approval')),
+                    reject_approvals=toList(reject.get('approval'))
+                )
                 manager.changeish_filters.append(f)
 
             # TODO: move this into triggers (may require pluggable
@@ -348,6 +356,7 @@ class Scheduler(threading.Thread):
                     usernames = toList(trigger.get('username'))
                     if not usernames:
                         usernames = toList(trigger.get('username_filter'))
+                    ignore_deletes = trigger.get('ignore-deletes', True)
                     f = EventFilter(
                         trigger=self.triggers['gerrit'],
                         types=toList(trigger['event']),
@@ -357,9 +366,13 @@ class Scheduler(threading.Thread):
                         comments=comments,
                         emails=emails,
                         usernames=usernames,
-                        required_approvals=toList(
-                            trigger.get('require-approval')
-                        )
+                        required_approvals=(
+                            toList(trigger.get('require-approval'))
+                        ),
+                        reject_approvals=toList(
+                            trigger.get('reject-approval')
+                        ),
+                        ignore_deletes=ignore_deletes
                     )
                     manager.event_filters.append(f)
             if 'timer' in conf_pipeline['trigger']:
@@ -374,9 +387,12 @@ class Scheduler(threading.Thread):
                         trigger=self.triggers['zuul'],
                         types=toList(trigger['event']),
                         pipelines=toList(trigger.get('pipeline')),
-                        required_approvals=toList(
-                            trigger.get('require-approval')
-                        )
+                        required_approvals=(
+                            toList(trigger.get('require-approval'))
+                        ),
+                        reject_approvals=toList(
+                            trigger.get('reject-approval')
+                        ),
                     )
                     manager.event_filters.append(f)
 
@@ -507,11 +523,15 @@ class Scheduler(threading.Thread):
             name = reporter.name
         self.reporters[name] = reporter
 
-    def getProject(self, name):
+    def getProject(self, name, create_foreign=False):
         self.layout_lock.acquire()
         p = None
         try:
             p = self.layout.projects.get(name)
+            if p is None and create_foreign:
+                self.log.info("Registering foreign project: %s" % name)
+                p = Project(name, foreign=True)
+                self.layout.projects[name] = p
         finally:
             self.layout_lock.release()
         return p
@@ -547,14 +567,29 @@ class Scheduler(threading.Thread):
         try:
             if statsd and build.pipeline:
                 jobname = build.job.name.replace('.', '_')
+                key = 'zuul.pipeline.%s.all_jobs' % build.pipeline.name
+                statsd.incr(key)
+                for label in build.node_labels:
+                    # Jenkins includes the node name in its list of labels, so
+                    # we filter it out here, since that is not statistically
+                    # interesting.
+                    if label == build.node_name:
+                        continue
+                    dt = int((build.start_time - build.launch_time) * 1000)
+                    key = 'zuul.pipeline.%s.label.%s.wait_time' % (
+                        build.pipeline.name, label)
+                    statsd.timing(key, dt)
                 key = 'zuul.pipeline.%s.job.%s.%s' % (build.pipeline.name,
                                                       jobname, build.result)
                 if build.result in ['SUCCESS', 'FAILURE'] and build.start_time:
                     dt = int((build.end_time - build.start_time) * 1000)
                     statsd.timing(key, dt)
                 statsd.incr(key)
-                key = 'zuul.pipeline.%s.all_jobs' % build.pipeline.name
-                statsd.incr(key)
+
+                key = 'zuul.pipeline.%s.job.%s.wait_time' % (
+                    build.pipeline.name, jobname)
+                dt = int((build.start_time - build.launch_time) * 1000)
+                statsd.timing(key, dt)
         except:
             self.log.exception("Exception reporting runtime stats")
         event = BuildCompletedEvent(build)
@@ -685,15 +720,15 @@ class Scheduler(threading.Thread):
                         item.items_behind = []
                         item.pipeline = None
                         item.queue = None
-                        project = layout.projects.get(item.change.project.name)
-                        if not project:
-                            self.log.warning("Unable to find project for "
-                                             "change %s while reenqueueing" %
-                                             item.change)
-                            item.change.project = None
-                            items_to_remove.append(item)
-                            continue
-                        item.change.project = project
+                        project_name = item.change.project.name
+                        item.change.project = layout.projects.get(project_name)
+                        if not item.change.project:
+                            self.log.debug("Project %s not defined, "
+                                           "re-instantiating as foreign" %
+                                           project_name)
+                            project = Project(project_name, foreign=True)
+                            layout.projects[project_name] = project
+                            item.change.project = project
                         item_jobs = new_pipeline.getJobs(item)
                         for build in item.current_build_set.getBuilds():
                             job = layout.jobs.get(build.job.name)
@@ -861,7 +896,7 @@ class Scheduler(threading.Thread):
         self.log.debug("Processing trigger event %s" % event)
         try:
             project = self.layout.projects.get(event.project_name)
-            if not project:
+            if not project or project.foreign:
                 self.log.debug("Project %s not found" % event.project_name)
                 return
 
@@ -1045,6 +1080,8 @@ class BasePipelineManager(object):
         self.log.info("    %s" % self.pipeline.failure_actions)
         self.log.info("  On merge-failure:")
         self.log.info("    %s" % self.pipeline.merge_failure_actions)
+        self.log.info("  When disabled:")
+        self.log.info("    %s" % self.pipeline.disabled_actions)
 
     def getSubmitAllowNeeds(self):
         # Get a list of code review labels that are allowed to be
@@ -1086,19 +1123,20 @@ class BasePipelineManager(object):
         return False
 
     def reportStart(self, change):
-        try:
-            self.log.info("Reporting start, action %s change %s" %
-                          (self.pipeline.start_actions, change))
-            msg = "Starting %s jobs." % self.pipeline.name
-            if self.sched.config.has_option('zuul', 'status_url'):
-                msg += "\n" + self.sched.config.get('zuul', 'status_url')
-            ret = self.sendReport(self.pipeline.start_actions,
-                                  change, msg)
-            if ret:
-                self.log.error("Reporting change start %s received: %s" %
-                               (change, ret))
-        except:
-            self.log.exception("Exception while reporting start:")
+        if not self.pipeline._disabled:
+            try:
+                self.log.info("Reporting start, action %s change %s" %
+                              (self.pipeline.start_actions, change))
+                msg = "Starting %s jobs." % self.pipeline.name
+                if self.sched.config.has_option('zuul', 'status_url'):
+                    msg += "\n" + self.sched.config.get('zuul', 'status_url')
+                ret = self.sendReport(self.pipeline.start_actions,
+                                      change, msg)
+                if ret:
+                    self.log.error("Reporting change start %s received: %s" %
+                                   (change, ret))
+            except:
+                self.log.exception("Exception while reporting start:")
 
     def sendReport(self, action_reporters, change, message):
         """Sends the built message off to configured reporters.
@@ -1500,7 +1538,8 @@ class BasePipelineManager(object):
         if event.merged:
             build_set.commit = event.commit
         elif event.updated:
-            build_set.commit = item.change.newrev
+            if not isinstance(item, NullChange):
+                build_set.commit = item.change.newrev
         if not build_set.commit:
             self.log.info("Unable to merge change %s" % item.change)
             self.pipeline.setUnableToMerge(item)
@@ -1544,12 +1583,22 @@ class BasePipelineManager(object):
             self.log.debug("success %s" % (self.pipeline.success_actions))
             actions = self.pipeline.success_actions
             item.setReportedResult('SUCCESS')
+            self.pipeline._consecutive_failures = 0
         elif not self.pipeline.didMergerSucceed(item):
             actions = self.pipeline.merge_failure_actions
             item.setReportedResult('MERGER_FAILURE')
         else:
             actions = self.pipeline.failure_actions
             item.setReportedResult('FAILURE')
+            self.pipeline._consecutive_failures += 1
+        if self.pipeline._disabled:
+            actions = self.pipeline.disabled_actions
+        # Check here if we should disable so that we only use the disabled
+        # reporters /after/ the last disable_at failure is still reported as
+        # normal.
+        if (self.pipeline.disable_at and not self.pipeline._disabled and
+            self.pipeline._consecutive_failures >= self.pipeline.disable_at):
+            self.pipeline._disabled = True
         if actions:
             report = self.formatReport(item)
             try:
@@ -1797,10 +1846,11 @@ class IndependentPipelineManager(BasePipelineManager):
         if existing:
             return DynamicChangeQueueContextManager(existing)
         if change.project not in self.pipeline.getProjects():
-            return DynamicChangeQueueContextManager(None)
+            self.pipeline.addProject(change.project)
         change_queue = ChangeQueue(self.pipeline)
         change_queue.addProject(change.project)
         self.pipeline.addQueue(change_queue)
+        self.log.debug("Dynamically created queue %s", change_queue)
         return DynamicChangeQueueContextManager(change_queue)
 
     def enqueueChangesAhead(self, change, quiet, ignore_requirements,

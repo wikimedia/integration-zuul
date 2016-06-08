@@ -37,7 +37,7 @@ index 1ce4a0a..2f5f8a7 100644
  import logging
  import os
  import shutil
-@@ -118,6 +119,28 @@ def test_cache_dir(self):
+@@ -118,6 +119,28 @@ class TestCloner(ZuulTestCase):
          self.worker.release()
          self.waitUntilSettled()
  
@@ -70,7 +70,7 @@ diff --git a/zuul/lib/cloner.py b/zuul/lib/cloner.py
 index c404d9e..c6798a1 100644
 --- a/zuul/lib/cloner.py
 +++ b/zuul/lib/cloner.py
-@@ -71,24 +71,32 @@ def execute(self):
+@@ -71,24 +71,32 @@ class Cloner(object):
      def cloneUpstream(self, project, dest):
          # Check for a cached git repo first
          git_cache = '%s/%s' % (self.cache_dir, project)

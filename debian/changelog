@@ -1,3 +1,10 @@
+zuul (2.1.0-95-g66c8e52-wmf1jessie1) jessie-wikimedia; urgency=medium
+
+  * sync with precise-wikimedia 2.1.0-95 upstream 1cc37f7..66c8e52
+  * 0008-wmf-pin-python-daemon-2.1.0 is no more needed.
+
+ -- Antoine Musso <hashar@free.fr>  Wed, 08 Jun 2016 10:49:09 +0200
+
 zuul (2.1.0-60-g1cc37f7-wmf4jessie1) jessie-wikimedia; urgency=critical
 
   * sync with precise-wikimedia
