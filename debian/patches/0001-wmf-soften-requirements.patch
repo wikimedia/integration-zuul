@@ -8,28 +8,24 @@ but is probably not really needed.
 ordereddict and argparse are included in python 2.7 and we do not care
 about python 2.6.
 
-apscheduler 3.1.0 fail with old setuptools
-https://github.com/agronholm/apscheduler/issues/123
-
 Change-Id: Ie2bffccd0b4aa8b505a5c7de8174a42d4395d9d7
 ---
  requirements.txt | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
 
 diff --git a/requirements.txt b/requirements.txt
-index 77ac0a5..0c85d7a 100644
+index 77ac0a5..a73deae 100644
 --- a/requirements.txt
 +++ b/requirements.txt
-@@ -1,17 +1,16 @@
+@@ -1,11 +1,11 @@
 -pbr>=1.1.0
 +pbr>=0.5.21
- 
+
  PyYAML>=3.1.0
  Paste
--WebOb>=1.2.3
--paramiko>=1.8.0,<2.0.0
-+WebOb
-+paramiko<2.0.0
+ WebOb>=1.2.3
+ paramiko>=1.8.0,<2.0.0
++pycrypto>=2.6.1,<2.6.2
  GitPython>=0.3.3
 -ordereddict
  python-daemon>=2.0.4,<2.1.0
@@ -37,8 +33,7 @@ index 77ac0a5..0c85d7a 100644
  statsd>=1.0.0,<3.0
  voluptuous>=0.7
  gear>=0.5.7,<1.0.0
--apscheduler>=3.0
-+apscheduler>=3.0,<3.1.0
+ apscheduler>=3.0
  PrettyTable>=0.6,<0.8
  babel>=1.0
  six>=1.6.0
