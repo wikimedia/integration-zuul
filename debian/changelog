@@ -1,3 +1,10 @@
+zuul (2.1.0-151-g30a433b-wmf3precise1) precise-wikimedia; urgency=medium
+
+  * Re enabled apscheduler to get version 3.2.0 since the issue has been fixed.
+  * Pin pycrypto to 2.4.1 to test weather it fixes our issues with ssh.
+
+ -- Antoine Musso <hashar@free.fr> Thu, 14 Jul 2016 13:59:45 +0100
+
 zuul (2.1.0-151-g30a433b-wmf2precise1) precise-wikimedia; urgency=medium
 
   * Pick some upstream patches:
