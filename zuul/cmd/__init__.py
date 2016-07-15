@@ -26,8 +26,6 @@ import traceback
 
 yappi = extras.try_import('yappi')
 
-import zuul.lib.connections
-
 # Do not import modules that will pull in paramiko which must not be
 # imported until after the daemonization.
 # https://github.com/paramiko/paramiko/issues/59
@@ -91,5 +89,8 @@ class ZuulApp(object):
             logging.basicConfig(level=logging.DEBUG)
 
     def configure_connections(self):
+        # See comment at top of file about zuul imports
+        import zuul.lib.connections
+
         self.connections = zuul.lib.connections.configure_connections(
             self.config)
