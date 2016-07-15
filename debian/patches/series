@@ -5,3 +5,4 @@
 0005-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
 0006-Properly-shutdown-apscheduler-on-reconfigure.patch
 0007-GerritWatcher-add-poll_timeout.patch
+0008-Do-not-import-paramiko-before-daemonization.patch
