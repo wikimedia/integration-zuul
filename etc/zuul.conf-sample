@@ -36,6 +36,7 @@ server=review.example.com
 ;baseurl=https://review.example.com/r
 user=jenkins
 sshkey=/home/jenkins/.ssh/id_rsa
+event_delay=10
 
 [connection smtp]
 driver=smtp
