@@ -952,7 +952,6 @@ class ZuulTestCase(BaseTestCase):
 
         zuul.source.gerrit.GerritSource.replication_timeout = 1.5
         zuul.source.gerrit.GerritSource.replication_retry_interval = 0.5
-        zuul.connection.gerrit.GerritEventConnector.delay = 0.0
 
         self.sched = zuul.scheduler.Scheduler(self.config)
 
@@ -1044,6 +1043,7 @@ class ZuulTestCase(BaseTestCase):
                         Queue.Queue()
                     self.event_queues.append(
                         self.gerrit_queues_dbs[con_config['server']])
+                con_config['event_delay'] = 0.0
                 self.connections[con_name] = FakeGerritConnection(
                     con_name, con_config,
                     changes_db=self.gerrit_changes_dbs[con_config['server']],
