@@ -1,3 +1,13 @@
+zuul (2.1.0-151-g30a433b-wmf4precise1) precise-wikimedia; urgency=medium
+
+  * Zuul server layout validation would not recognize multiple Gerrit
+    connections dieing with: KeyError: 'oldgerrit'. Add patch suggested by
+    Paladox:
+
+      [9a25675] Register connections when testing configuration
+
+ -- Antoine Musso <hashar@free.fr>  Mon, 18 Jul 2016 16:24:58 +0200
+
 zuul (2.1.0-151-g30a433b-wmf3precise1) precise-wikimedia; urgency=medium
 
   * Fix upstream refactoring of Gerrit connections which caused Paramiko 1.7.1
