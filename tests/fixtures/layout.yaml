@@ -107,6 +107,7 @@ jobs:
   - name: ^.*-merge$
     failure-message: Unable to merge change
     hold-following-changes: true
+    tags: merge
   - name: nonvoting-project-test2
     voting: false
   - name: project-testfile
@@ -116,6 +117,14 @@ jobs:
     parameter-function: select_debian_node
   - name: project1-project2-integration
     queue-name: integration
+  - name: mutex-one
+    mutex: test-mutex
+  - name: mutex-two
+    mutex: test-mutex
+  - name: project1-merge
+    tags:
+      - project1
+      - extratag
 
 project-templates:
   - name: test-one-and-two

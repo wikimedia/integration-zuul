@@ -1,3 +1,10 @@
+zuul (2.1.0-151-g30a433b-wmf4jessie1) jessie-wikimedia; urgency=medium
+
+  * sync with precise-wikimedia
+  * Notably include upstream refactoring of connections
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 19 Jul 2016 23:21:18 +0200
+
 zuul (2.1.0-95-g66c8e52-wmf1jessie1) jessie-wikimedia; urgency=medium
 
   * sync with precise-wikimedia 2.1.0-95 upstream 1cc37f7..66c8e52

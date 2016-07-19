@@ -60,6 +60,7 @@ class Server(zuul.cmd.ZuulApp):
 
     def reconfigure_handler(self, signum, frame):
         signal.signal(signal.SIGHUP, signal.SIG_IGN)
+        self.log.debug("Reconfiguration triggered")
         self.read_config()
         self.setup_logging('zuul', 'log_config')
         try:
@@ -85,14 +86,11 @@ class Server(zuul.cmd.ZuulApp):
         import zuul.trigger.gerrit
 
         logging.basicConfig(level=logging.DEBUG)
-        self.sched = zuul.scheduler.Scheduler()
-        self.sched.registerReporter(None, 'gerrit')
-        self.sched.registerReporter(None, 'smtp')
-        self.sched.registerTrigger(None, 'gerrit')
-        self.sched.registerTrigger(None, 'timer')
-        self.sched.registerTrigger(None, 'zuul')
+        self.sched = zuul.scheduler.Scheduler(self.config)
+        self.configure_connections()
         layout = self.sched.testConfig(self.config.get('zuul',
-                                                       'layout_config'))
+                                                       'layout_config'),
+                                       self.connections)
         if not job_list_path:
             return False
 
@@ -150,11 +148,6 @@ class Server(zuul.cmd.ZuulApp):
         import zuul.launcher.gearman
         import zuul.merger.client
         import zuul.lib.swift
-        import zuul.reporter.gerrit
-        import zuul.reporter.smtp
-        import zuul.trigger.gerrit
-        import zuul.trigger.timer
-        import zuul.trigger.zuultrigger
         import zuul.webapp
         import zuul.rpclistener
 
@@ -166,44 +159,28 @@ class Server(zuul.cmd.ZuulApp):
         self.setup_logging('zuul', 'log_config')
         self.log = logging.getLogger("zuul.Server")
 
-        self.sched = zuul.scheduler.Scheduler()
+        self.sched = zuul.scheduler.Scheduler(self.config)
+        # TODO(jhesketh): Move swift into a connection?
         self.swift = zuul.lib.swift.Swift(self.config)
 
         gearman = zuul.launcher.gearman.Gearman(self.config, self.sched,
                                                 self.swift)
         merger = zuul.merger.client.MergeClient(self.config, self.sched)
-        gerrit = zuul.trigger.gerrit.Gerrit(self.config, self.sched)
-        timer = zuul.trigger.timer.Timer(self.config, self.sched)
-        zuultrigger = zuul.trigger.zuultrigger.ZuulTrigger(self.config,
-                                                           self.sched)
+
         if self.config.has_option('zuul', 'status_expiry'):
             cache_expiry = self.config.getint('zuul', 'status_expiry')
         else:
             cache_expiry = 1
         webapp = zuul.webapp.WebApp(self.sched, cache_expiry=cache_expiry)
         rpc = zuul.rpclistener.RPCListener(self.config, self.sched)
-        gerrit_reporter = zuul.reporter.gerrit.Reporter(gerrit)
-        smtp_reporter = zuul.reporter.smtp.Reporter(
-            self.config.get('smtp', 'default_from')
-            if self.config.has_option('smtp', 'default_from') else 'zuul',
-            self.config.get('smtp', 'default_to')
-            if self.config.has_option('smtp', 'default_to') else 'zuul',
-            self.config.get('smtp', 'server')
-            if self.config.has_option('smtp', 'server') else 'localhost',
-            self.config.get('smtp', 'port')
-            if self.config.has_option('smtp', 'port') else 25
-        )
 
+        self.configure_connections()
         self.sched.setLauncher(gearman)
         self.sched.setMerger(merger)
-        self.sched.registerTrigger(gerrit)
-        self.sched.registerTrigger(timer)
-        self.sched.registerTrigger(zuultrigger)
-        self.sched.registerReporter(gerrit_reporter)
-        self.sched.registerReporter(smtp_reporter)
 
         self.log.info('Starting scheduler')
         self.sched.start()
+        self.sched.registerConnections(self.connections)
         self.sched.reconfigure(self.config)
         self.sched.resume()
         self.log.info('Starting Webapp')

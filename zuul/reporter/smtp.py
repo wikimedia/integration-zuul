@@ -13,59 +13,43 @@
 # under the License.
 
 import logging
-import smtplib
+import voluptuous as v
 
-from email.mime.text import MIMEText
+from zuul.reporter import BaseReporter
 
 
-class Reporter(object):
+class SMTPReporter(BaseReporter):
     """Sends off reports to emails via SMTP."""
 
     name = 'smtp'
     log = logging.getLogger("zuul.reporter.smtp.Reporter")
 
-    def __init__(self, smtp_default_from, smtp_default_to,
-                 smtp_server='localhost', smtp_port=25):
-        """Set up the reporter.
-
-        Takes parameters for the smtp server.
-        """
-        self.smtp_server = smtp_server
-        self.smtp_port = smtp_port
-        self.smtp_default_from = smtp_default_from
-        self.smtp_default_to = smtp_default_to
-
-    def report(self, change, message, params):
+    def report(self, source, pipeline, item):
         """Send the compiled report message via smtp."""
+        message = self._formatItemReport(pipeline, item)
+
         self.log.debug("Report change %s, params %s, message: %s" %
-                       (change, params, message))
+                       (item.change, self.reporter_config, message))
 
-        # Create a text/plain email message
-        from_email = params['from']\
-            if 'from' in params else self.smtp_default_from
-        to_email = params['to']\
-            if 'to' in params else self.smtp_default_to
-        msg = MIMEText(message)
-        if 'subject' in params:
-            subject = params['subject'].format(change=change)
+        from_email = self.reporter_config['from'] \
+            if 'from' in self.reporter_config else None
+        to_email = self.reporter_config['to'] \
+            if 'to' in self.reporter_config else None
+
+        if 'subject' in self.reporter_config:
+            subject = self.reporter_config['subject'].format(
+                change=item.change)
         else:
-            subject = "Report for change %s" % change
-        msg['Subject'] = subject
-        msg['From'] = from_email
-        msg['To'] = to_email
+            subject = "Report for change %s" % item.change
 
-        try:
-            s = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            s.sendmail(from_email, to_email.split(','), msg.as_string())
-            s.quit()
-        except:
-            return "Could not send email via SMTP"
-        return
+        self.connection.sendMail(subject, message, from_email, to_email)
 
-    def getSubmitAllowNeeds(self, params):
-        """Get a list of code review labels that are allowed to be
-        "needed" in the submit records for a change, with respect
-        to this queue.  In other words, the list of review labels
-        this reporter itself is likely to set before submitting.
-        """
-        return []
+
+def getSchema():
+    smtp_reporter = v.Schema({
+        'connection': str,
+        'to': str,
+        'from': str,
+        'subject': str,
+    })
+    return smtp_reporter

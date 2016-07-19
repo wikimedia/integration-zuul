@@ -36,7 +36,7 @@ index 70c2b3f..4ec20a6 100644
  #
  # Licensed under the Apache License, Version 2.0 (the "License");
 diff --git a/tests/base.py b/tests/base.py
-index 57b30b5..acf03b9 100755
+index 405caa0..4f41be9 100755
 --- a/tests/base.py
 +++ b/tests/base.py
 @@ -1,4 +1,4 @@
@@ -56,7 +56,7 @@ index 137c157..1ce4a0a 100644
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  # Copyright 2014 Wikimedia Foundation Inc.
 diff --git a/tests/test_layoutvalidator.py b/tests/test_layoutvalidator.py
-index 5a8fc46..60824d3 100644
+index 3dc3234..99732a5 100644
 --- a/tests/test_layoutvalidator.py
 +++ b/tests/test_layoutvalidator.py
 @@ -1,4 +1,4 @@
@@ -86,7 +86,7 @@ index 3ae56ad..202010c 100644
  # Copyright 2012-2014 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
-index 52ef91a..407387a 100755
+index fe7c7cc..cbf1495 100755
 --- a/tests/test_scheduler.py
 +++ b/tests/test_scheduler.py
 @@ -1,4 +1,4 @@
@@ -136,7 +136,7 @@ index 9dbf504..d825ef1 100755
  # Copyright 2015 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/zuul/cmd/__init__.py b/zuul/cmd/__init__.py
-index d754815..a0bf1ad 100644
+index 2902c50..7ee7900 100644
 --- a/zuul/cmd/__init__.py
 +++ b/zuul/cmd/__init__.py
 @@ -1,4 +1,4 @@
@@ -166,7 +166,7 @@ index c616aa1..a922a34 100755
  # Copyright 2014 Antoine "hashar" Musso
  # Copyright 2014 Wikimedia Foundation Inc.
 diff --git a/zuul/cmd/merger.py b/zuul/cmd/merger.py
-index dc3484a..6007368 100644
+index df215fd..5f51ee6 100644
 --- a/zuul/cmd/merger.py
 +++ b/zuul/cmd/merger.py
 @@ -1,4 +1,4 @@
@@ -176,7 +176,7 @@ index dc3484a..6007368 100644
  # Copyright 2013-2014 OpenStack Foundation
  #
 diff --git a/zuul/cmd/server.py b/zuul/cmd/server.py
-index 2d99a1f..a201aba 100755
+index b1cd050..8861972 100755
 --- a/zuul/cmd/server.py
 +++ b/zuul/cmd/server.py
 @@ -1,4 +1,4 @@

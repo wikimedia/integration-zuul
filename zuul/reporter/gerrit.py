@@ -13,33 +13,40 @@
 # under the License.
 
 import logging
+import voluptuous as v
 
 
-class Reporter(object):
+from zuul.reporter import BaseReporter
+
+
+class GerritReporter(BaseReporter):
     """Sends off reports to Gerrit."""
 
     name = 'gerrit'
     log = logging.getLogger("zuul.reporter.gerrit.Reporter")
 
-    def __init__(self, trigger):
-        """Set up the reporter."""
-        self.gerrit = trigger.gerrit
-        self.trigger = trigger
-
-    def report(self, change, message, params):
+    def report(self, source, pipeline, item):
         """Send a message to gerrit."""
-        self.log.debug("Report change %s, params %s, message: %s" %
-                       (change, params, message))
-        changeid = '%s,%s' % (change.number, change.patchset)
-        change._ref_sha = self.trigger.getRefSha(change.project.name,
-                                                 'refs/heads/' + change.branch)
-        return self.gerrit.review(change.project.name, changeid, message,
-                                  params)
+        message = self._formatItemReport(pipeline, item)
 
-    def getSubmitAllowNeeds(self, params):
+        self.log.debug("Report change %s, params %s, message: %s" %
+                       (item.change, self.reporter_config, message))
+        changeid = '%s,%s' % (item.change.number, item.change.patchset)
+        item.change._ref_sha = source.getRefSha(
+            item.change.project.name, 'refs/heads/' + item.change.branch)
+
+        return self.connection.review(item.change.project.name, changeid,
+                                      message, self.reporter_config)
+
+    def getSubmitAllowNeeds(self):
         """Get a list of code review labels that are allowed to be
         "needed" in the submit records for a change, with respect
         to this queue.  In other words, the list of review labels
         this reporter itself is likely to set before submitting.
         """
-        return params
+        return self.reporter_config
+
+
+def getSchema():
+    gerrit_reporter = v.Any(str, v.Schema({}, extra=True))
+    return gerrit_reporter

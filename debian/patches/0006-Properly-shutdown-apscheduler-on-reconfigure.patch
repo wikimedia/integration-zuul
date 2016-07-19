@@ -1,0 +1,44 @@
+From: "James E. Blair" <jeblair@redhat.com>
+Date: Thu, 12 May 2016 11:30:05 -0700
+Subject: Properly shutdown apscheduler on reconfigure
+
+This addresses a recent increase in test_idle failures.  The
+existing apscheduler was not being shut down during reconfigurations
+which caused us to end up with two apschedulers running during the
+test.  This could cause a trigger event to fire while the test
+was expecting the system to be idle.
+
+The triggers were not previously shut down during reconfigurations.
+Instead, the timer trigger relied on having its postConfig method
+called on each reconfiguration, where it would begin by cleaning
+up any existing jobs.  However, since the connections changes,
+triggers are stopped, discarded, and recreated during reconfiguration.
+Because the stop method of the timer trigger was not actually being
+called, a new trigger was created each time we reconfigured, and old
+ones were never cleaned up.
+
+This likely had a production impact as well, however, it was not
+likely to be visible unless a configuration change altered the
+scheduled times for periodic queues (in that case, we would see jobs
+run at both the old and new times).
+
+Change-Id: Ia7c61984a9c47a9b1554a4ccb99309674dffec11
+---
+ zuul/trigger/timer.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/zuul/trigger/timer.py b/zuul/trigger/timer.py
+index d42e3db..f81312e 100644
+--- a/zuul/trigger/timer.py
++++ b/zuul/trigger/timer.py
+@@ -40,8 +40,8 @@ class TimerTrigger(BaseTrigger):
+             self.log.debug("Adding event %s" % event)
+             self.sched.addEvent(event)
+ 
+-    def _shutdown(self):
+-        self.apsched.stop()
++    def stop(self):
++        self.apsched.shutdown()
+ 
+     def getEventFilters(self, trigger_conf):
+         def toList(item):
