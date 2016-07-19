@@ -61,7 +61,7 @@ jobs:
     """.strip()
         data = yaml.load(job_yaml)
         config_job = data.get('jobs')[0]
-        sched = zuul.scheduler.Scheduler()
+        sched = zuul.scheduler.Scheduler({})
         cm = zuul.change_matcher
         expected = cm.MatchAny([
             cm.MatchAll([
@@ -693,8 +693,8 @@ class TestScheduler(ZuulTestCase):
         # triggering events.  Since it will have the changes cached
         # already (without approvals), we need to clear the cache
         # first.
-        source = self.sched.layout.pipelines['gate'].source
-        source.maintainCache([])
+        for connection in self.connections.values():
+            connection.maintainCache([])
 
         self.worker.hold_jobs_in_build = True
         A.addApproval('APRV', 1)
@@ -729,8 +729,8 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(self.history[6].changes,
                          '1,1 2,1 3,1 4,1 5,1 6,1 7,1')
 
-    def test_trigger_cache(self):
-        "Test that the trigger cache operates correctly"
+    def test_source_cache(self):
+        "Test that the source cache operates correctly"
         self.worker.hold_jobs_in_build = True
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
@@ -762,9 +762,9 @@ class TestScheduler(ZuulTestCase):
         self.fake_gerrit.addEvent(B.addApproval('APRV', 1))
         self.waitUntilSettled()
 
-        self.log.debug("len %s" % self.gerrit._change_cache.keys())
+        self.log.debug("len %s" % self.fake_gerrit._change_cache.keys())
         # there should still be changes in the cache
-        self.assertNotEqual(len(self.gerrit._change_cache.keys()), 0)
+        self.assertNotEqual(len(self.fake_gerrit._change_cache.keys()), 0)
 
         self.worker.hold_jobs_in_build = False
         self.worker.release()
@@ -791,7 +791,6 @@ class TestScheduler(ZuulTestCase):
         A.addApproval('APRV', 1)
         a = source._getChange(1, 2, refresh=True)
         self.assertTrue(source.canMerge(a, mgr.getSubmitAllowNeeds()))
-        source.maintainCache([])
 
     def test_build_configuration(self):
         "Test that zuul merges the right commits for testing"
@@ -1469,7 +1468,7 @@ class TestScheduler(ZuulTestCase):
         "Test that the merger works with large changes after a repack"
         # https://bugs.launchpad.net/zuul/+bug/1078946
         # This test assumes the repo is already cloned; make sure it is
-        url = self.sched.triggers['gerrit'].getGitUrl(
+        url = self.fake_gerrit.getGitUrl(
             self.sched.layout.projects['org/project1'])
         self.merge_server.merger.addProject('org/project1', url)
         A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
@@ -2164,11 +2163,8 @@ class TestScheduler(ZuulTestCase):
 
     def test_test_config(self):
         "Test that we can test the config"
-        sched = zuul.scheduler.Scheduler()
-        sched.registerTrigger(None, 'gerrit')
-        sched.registerTrigger(None, 'timer')
-        sched.registerTrigger(None, 'zuul')
-        sched.testConfig(self.config.get('zuul', 'layout_config'))
+        self.sched.testConfig(self.config.get('zuul', 'layout_config'),
+                              self.connections)
 
     def test_build_description(self):
         "Test that build descriptions update"
@@ -2239,6 +2235,9 @@ class TestScheduler(ZuulTestCase):
         self.fake_gerrit.addEvent(A.addApproval('APRV', 1))
         self.waitUntilSettled()
 
+        self.worker.release('project-merge')
+        self.waitUntilSettled()
+
         port = self.webapp.server.socket.getsockname()[1]
 
         req = urllib2.Request("http://localhost:%s/status.json" % port)
@@ -2246,8 +2245,8 @@ class TestScheduler(ZuulTestCase):
         headers = f.info()
         self.assertIn('Content-Length', headers)
         self.assertIn('Content-Type', headers)
-        self.assertEqual(headers['Content-Type'],
-                         'application/json; charset=UTF-8')
+        self.assertIsNotNone(re.match('^application/json(; charset=UTF-8)?$',
+                                      headers['Content-Type']))
         self.assertIn('Access-Control-Allow-Origin', headers)
         self.assertIn('Cache-Control', headers)
         self.assertIn('Last-Modified', headers)
@@ -2259,7 +2258,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
 
         data = json.loads(data)
-        status_jobs = set()
+        status_jobs = []
         for p in data['pipelines']:
             for q in p['change_queues']:
                 if p['name'] in ['gate', 'conflict']:
@@ -2271,10 +2270,24 @@ class TestScheduler(ZuulTestCase):
                         self.assertTrue(change['active'])
                         self.assertEqual(change['id'], '1,1')
                         for job in change['jobs']:
-                            status_jobs.add(job['name'])
-        self.assertIn('project-merge', status_jobs)
-        self.assertIn('project-test1', status_jobs)
-        self.assertIn('project-test2', status_jobs)
+                            status_jobs.append(job)
+        self.assertEqual('project-merge', status_jobs[0]['name'])
+        self.assertEqual('https://server/job/project-merge/0/',
+                         status_jobs[0]['url'])
+        self.assertEqual('http://logs.example.com/1/1/gate/project-merge/0',
+                         status_jobs[0]['report_url'])
+
+        self.assertEqual('project-test1', status_jobs[1]['name'])
+        self.assertEqual('https://server/job/project-test1/1/',
+                         status_jobs[1]['url'])
+        self.assertEqual('http://logs.example.com/1/1/gate/project-test1/1',
+                         status_jobs[1]['report_url'])
+
+        self.assertEqual('project-test2', status_jobs[2]['name'])
+        self.assertEqual('https://server/job/project-test2/2/',
+                         status_jobs[2]['url'])
+        self.assertEqual('http://logs.example.com/1/1/gate/project-test2/2',
+                         status_jobs[2]['report_url'])
 
     def test_merging_queues(self):
         "Test that transitively-connected change queues are merged"
@@ -2282,6 +2295,70 @@ class TestScheduler(ZuulTestCase):
                         'tests/fixtures/layout-merge-queues.yaml')
         self.sched.reconfigure(self.config)
         self.assertEqual(len(self.sched.layout.pipelines['gate'].queues), 1)
+
+    def test_mutex(self):
+        "Test job mutexes"
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-mutex.yaml')
+        self.sched.reconfigure(self.config)
+
+        self.worker.hold_jobs_in_build = True
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
+        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
+
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertEqual(len(self.builds), 3)
+        self.assertEqual(self.builds[0].name, 'project-test1')
+        self.assertEqual(self.builds[1].name, 'mutex-one')
+        self.assertEqual(self.builds[2].name, 'project-test1')
+
+        self.worker.release('mutex-one')
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 3)
+        self.assertEqual(self.builds[0].name, 'project-test1')
+        self.assertEqual(self.builds[1].name, 'project-test1')
+        self.assertEqual(self.builds[2].name, 'mutex-two')
+        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
+
+        self.worker.release('mutex-two')
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 3)
+        self.assertEqual(self.builds[0].name, 'project-test1')
+        self.assertEqual(self.builds[1].name, 'project-test1')
+        self.assertEqual(self.builds[2].name, 'mutex-one')
+        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
+
+        self.worker.release('mutex-one')
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 3)
+        self.assertEqual(self.builds[0].name, 'project-test1')
+        self.assertEqual(self.builds[1].name, 'project-test1')
+        self.assertEqual(self.builds[2].name, 'mutex-two')
+        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
+
+        self.worker.release('mutex-two')
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 2)
+        self.assertEqual(self.builds[0].name, 'project-test1')
+        self.assertEqual(self.builds[1].name, 'project-test1')
+        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
+
+        self.worker.hold_jobs_in_build = False
+        self.worker.release()
+
+        self.waitUntilSettled()
+        self.assertEqual(len(self.builds), 0)
+
+        self.assertEqual(A.reported, 1)
+        self.assertEqual(B.reported, 1)
+        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
 
     def test_node_label(self):
         "Test that a job runs on a specific node label"
@@ -2548,6 +2625,53 @@ class TestScheduler(ZuulTestCase):
         # Ensure the removed job was not included in the report.
         self.assertNotIn('project1-project2-integration', A.messages[0])
 
+    def test_double_live_reconfiguration_shared_queue(self):
+        # This was a real-world regression.  A change is added to
+        # gate; a reconfigure happens, a second change which depends
+        # on the first is added, and a second reconfiguration happens.
+        # Ensure that both changes merge.
+
+        # A failure may indicate incorrect caching or cleaning up of
+        # references during a reconfiguration.
+        self.worker.hold_jobs_in_build = True
+
+        A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
+        B = self.fake_gerrit.addFakeChange('org/project1', 'master', 'B')
+        B.setDependsOn(A, 1)
+        A.addApproval('CRVW', 2)
+        B.addApproval('CRVW', 2)
+
+        # Add the parent change.
+        self.fake_gerrit.addEvent(A.addApproval('APRV', 1))
+        self.waitUntilSettled()
+        self.worker.release('.*-merge')
+        self.waitUntilSettled()
+
+        # Reconfigure (with only one change in the pipeline).
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+
+        # Add the child change.
+        self.fake_gerrit.addEvent(B.addApproval('APRV', 1))
+        self.waitUntilSettled()
+        self.worker.release('.*-merge')
+        self.waitUntilSettled()
+
+        # Reconfigure (with both in the pipeline).
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+
+        self.worker.hold_jobs_in_build = False
+        self.worker.release()
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.history), 8)
+
+        self.assertEqual(A.data['status'], 'MERGED')
+        self.assertEqual(A.reported, 2)
+        self.assertEqual(B.data['status'], 'MERGED')
+        self.assertEqual(B.reported, 2)
+
     def test_live_reconfiguration_del_project(self):
         # Test project deletion from layout
         # while changes are enqueued
@@ -2686,6 +2810,25 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(B.data['status'], 'MERGED')
         self.assertEqual(B.reported, 2)
 
+    def test_tags(self):
+        "Test job tags"
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-tags.yaml')
+        self.sched.reconfigure(self.config)
+
+        A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
+        B = self.fake_gerrit.addFakeChange('org/project2', 'master', 'B')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        results = {'project1-merge': 'extratag merge project1',
+                   'project2-merge': 'merge'}
+
+        for build in self.history:
+            self.assertEqual(results.get(build.name, ''),
+                             build.parameters.get('BUILD_TAGS'))
+
     def test_timer(self):
         "Test that a periodic job is triggered"
         self.worker.hold_jobs_in_build = True
@@ -2745,11 +2888,11 @@ class TestScheduler(ZuulTestCase):
                             'tests/fixtures/layout-idle.yaml')
             self.sched.reconfigure(self.config)
             self.registerJobs()
+            self.waitUntilSettled()
 
             # The pipeline triggers every second, so we should have seen
             # several by now.
             time.sleep(5)
-            self.waitUntilSettled()
 
             # Stop queuing timer triggered jobs so that the assertions
             # below don't race against more jobs being queued.
@@ -2757,6 +2900,7 @@ class TestScheduler(ZuulTestCase):
                             'tests/fixtures/layout-no-timer.yaml')
             self.sched.reconfigure(self.config)
             self.registerJobs()
+            self.waitUntilSettled()
 
             self.assertEqual(len(self.builds), 2)
             self.worker.release('.*')
@@ -3359,24 +3503,24 @@ For CI problems and help debugging, contact ci@example.org"""
             len(self.sched.layout.pipelines['gate'].merge_failure_actions), 2)
 
         self.assertTrue(isinstance(
-            self.sched.layout.pipelines['check'].merge_failure_actions[0].
-            reporter, zuul.reporter.gerrit.Reporter))
+            self.sched.layout.pipelines['check'].merge_failure_actions[0],
+            zuul.reporter.gerrit.GerritReporter))
 
         self.assertTrue(
             (
                 isinstance(self.sched.layout.pipelines['gate'].
-                           merge_failure_actions[0].reporter,
-                           zuul.reporter.smtp.Reporter) and
+                           merge_failure_actions[0],
+                           zuul.reporter.smtp.SMTPReporter) and
                 isinstance(self.sched.layout.pipelines['gate'].
-                           merge_failure_actions[1].reporter,
-                           zuul.reporter.gerrit.Reporter)
+                           merge_failure_actions[1],
+                           zuul.reporter.gerrit.GerritReporter)
             ) or (
                 isinstance(self.sched.layout.pipelines['gate'].
-                           merge_failure_actions[0].reporter,
-                           zuul.reporter.gerrit.Reporter) and
+                           merge_failure_actions[0],
+                           zuul.reporter.gerrit.GerritReporter) and
                 isinstance(self.sched.layout.pipelines['gate'].
-                           merge_failure_actions[1].reporter,
-                           zuul.reporter.smtp.Reporter)
+                           merge_failure_actions[1],
+                           zuul.reporter.smtp.SMTPReporter)
             )
         )
 
@@ -3414,6 +3558,31 @@ For CI problems and help debugging, contact ci@example.org"""
         self.assertEqual(1, len(self.smtp_messages))
         self.assertEqual('The merge failed! For more information...',
                          self.smtp_messages[0]['body'])
+
+    def test_default_merge_failure_reports(self):
+        """Check that the default merge failure reports are correct."""
+
+        # A should report success, B should report merge failure.
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.addPatchset(['conflict'])
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
+        B.addPatchset(['conflict'])
+        A.addApproval('CRVW', 2)
+        B.addApproval('CRVW', 2)
+        self.fake_gerrit.addEvent(A.addApproval('APRV', 1))
+        self.fake_gerrit.addEvent(B.addApproval('APRV', 1))
+        self.waitUntilSettled()
+
+        self.assertEqual(3, len(self.history))  # A jobs
+        self.assertEqual(A.reported, 2)
+        self.assertEqual(B.reported, 2)
+        self.assertEqual(A.data['status'], 'MERGED')
+        self.assertEqual(B.data['status'], 'NEW')
+        self.assertIn('Build succeeded', A.messages[1])
+        self.assertIn('Merge Failed', B.messages[1])
+        self.assertIn('automatically merged', B.messages[1])
+        self.assertNotIn('logs.example.com', B.messages[1])
+        self.assertNotIn('SKIPPED', B.messages[1])
 
     def test_swift_instructions(self):
         "Test that the correct swift instructions are sent to the workers"
@@ -3569,8 +3738,8 @@ For CI problems and help debugging, contact ci@example.org"""
         self.assertEqual(A.data['status'], 'NEW')
         self.assertEqual(B.data['status'], 'NEW')
 
-        source = self.sched.layout.pipelines['gate'].source
-        source.maintainCache([])
+        for connection in self.connections.values():
+            connection.maintainCache([])
 
         self.worker.hold_jobs_in_build = True
         B.addApproval('APRV', 1)
@@ -4062,6 +4231,45 @@ For CI problems and help debugging, contact ci@example.org"""
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(2))
         self.waitUntilSettled()
         self.assertEqual(self.history[-1].changes, '3,2 2,1 1,2')
+
+    def test_crd_cycle_join(self):
+        "Test an updated change creates a cycle"
+        A = self.fake_gerrit.addFakeChange('org/project2', 'master', 'A')
+
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        # Create B->A
+        B = self.fake_gerrit.addFakeChange('org/project1', 'master', 'B')
+        B.data['commitMessage'] = '%s\n\nDepends-On: %s\n' % (
+            B.subject, A.data['id'])
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        # Update A to add A->B (a cycle).
+        A.addPatchset()
+        A.data['commitMessage'] = '%s\n\nDepends-On: %s\n' % (
+            A.subject, B.data['id'])
+        # Normally we would submit the patchset-created event for
+        # processing here, however, we have no way of noting whether
+        # the dependency cycle detection correctly raised an
+        # exception, so instead, we reach into the source driver and
+        # call the method that would ultimately be called by the event
+        # processing.
+
+        source = self.sched.layout.pipelines['gate'].source
+        with testtools.ExpectedException(
+            Exception, "Dependency cycle detected"):
+            source._getChange(u'1', u'2', True)
+        self.log.debug("Got expected dependency cycle exception")
+
+        # Now if we update B to remove the depends-on, everything
+        # should be okay.  B; A->B
+
+        B.addPatchset()
+        B.data['commitMessage'] = '%s\n' % (B.subject,)
+        source._getChange(u'1', u'2', True)
+        source._getChange(u'2', u'2', True)
 
     def test_disable_at(self):
         "Test a pipeline will only report to the disabled trigger when failing"

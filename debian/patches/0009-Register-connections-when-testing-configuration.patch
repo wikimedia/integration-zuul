@@ -1,0 +1,50 @@
+From: Joshua Hesketh <josh@nitrotech.org>
+Date: Mon, 4 Apr 2016 13:38:51 +1000
+Subject: Register connections when testing configuration
+
+The layout validation requires the connections to be registered
+with the scheduler to know what connection names are valid in the
+layout.yaml.
+
+However avoid starting the connections so that things like the
+gerrit connection don't start streaming from gerrit yet.
+
+Change-Id: Ie9a03287835c6966f5ac32cac020cf2642ce27d5
+---
+ zuul/cmd/server.py | 1 +
+ zuul/scheduler.py  | 7 +++++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/zuul/cmd/server.py b/zuul/cmd/server.py
+index 8861972..e713a52 100755
+--- a/zuul/cmd/server.py
++++ b/zuul/cmd/server.py
+@@ -88,6 +88,7 @@ class Server(zuul.cmd.ZuulApp):
+         logging.basicConfig(level=logging.DEBUG)
+         self.sched = zuul.scheduler.Scheduler(self.config)
+         self.configure_connections()
++        self.sched.registerConnections(self.connections, load=False)
+         layout = self.sched.testConfig(self.config.get('zuul',
+                                                        'layout_config'),
+                                        self.connections)
+diff --git a/zuul/scheduler.py b/zuul/scheduler.py
+index aea9a67..b631344 100644
+--- a/zuul/scheduler.py
++++ b/zuul/scheduler.py
+@@ -313,11 +313,14 @@ class Scheduler(threading.Thread):
+             # Any skip-if predicate can be matched to trigger a skip
+             return cm.MatchAny(skip_matchers)
+ 
+-    def registerConnections(self, connections):
++    def registerConnections(self, connections, load=True):
++        # load: whether or not to trigger the onLoad for the connection. This
++        # is useful for not doing a full load during layout validation.
+         self.connections = connections
+         for connection_name, connection in self.connections.items():
+             connection.registerScheduler(self)
+-            connection.onLoad()
++            if load:
++                connection.onLoad()
+ 
+     def stopConnections(self):
+         for connection_name, connection in self.connections.items():

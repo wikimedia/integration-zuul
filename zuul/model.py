@@ -81,10 +81,11 @@ class Pipeline(object):
         self.queues = []
         self.precedence = PRECEDENCE_NORMAL
         self.source = None
-        self.start_actions = None
-        self.success_actions = None
-        self.failure_actions = None
-        self.disabled_actions = None
+        self.start_actions = []
+        self.success_actions = []
+        self.failure_actions = []
+        self.merge_failure_actions = []
+        self.disabled_actions = []
         self.disable_at = None
         self._consecutive_failures = 0
         self._disabled = False
@@ -133,7 +134,7 @@ class Pipeline(object):
             return []
         return item.change.filterJobs(tree.getJobs())
 
-    def _findJobsToRun(self, job_trees, item):
+    def _findJobsToRun(self, job_trees, item, mutex):
         torun = []
         if item.item_ahead:
             # Only run jobs if any 'hold' jobs on the change ahead
@@ -152,20 +153,23 @@ class Pipeline(object):
                 else:
                     # There is no build for the root of this job tree,
                     # so we should run it.
-                    torun.append(job)
+                    if mutex.acquire(item, job):
+                        # If this job needs a mutex, either acquire it or make
+                        # sure that we have it before running the job.
+                        torun.append(job)
             # If there is no job, this is a null job tree, and we should
             # run all of its jobs.
             if result == 'SUCCESS' or not job:
-                torun.extend(self._findJobsToRun(tree.job_trees, item))
+                torun.extend(self._findJobsToRun(tree.job_trees, item, mutex))
         return torun
 
-    def findJobsToRun(self, item):
+    def findJobsToRun(self, item, mutex):
         if not item.live:
             return []
         tree = self.getJobTree(item.change.project)
         if not tree:
             return []
-        return self._findJobsToRun(tree.job_trees, item)
+        return self._findJobsToRun(tree.job_trees, item, mutex)
 
     def haveAllJobsStarted(self, item):
         for job in self.getJobs(item):
@@ -262,7 +266,7 @@ class Pipeline(object):
             items.extend(shared_queue.queue)
         return items
 
-    def formatStatusJSON(self):
+    def formatStatusJSON(self, url_pattern=None):
         j_pipeline = dict(name=self.name,
                           description=self.description)
         j_queues = []
@@ -279,7 +283,7 @@ class Pipeline(object):
                     if j_changes:
                         j_queue['heads'].append(j_changes)
                     j_changes = []
-                j_changes.append(e.formatJSON())
+                j_changes.append(e.formatJSON(url_pattern))
                 if (len(j_changes) > 1 and
                         (j_changes[-2]['remaining_time'] is not None) and
                         (j_changes[-1]['remaining_time'] is not None)):
@@ -289,28 +293,6 @@ class Pipeline(object):
             if j_changes:
                 j_queue['heads'].append(j_changes)
         return j_pipeline
-
-
-class ActionReporter(object):
-    """An ActionReporter has a reporter and its configured parameters"""
-
-    def __repr__(self):
-        return '<ActionReporter %s, %s>' % (self.reporter, self.params)
-
-    def __init__(self, reporter, params):
-        self.reporter = reporter
-        self.params = params
-
-    def report(self, change, message):
-        """Sends the built message off to the configured reporter.
-        Takes the change and message and adds the configured parameters.
-        """
-        return self.reporter.report(change, message, self.params)
-
-    def getSubmitAllowNeeds(self):
-        """Gets the submit allow needs from the reporter based off the
-        parameters."""
-        return self.reporter.getSubmitAllowNeeds(self.params)
 
 
 class ChangeQueue(object):
@@ -462,6 +444,8 @@ class Job(object):
         self.failure_pattern = None
         self.success_pattern = None
         self.parameter_function = None
+        self.tags = set()
+        self.mutex = None
         # A metajob should only supply values for attributes that have
         # been explicitly provided, so avoid setting boolean defaults.
         if self.is_metajob:
@@ -508,6 +492,13 @@ class Job(object):
             self.skip_if_matcher = other.skip_if_matcher.copy()
         if other.swift:
             self.swift.update(other.swift)
+        if other.mutex:
+            self.mutex = other.mutex
+        # Tags are merged via a union rather than a destructive copy
+        # because they are intended to accumulate as metajobs are
+        # applied.
+        if other.tags:
+            self.tags = self.tags.union(other.tags)
         # Only non-None values should be copied for boolean attributes.
         if other.hold_following_changes is not None:
             self.hold_following_changes = other.hold_following_changes
@@ -733,7 +724,34 @@ class QueueItem(object):
     def setReportedResult(self, result):
         self.current_build_set.result = result
 
-    def formatJSON(self):
+    def formatJobResult(self, job, url_pattern=None):
+        build = self.current_build_set.getBuild(job.name)
+        result = build.result
+        pattern = url_pattern
+        if result == 'SUCCESS':
+            if job.success_message:
+                result = job.success_message
+            if job.success_pattern:
+                pattern = job.success_pattern
+        elif result == 'FAILURE':
+            if job.failure_message:
+                result = job.failure_message
+            if job.failure_pattern:
+                pattern = job.failure_pattern
+        url = None
+        if pattern:
+            try:
+                url = pattern.format(change=self.change,
+                                     pipeline=self.pipeline,
+                                     job=job,
+                                     build=build)
+            except Exception:
+                pass  # FIXME: log this or something?
+        if not url:
+            url = build.url or job.name
+        return (result, url)
+
+    def formatJSON(self, url_pattern=None):
         changeish = self.change
         ret = {}
         ret['active'] = self.active
@@ -770,11 +788,13 @@ class QueueItem(object):
             elapsed = None
             remaining = None
             result = None
-            url = None
+            build_url = None
+            report_url = None
             worker = None
             if build:
                 result = build.result
-                url = build.url
+                build_url = build.url
+                (unused, report_url) = self.formatJobResult(job, url_pattern)
                 if build.start_time:
                     if build.end_time:
                         elapsed = int((build.end_time -
@@ -802,7 +822,8 @@ class QueueItem(object):
                 'name': job.name,
                 'elapsed_time': elapsed,
                 'remaining_time': remaining,
-                'url': url,
+                'url': build_url,
+                'report_url': report_url,
                 'result': result,
                 'voting': job.voting,
                 'uuid': build.uuid if build else None,

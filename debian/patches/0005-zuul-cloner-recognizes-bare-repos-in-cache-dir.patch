@@ -22,8 +22,8 @@ inspecing the logging message emitted when the cache is hit.
 Change-Id: I3d5177787de5c4d629969cee1f715d692275ad9a
 ---
  tests/test_cloner.py | 23 +++++++++++++++++++++++
- zuul/lib/cloner.py   | 38 +++++++++++++++++++++++---------------
- 2 files changed, 46 insertions(+), 15 deletions(-)
+ zuul/lib/cloner.py   | 39 ++++++++++++++++++++++++---------------
+ 2 files changed, 47 insertions(+), 15 deletions(-)
 
 diff --git a/tests/test_cloner.py b/tests/test_cloner.py
 index 1ce4a0a..2f5f8a7 100644
@@ -67,18 +67,20 @@ index 1ce4a0a..2f5f8a7 100644
          self.worker.hold_jobs_in_build = True
  
 diff --git a/zuul/lib/cloner.py b/zuul/lib/cloner.py
-index c404d9e..c6798a1 100644
+index 3a12a40..77f52fa 100644
 --- a/zuul/lib/cloner.py
 +++ b/zuul/lib/cloner.py
-@@ -71,24 +71,32 @@ class Cloner(object):
+@@ -71,25 +71,34 @@ class Cloner(object):
      def cloneUpstream(self, project, dest):
          # Check for a cached git repo first
          git_cache = '%s/%s' % (self.cache_dir, project)
 +        git_cache_bare = '%s.git' % (git_cache)
          git_upstream = '%s/%s' % (self.git_url, project)
++
+         repo_is_cloned = os.path.exists(os.path.join(dest, '.git'))
 -        if (self.cache_dir and
 -            os.path.exists(git_cache) and
--            not os.path.exists(dest)):
+-            not repo_is_cloned):
 -
 -            if self.cache_no_hardlinks:
 -                # file:// tells git not to hard-link across repos
@@ -93,7 +95,7 @@ index c404d9e..c6798a1 100644
 -        else:
 +
 +        repo_cache = None
-+        if (self.cache_dir and not os.path.exists(dest)):
++        if (self.cache_dir and not repo_is_cloned):
 +            if os.path.exists(git_cache_bare):
 +                repo_cache = git_cache_bare
 +            elif os.path.exists(git_cache):

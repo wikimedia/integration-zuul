@@ -13,19 +13,21 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import apscheduler.scheduler
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 import logging
-from zuul.model import TriggerEvent
+import voluptuous as v
+from zuul.model import EventFilter, TriggerEvent
+from zuul.trigger import BaseTrigger
 
 
-class Timer(object):
+class TimerTrigger(BaseTrigger):
     name = 'timer'
     log = logging.getLogger("zuul.Timer")
 
-    def __init__(self, config, sched):
-        self.sched = sched
-        self.config = config
-        self.apsched = apscheduler.scheduler.Scheduler()
+    def __init__(self, trigger_config={}, sched=None, connection=None):
+        super(TimerTrigger, self).__init__(trigger_config, sched, connection)
+        self.apsched = BackgroundScheduler()
         self.apsched.start()
 
     def _onTrigger(self, pipeline_name, timespec):
@@ -38,23 +40,30 @@ class Timer(object):
             self.log.debug("Adding event %s" % event)
             self.sched.addEvent(event)
 
-    def stop(self):
-        self.apsched.shutdown()
+    def _shutdown(self):
+        self.apsched.stop()
 
-    def isMerged(self, change, head=None):
-        raise Exception("Timer trigger does not support checking if "
-                        "a change is merged.")
+    def getEventFilters(self, trigger_conf):
+        def toList(item):
+            if not item:
+                return []
+            if isinstance(item, list):
+                return item
+            return [item]
 
-    def canMerge(self, change, allow_needs):
-        raise Exception("Timer trigger does not support checking if "
-                        "a change can merge.")
+        efilters = []
+        for trigger in toList(trigger_conf):
+            f = EventFilter(trigger=self,
+                            types=['timer'],
+                            timespecs=toList(trigger['time']))
 
-    def maintainCache(self, relevant):
-        return
+            efilters.append(f)
+
+        return efilters
 
     def postConfig(self):
         for job in self.apsched.get_jobs():
-            self.apsched.unschedule_job(job)
+            job.remove()
         for pipeline in self.sched.layout.pipelines.values():
             for ef in pipeline.manager.event_filters:
                 if ef.trigger != self:
@@ -73,20 +82,13 @@ class Timer(object):
                         second = parts[5]
                     else:
                         second = None
-                    self.apsched.add_cron_job(self._onTrigger,
-                                              day=dom,
-                                              day_of_week=dow,
-                                              hour=hour,
-                                              minute=minute,
-                                              second=second,
-                                              args=(pipeline.name,
-                                                    timespec,))
+                    trigger = CronTrigger(day=dom, day_of_week=dow, hour=hour,
+                                          minute=minute, second=second)
 
-    def getChange(self, event, project):
-        raise Exception("Timer trigger does not support changes.")
+                    self.apsched.add_job(self._onTrigger, trigger=trigger,
+                                         args=(pipeline.name, timespec,))
 
-    def getGitUrl(self, project):
-        raise Exception("Timer trigger does not support changes.")
 
-    def getGitwebUrl(self, project, sha=None):
-        raise Exception("Timer trigger does not support changes.")
+def getSchema():
+    timer_trigger = {v.Required('time'): str}
+    return timer_trigger
