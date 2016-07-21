@@ -1,0 +1,1913 @@
+From: Paladox <thomasmulhall410@yahoo.com>
+Date: Thu, 21 Jul 2016 17:02:30 +0100
+Subject: Me testing something new
+
+Change-Id: Ieb7a212a5beb1cbd179af8952175cb88e1a71f07
+---
+ .gitreview                                        |   5 +-
+ doc/source/cloner.rst                             |   5 -
+ requirements.txt                                  |   9 +-
+ setup.cfg                                         |   1 +
+ setup.py                                          |   2 +-
+ tests/base.py                                     |  13 +-
+ tests/test_cloner.py                              |  79 ++-
+ tests/test_layoutvalidator.py                     |   2 +-
+ tests/test_merger_repo.py                         |   2 +-
+ tests/test_requirements.py                        |   2 +-
+ tests/test_scheduler.py                           |   2 +-
+ tests/test_webapp.py                              |   2 +-
+ tests/test_zuultrigger.py                         |   2 +-
+ tools/trigger-job.py                              |   2 +-
+ tools/zuul-changes.py                             |   2 +-
+ zuul/ansible/__init__.py                          |   0
+ zuul/ansible/library/__init__.py                  |   0
+ zuul/ansible/library/zuul_console.py              | 195 ++++++
+ zuul/ansible/library/zuul_runner.py               |  75 +++
+ zuul/ansible/plugins/__init__.py                  |   0
+ zuul/ansible/plugins/callback_plugins/__init__.py |   0
+ zuul/ansible/plugins/callback_plugins/timeout.py  |  57 ++
+ zuul/cmd/__init__.py                              |   7 +-
+ zuul/cmd/client.py                                |   2 +-
+ zuul/cmd/cloner.py                                |  15 +-
+ zuul/cmd/launcher.py                              | 113 ++++
+ zuul/cmd/merger.py                                |   2 +-
+ zuul/cmd/server.py                                |   3 +-
+ zuul/exceptions.py                                |   9 +
+ zuul/launcher/ansiblelaunchserver.py              | 763 ++++++++++++++++++++++
+ zuul/lib/cloner.py                                |  86 ++-
+ zuul/merger/merger.py                             |  13 +-
+ zuul/scheduler.py                                 |   7 +-
+ 33 files changed, 1364 insertions(+), 113 deletions(-)
+ create mode 100644 zuul/ansible/__init__.py
+ create mode 100644 zuul/ansible/library/__init__.py
+ create mode 100644 zuul/ansible/library/zuul_console.py
+ create mode 100644 zuul/ansible/library/zuul_runner.py
+ create mode 100644 zuul/ansible/plugins/__init__.py
+ create mode 100644 zuul/ansible/plugins/callback_plugins/__init__.py
+ create mode 100644 zuul/ansible/plugins/callback_plugins/timeout.py
+ create mode 100644 zuul/cmd/launcher.py
+ create mode 100644 zuul/launcher/ansiblelaunchserver.py
+
+diff --git a/.gitreview b/.gitreview
+index c41c274..665adb6 100644
+--- a/.gitreview
++++ b/.gitreview
+@@ -1,5 +1,4 @@
+ [gerrit]
+-host=gerrit.wikimedia.org
++host=review.openstack.org
+ port=29418
+-project=integration/zuul.git
+-defaultbranch=debian/precise-wikimedia
++project=openstack-infra/zuul.git
+diff --git a/doc/source/cloner.rst b/doc/source/cloner.rst
+index c0ca990..70577cc 100644
+--- a/doc/source/cloner.rst
++++ b/doc/source/cloner.rst
+@@ -108,8 +108,3 @@ repository has all the information in the upstream repository.
+ The default for ``--cache-dir`` is taken from the environment variable
+ ``ZUUL_CACHE_DIR``. A value provided explicitly on the command line
+ overrides the environment variable setting.
+-
+-The ``--cache-no-hardlinks`` option can be used to force git to
+-always copy git objects from the cache directory. By default, if
+-the cache directory is on the same disk as the workspace, git-clone
+-will hardlink git objects to speed up the process and save space.
+diff --git a/requirements.txt b/requirements.txt
+index 0c85d7a..77ac0a5 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,16 +1,17 @@
+-pbr>=0.5.21
++pbr>=1.1.0
+ 
+ PyYAML>=3.1.0
+ Paste
+-WebOb
+-paramiko<2.0.0
++WebOb>=1.2.3
++paramiko>=1.8.0,<2.0.0
+ GitPython>=0.3.3
++ordereddict
+ python-daemon>=2.0.4,<2.1.0
+ extras
+ statsd>=1.0.0,<3.0
+ voluptuous>=0.7
+ gear>=0.5.7,<1.0.0
+-apscheduler>=3.0,<3.1.0
++apscheduler>=3.0
+ PrettyTable>=0.6,<0.8
+ babel>=1.0
+ six>=1.6.0
+diff --git a/setup.cfg b/setup.cfg
+index 620e1ac..7ddeb84 100644
+--- a/setup.cfg
++++ b/setup.cfg
+@@ -25,6 +25,7 @@ console_scripts =
+     zuul-merger = zuul.cmd.merger:main
+     zuul = zuul.cmd.client:main
+     zuul-cloner = zuul.cmd.cloner:main
++    zuul-launcher = zuul.cmd.launcher:main
+ 
+ [build_sphinx]
+ source-dir = doc/source
+diff --git a/setup.py b/setup.py
+index 4ec20a6..70c2b3f 100644
+--- a/setup.py
++++ b/setup.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ # Copyright (c) 2013 Hewlett-Packard Development Company, L.P.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+diff --git a/tests/base.py b/tests/base.py
+index 4f41be9..7945a0b 100755
+--- a/tests/base.py
++++ b/tests/base.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ 
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ #
+@@ -1132,6 +1132,17 @@ class ZuulTestCase(BaseTestCase):
+         zuul.merger.merger.reset_repo_to_head(repo)
+         repo.git.clean('-x', '-f', '-d')
+ 
++    def create_commit(self, project):
++        path = os.path.join(self.upstream_root, project)
++        repo = git.Repo(path)
++        repo.head.reference = repo.heads['master']
++        file_name = os.path.join(path, 'README')
++        with open(file_name, 'a') as f:
++            f.write('creating fake commit\n')
++        repo.index.add([file_name])
++        commit = repo.index.commit('Creating a fake commit')
++        return commit.hexsha
++
+     def ref_has_change(self, ref, change):
+         path = os.path.join(self.git_root, change.project)
+         repo = git.Repo(path)
+diff --git a/tests/test_cloner.py b/tests/test_cloner.py
+index 2f5f8a7..e3576bd 100644
+--- a/tests/test_cloner.py
++++ b/tests/test_cloner.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ 
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ # Copyright 2014 Wikimedia Foundation Inc.
+@@ -15,7 +15,6 @@
+ # License for the specific language governing permissions and limitations
+ # under the License.
+ 
+-import fixtures
+ import logging
+ import os
+ import shutil
+@@ -119,28 +118,6 @@ class TestCloner(ZuulTestCase):
+         self.worker.release()
+         self.waitUntilSettled()
+ 
+-    def test_recognize_bare_cache(self):
+-        cache_root = os.path.join(self.test_root, "cache")
+-        upstream_repo_path = os.path.join(self.upstream_root, 'org/project1')
+-        cache_bare_path = os.path.join(cache_root, 'org/project1.git')
+-        cache_repo = git.Repo.clone_from(upstream_repo_path, cache_bare_path,
+-                                         bare=True)
+-        self.assertTrue(type(cache_repo.bare), msg='Cache repo is bare')
+-
+-        log_fixture = self.useFixture(fixtures.FakeLogger(level=logging.INFO))
+-        cloner = zuul.lib.cloner.Cloner(
+-            git_base_url=self.upstream_root,
+-            projects=['org/project1'],
+-            workspace=self.workspace_root,
+-            zuul_branch='HEAD',
+-            zuul_ref='HEAD',
+-            zuul_url=self.git_root,
+-            cache_dir=cache_root
+-        )
+-        cloner.execute()
+-        self.assertIn('Creating repo org/project1 from cache file://%s' % (
+-                      cache_bare_path), log_fixture.output)
+-
+     def test_one_branch(self):
+         self.worker.hold_jobs_in_build = True
+ 
+@@ -589,3 +566,57 @@ class TestCloner(ZuulTestCase):
+         self.worker.hold_jobs_in_build = False
+         self.worker.release()
+         self.waitUntilSettled()
++
++    def test_post_checkout(self):
++        project = "org/project"
++        path = os.path.join(self.upstream_root, project)
++        repo = git.Repo(path)
++        repo.head.reference = repo.heads['master']
++        commits = []
++        for i in range(0, 3):
++            commits.append(self.create_commit(project))
++        newRev = commits[1]
++
++        cloner = zuul.lib.cloner.Cloner(
++            git_base_url=self.upstream_root,
++            projects=[project],
++            workspace=self.workspace_root,
++            zuul_branch=None,
++            zuul_ref='master',
++            zuul_url=self.git_root,
++            zuul_project=project,
++            zuul_newrev=newRev,
++        )
++        cloner.execute()
++        repos = self.getWorkspaceRepos([project])
++        cloned_sha = repos[project].rev_parse('HEAD').hexsha
++        self.assertEqual(newRev, cloned_sha)
++
++    def test_post_and_master_checkout(self):
++        project = "org/project1"
++        master_project = "org/project2"
++        path = os.path.join(self.upstream_root, project)
++        repo = git.Repo(path)
++        repo.head.reference = repo.heads['master']
++        commits = []
++        for i in range(0, 3):
++            commits.append(self.create_commit(project))
++        newRev = commits[1]
++
++        cloner = zuul.lib.cloner.Cloner(
++            git_base_url=self.upstream_root,
++            projects=[project, master_project],
++            workspace=self.workspace_root,
++            zuul_branch=None,
++            zuul_ref='master',
++            zuul_url=self.git_root,
++            zuul_project=project,
++            zuul_newrev=newRev
++        )
++        cloner.execute()
++        repos = self.getWorkspaceRepos([project, master_project])
++        cloned_sha = repos[project].rev_parse('HEAD').hexsha
++        self.assertEqual(newRev, cloned_sha)
++        self.assertEqual(
++            repos[master_project].rev_parse('HEAD').hexsha,
++            repos[master_project].rev_parse('master').hexsha)
+diff --git a/tests/test_layoutvalidator.py b/tests/test_layoutvalidator.py
+index 99732a5..3dc3234 100644
+--- a/tests/test_layoutvalidator.py
++++ b/tests/test_layoutvalidator.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ 
+ # Copyright 2013 OpenStack Foundation
+ #
+diff --git a/tests/test_merger_repo.py b/tests/test_merger_repo.py
+index 55d16a0..454f3cc 100644
+--- a/tests/test_merger_repo.py
++++ b/tests/test_merger_repo.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ 
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ # Copyright 2014 Wikimedia Foundation Inc.
+diff --git a/tests/test_requirements.py b/tests/test_requirements.py
+index 202010c..3ae56ad 100644
+--- a/tests/test_requirements.py
++++ b/tests/test_requirements.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ 
+ # Copyright 2012-2014 Hewlett-Packard Development Company, L.P.
+ #
+diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
+index cbf1495..fe7c7cc 100755
+--- a/tests/test_scheduler.py
++++ b/tests/test_scheduler.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ 
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ #
+diff --git a/tests/test_webapp.py b/tests/test_webapp.py
+index 8a88261..b127c51 100644
+--- a/tests/test_webapp.py
++++ b/tests/test_webapp.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ 
+ # Copyright 2014 Hewlett-Packard Development Company, L.P.
+ # Copyright 2014 Rackspace Australia
+diff --git a/tests/test_zuultrigger.py b/tests/test_zuultrigger.py
+index 49b79ad..0d52fc9 100644
+--- a/tests/test_zuultrigger.py
++++ b/tests/test_zuultrigger.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ 
+ # Copyright 2014 Hewlett-Packard Development Company, L.P.
+ #
+diff --git a/tools/trigger-job.py b/tools/trigger-job.py
+index 4651d7d..dff4e3f 100755
+--- a/tools/trigger-job.py
++++ b/tools/trigger-job.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ # Copyright 2013 OpenStack Foundation
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License"); you may
+diff --git a/tools/zuul-changes.py b/tools/zuul-changes.py
+index d825ef1..9dbf504 100755
+--- a/tools/zuul-changes.py
++++ b/tools/zuul-changes.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ # Copyright 2013 OpenStack Foundation
+ # Copyright 2015 Hewlett-Packard Development Company, L.P.
+ #
+diff --git a/zuul/ansible/__init__.py b/zuul/ansible/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/zuul/ansible/library/__init__.py b/zuul/ansible/library/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/zuul/ansible/library/zuul_console.py b/zuul/ansible/library/zuul_console.py
+new file mode 100644
+index 0000000..bb6ec7b
+--- /dev/null
++++ b/zuul/ansible/library/zuul_console.py
+@@ -0,0 +1,195 @@
++#!/usr/bin/python
++
++# Copyright (c) 2016 IBM Corp.
++#
++# This module is free software: you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation, either version 3 of the License, or
++# (at your option) any later version.
++#
++# This software is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this software.  If not, see <http://www.gnu.org/licenses/>.
++
++import os
++import sys
++import socket
++import threading
++
++
++def daemonize():
++    # A really basic daemonize method that should work well enough for
++    # now in this circumstance. Based on the public domain code at:
++    # http://web.archive.org/web/20131017130434/http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/
++
++    pid = os.fork()
++    if pid > 0:
++        return True
++
++    os.chdir('/')
++    os.setsid()
++    os.umask(0)
++
++    pid = os.fork()
++    if pid > 0:
++        sys.exit(0)
++
++    sys.stdout.flush()
++    sys.stderr.flush()
++    i = open('/dev/null', 'r')
++    o = open('/dev/null', 'a+')
++    e = open('/dev/null', 'a+', 0)
++    os.dup2(i.fileno(), sys.stdin.fileno())
++    os.dup2(o.fileno(), sys.stdout.fileno())
++    os.dup2(e.fileno(), sys.stderr.fileno())
++    return False
++
++
++class Console(object):
++    def __init__(self, path):
++        self.path = path
++        self.file = open(path)
++        self.stat = os.stat(path)
++        self.size = self.stat.st_size
++
++
++class Server(object):
++    def __init__(self, path, port):
++        self.path = path
++        s = None
++        for res in socket.getaddrinfo(None, port, socket.AF_UNSPEC,
++                                      socket.SOCK_STREAM, 0,
++                                      socket.AI_PASSIVE):
++            af, socktype, proto, canonname, sa = res
++            try:
++                s = socket.socket(af, socktype, proto)
++                s.setsockopt(socket.SOL_SOCKET,
++                             socket.SO_REUSEADDR, 1)
++            except socket.error:
++                s = None
++                continue
++            try:
++                s.bind(sa)
++                s.listen(1)
++            except socket.error:
++                s.close()
++                s = None
++                continue
++            break
++        if s is None:
++            sys.exit(1)
++        self.socket = s
++
++    def accept(self):
++        conn, addr = self.socket.accept()
++        return conn
++
++    def run(self):
++        while True:
++            conn = self.accept()
++            t = threading.Thread(target=self.handleOneConnection, args=(conn,))
++            t.daemon = True
++            t.start()
++
++    def chunkConsole(self, conn):
++        try:
++            console = Console(self.path)
++        except Exception:
++            return
++        while True:
++            chunk = console.file.read(4096)
++            if not chunk:
++                break
++            conn.send(chunk)
++        return console
++
++    def followConsole(self, console, conn):
++        while True:
++            r = [console.file, conn]
++            e = [console.file, conn]
++            r, w, e = select.select(r, [], e)
++
++            if console.file in e:
++                return True
++            if conn in e:
++                return False
++            if conn in r:
++                ret = conn.recv(1024)
++                # Discard anything read, if input is eof, it has
++                # disconnected.
++                if not ret:
++                    return False
++
++            if console.file in r:
++                line = console.file.readline()
++                if line:
++                    conn.send(line)
++                time.sleep(0.5)
++                try:
++                    st = os.stat(console.path)
++                    if (st.st_ino != console.stat.st_ino or
++                        st.st_size < console.size):
++                        return True
++                except Exception:
++                    return True
++                console.size = st.st_size
++
++    def handleOneConnection(self, conn):
++        # FIXME: this won't notice disconnects until it tries to send
++        console = None
++        try:
++            while True:
++                if console is not None:
++                    try:
++                        console.file.close()
++                    except:
++                        pass
++                while True:
++                    console = self.chunkConsole(conn)
++                    if console:
++                        break
++                    time.sleep(0.5)
++                while True:
++                    if self.followConsole(console, conn):
++                        break
++                    else:
++                        return
++        finally:
++            try:
++                conn.close()
++            except Exception:
++                pass
++
++
++def test():
++    s = Server('/tmp/console.log', 8088)
++    s.run()
++
++
++def main():
++    module = AnsibleModule(
++        argument_spec=dict(
++            path=dict(default='/tmp/console.log'),
++            port=dict(default=8088, type='int'),
++        )
++    )
++
++    p = module.params
++    path = p['path']
++    port = p['port']
++
++    if daemonize():
++        module.exit_json()
++
++    s = Server(path, port)
++    s.run()
++
++from ansible.module_utils.basic import *  # noqa
++
++if __name__ == '__main__':
++    main()
++# test()
+diff --git a/zuul/ansible/library/zuul_runner.py b/zuul/ansible/library/zuul_runner.py
+new file mode 100644
+index 0000000..6fc8f2d
+--- /dev/null
++++ b/zuul/ansible/library/zuul_runner.py
+@@ -0,0 +1,75 @@
++#!/usr/bin/python
++
++# Copyright (c) 2016 IBM Corp.
++#
++# This module is free software: you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation, either version 3 of the License, or
++# (at your option) any later version.
++#
++# This software is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this software.  If not, see <http://www.gnu.org/licenses/>.
++
++import datetime
++import subprocess
++
++
++class Console(object):
++    def __enter__(self):
++        self.logfile = open('/tmp/console.log', 'w+')
++        return self
++
++    def __exit__(self, etype, value, tb):
++        self.logfile.close()
++
++    def addLine(self, ln):
++        ts = datetime.datetime.now()
++        outln = '%s %s' % (str(ts), ln)
++        self.logfile.write(outln)
++
++
++def run(cwd, cmd, args):
++    proc = subprocess.Popen(
++        [cmd],
++        cwd=cwd,
++        stdout=subprocess.PIPE,
++        stderr=subprocess.STDOUT,
++        env=args,
++    )
++
++    with Console() as console:
++        while True:
++            line = proc.stdout.readline()
++            if not line:
++                break
++            console.addLine(line)
++
++    ret = proc.wait()
++    return ret
++
++
++def main():
++    module = AnsibleModule(
++        argument_spec=dict(
++            command=dict(required=True, default=None),
++            cwd=dict(required=True, default=None),
++            parameters=dict(default={}, type='dict')
++        )
++    )
++
++    p = module.params
++    ret = run(p['cwd'], p['command'], p['parameters'])
++    if ret == 0:
++        module.exit_json(changed=True, rc=ret)
++    else:
++        module.fail_json(msg="Exit code %s" % ret, rc=ret)
++
++from ansible.module_utils.basic import *  # noqa
++
++if __name__ == '__main__':
++    main()
+diff --git a/zuul/ansible/plugins/__init__.py b/zuul/ansible/plugins/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/zuul/ansible/plugins/callback_plugins/__init__.py b/zuul/ansible/plugins/callback_plugins/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/zuul/ansible/plugins/callback_plugins/timeout.py b/zuul/ansible/plugins/callback_plugins/timeout.py
+new file mode 100644
+index 0000000..245e988
+--- /dev/null
++++ b/zuul/ansible/plugins/callback_plugins/timeout.py
+@@ -0,0 +1,57 @@
++# Copyright 2016 IBM Corp.
++#
++# This file is part of Zuul
++#
++# This file is free software: you can redistribute it and/or modify it
++# under the terms of the GNU General Public License as published by
++# the Free Software Foundation, either version 3 of the License, or
++# (at your option) any later version.
++#
++# This file is distributed in the hope that it will be useful, but
++# WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++# General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this file.  If not, see <http://www.gnu.org/licenses/>.
++
++import time
++
++from ansible.executor.task_result import TaskResult
++from ansible.plugins.callback import CallbackBase
++
++
++class CallbackModule(CallbackBase):
++    def __init__(self, *args, **kw):
++        super(CallbackModule, self).__init__(*args, **kw)
++        self._elapsed_time = 0.0
++        self._task_start_time = None
++        self._play = None
++
++    def v2_playbook_on_play_start(self, play):
++        self._play = play
++
++    def playbook_on_task_start(self, name, is_conditional):
++        self._task_start_time = time.time()
++
++    def v2_on_any(self, *args, **kw):
++        result = None
++        if args and isinstance(args[0], TaskResult):
++            result = args[0]
++        if not result:
++            return
++
++        if self._task_start_time is not None:
++            task_time = time.time() - self._task_start_time
++            self._elapsed_time += task_time
++        if self._play and result._host:
++            manager = self._play.get_variable_manager()
++            facts = dict(elapsed_time=self._elapsed_time)
++
++            overall_timeout = manager.extra_vars.get('timeout')
++            if overall_timeout is not None:
++                timeout = int(overall_timeout) - int(self._elapsed_time)
++                facts['timeout'] = timeout
++
++            manager.set_nonpersistent_facts(result._host, facts)
++        self._task_start_time = None
+diff --git a/zuul/cmd/__init__.py b/zuul/cmd/__init__.py
+index 966d1f7..2902c50 100644
+--- a/zuul/cmd/__init__.py
++++ b/zuul/cmd/__init__.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ # Copyright 2013 OpenStack Foundation
+ #
+@@ -26,6 +26,8 @@ import traceback
+ 
+ yappi = extras.try_import('yappi')
+ 
++import zuul.lib.connections
++
+ # Do not import modules that will pull in paramiko which must not be
+ # imported until after the daemonization.
+ # https://github.com/paramiko/paramiko/issues/59
+@@ -89,8 +91,5 @@ class ZuulApp(object):
+             logging.basicConfig(level=logging.DEBUG)
+ 
+     def configure_connections(self):
+-        # See comment at top of file about zuul imports
+-        import zuul.lib.connections
+-
+         self.connections = zuul.lib.connections.configure_connections(
+             self.config)
+diff --git a/zuul/cmd/client.py b/zuul/cmd/client.py
+index e31f467..59ac419 100644
+--- a/zuul/cmd/client.py
++++ b/zuul/cmd/client.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ # Copyright 2013 OpenStack Foundation
+ #
+diff --git a/zuul/cmd/cloner.py b/zuul/cmd/cloner.py
+index 63825e4..4f8b9f4 100755
+--- a/zuul/cmd/cloner.py
++++ b/zuul/cmd/cloner.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ #
+ # Copyright 2014 Antoine "hashar" Musso
+ # Copyright 2014 Wikimedia Foundation Inc.
+@@ -27,6 +27,8 @@ ZUUL_ENV_SUFFIXES = (
+     'branch',
+     'ref',
+     'url',
++    'project',
++    'newrev',
+ )
+ 
+ 
+@@ -57,10 +59,6 @@ class Cloner(zuul.cmd.ZuulApp):
+                                   'Can also be set via ZUUL_CACHE_DIR '
+                                   'environment variable.'
+                                   ))
+-        parser.add_argument('--cache-no-hardlinks', dest='cache_no_hardlinks',
+-                            action='store_true',
+-                            help=('force git-clone to never use hardlinks when'
+-                                  'fetching from the cache directory.'))
+         parser.add_argument('git_base_url',
+                             help='reference repo to clone from')
+         parser.add_argument('projects', nargs='+',
+@@ -102,6 +100,10 @@ class Cloner(zuul.cmd.ZuulApp):
+             parser.error("Specifying a Zuul ref requires a Zuul url. "
+                          "Define Zuul arguments either via environment "
+                          "variables or using options above.")
++        if 'zuul_newrev' in zuul_args and 'zuul_project' not in zuul_args:
++            parser.error("ZUUL_NEWREV has been specified without "
++                         "ZUUL_PROJECT. Please define a ZUUL_PROJECT or do "
++                         "not set ZUUL_NEWREV.")
+ 
+         self.args = args
+ 
+@@ -149,7 +151,8 @@ class Cloner(zuul.cmd.ZuulApp):
+             clone_map_file=self.args.clone_map_file,
+             project_branches=project_branches,
+             cache_dir=self.args.cache_dir,
+-            cache_no_hardlinks=self.args.cache_no_hardlinks,
++            zuul_newrev=self.args.zuul_newrev,
++            zuul_project=self.args.zuul_project,
+         )
+         cloner.execute()
+ 
+diff --git a/zuul/cmd/launcher.py b/zuul/cmd/launcher.py
+new file mode 100644
+index 0000000..86266b3
+--- /dev/null
++++ b/zuul/cmd/launcher.py
+@@ -0,0 +1,113 @@
++#!/usr/bin/env python
++# Copyright 2012 Hewlett-Packard Development Company, L.P.
++# Copyright 2013-2014 OpenStack Foundation
++#
++# Licensed under the Apache License, Version 2.0 (the "License"); you may
++# not use this file except in compliance with the License. You may obtain
++# a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++# License for the specific language governing permissions and limitations
++# under the License.
++
++import argparse
++import daemon
++import extras
++
++# as of python-daemon 1.6 it doesn't bundle pidlockfile anymore
++# instead it depends on lockfile-0.9.1 which uses pidfile.
++pid_file_module = extras.try_imports(['daemon.pidlockfile', 'daemon.pidfile'])
++
++import logging
++import os
++import sys
++import signal
++
++import zuul.cmd
++
++# No zuul imports here because they pull in paramiko which must not be
++# imported until after the daemonization.
++# https://github.com/paramiko/paramiko/issues/59
++# Similar situation with gear and statsd.
++
++
++class Launcher(zuul.cmd.ZuulApp):
++
++    def parse_arguments(self):
++        parser = argparse.ArgumentParser(description='Zuul launch worker.')
++        parser.add_argument('-c', dest='config',
++                            help='specify the config file')
++        parser.add_argument('-d', dest='nodaemon', action='store_true',
++                            help='do not run as a daemon')
++        parser.add_argument('--version', dest='version', action='version',
++                            version=self._get_version(),
++                            help='show zuul version')
++        self.args = parser.parse_args()
++
++    def reconfigure_handler(self, signum, frame):
++        signal.signal(signal.SIGHUP, signal.SIG_IGN)
++        self.log.debug("Reconfiguration triggered")
++        self.read_config()
++        self.setup_logging('launcher', 'log_config')
++        try:
++            self.launcher.reconfigure(self.config)
++        except Exception:
++            self.log.exception("Reconfiguration failed:")
++        signal.signal(signal.SIGHUP, self.reconfigure_handler)
++
++    def exit_handler(self, signum, frame):
++        signal.signal(signal.SIGUSR1, signal.SIG_IGN)
++        self.launcher.stop()
++        self.launcher.join()
++
++    def main(self):
++        # See comment at top of file about zuul imports
++        import zuul.launcher.ansiblelaunchserver
++
++        self.setup_logging('launcher', 'log_config')
++
++        self.log = logging.getLogger("zuul.Launcher")
++
++        LaunchServer = zuul.launcher.ansiblelaunchserver.LaunchServer
++        self.launcher = LaunchServer(self.config)
++        self.launcher.start()
++
++        signal.signal(signal.SIGHUP, self.reconfigure_handler)
++        signal.signal(signal.SIGUSR1, self.exit_handler)
++        signal.signal(signal.SIGUSR2, zuul.cmd.stack_dump_handler)
++        while True:
++            try:
++                signal.pause()
++            except KeyboardInterrupt:
++                print "Ctrl + C: asking launcher to exit nicely...\n"
++                self.exit_handler(signal.SIGINT, None)
++                sys.exit(0)
++
++
++def main():
++    server = Launcher()
++    server.parse_arguments()
++
++    server.read_config()
++    server.configure_connections()
++
++    if server.config.has_option('launcher', 'pidfile'):
++        pid_fn = os.path.expanduser(server.config.get('launcher', 'pidfile'))
++    else:
++        pid_fn = '/var/run/zuul-launcher/zuul-launcher.pid'
++    pid = pid_file_module.TimeoutPIDLockFile(pid_fn, 10)
++
++    if server.args.nodaemon:
++        server.main()
++    else:
++        with daemon.DaemonContext(pidfile=pid):
++            server.main()
++
++
++if __name__ == "__main__":
++    sys.path.insert(0, '.')
++    main()
+diff --git a/zuul/cmd/merger.py b/zuul/cmd/merger.py
+index 5f51ee6..df215fd 100644
+--- a/zuul/cmd/merger.py
++++ b/zuul/cmd/merger.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ # Copyright 2013-2014 OpenStack Foundation
+ #
+diff --git a/zuul/cmd/server.py b/zuul/cmd/server.py
+index e713a52..b1cd050 100755
+--- a/zuul/cmd/server.py
++++ b/zuul/cmd/server.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python2.7
++#!/usr/bin/env python
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ # Copyright 2013 OpenStack Foundation
+ #
+@@ -88,7 +88,6 @@ class Server(zuul.cmd.ZuulApp):
+         logging.basicConfig(level=logging.DEBUG)
+         self.sched = zuul.scheduler.Scheduler(self.config)
+         self.configure_connections()
+-        self.sched.registerConnections(self.connections, load=False)
+         layout = self.sched.testConfig(self.config.get('zuul',
+                                                        'layout_config'),
+                                        self.connections)
+diff --git a/zuul/exceptions.py b/zuul/exceptions.py
+index 2bd2c6b..40a1e40 100644
+--- a/zuul/exceptions.py
++++ b/zuul/exceptions.py
+@@ -22,5 +22,14 @@ class ChangeNotFound(Exception):
+         super(ChangeNotFound, self).__init__(message)
+ 
+ 
++class RevNotFound(Exception):
++    def __init__(self, project, rev):
++        self.project = project
++        self.revision = rev
++        message = ("Failed to checkout project '%s' at revision '%s'"
++                   % (self.project, self.revision))
++        super(RevNotFound, self).__init__(message)
++
++
+ class MergeFailure(Exception):
+     pass
+diff --git a/zuul/launcher/ansiblelaunchserver.py b/zuul/launcher/ansiblelaunchserver.py
+new file mode 100644
+index 0000000..844b390
+--- /dev/null
++++ b/zuul/launcher/ansiblelaunchserver.py
+@@ -0,0 +1,763 @@
++# Copyright 2014 OpenStack Foundation
++#
++# Licensed under the Apache License, Version 2.0 (the "License"); you may
++# not use this file except in compliance with the License. You may obtain
++# a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++# License for the specific language governing permissions and limitations
++# under the License.
++
++import json
++import logging
++import multiprocessing
++import os
++import re
++import shutil
++import signal
++import socket
++import subprocess
++import tempfile
++import threading
++import traceback
++import uuid
++
++import gear
++import yaml
++import jenkins_jobs.builder
++import zmq
++
++import zuul.ansible.library
++import zuul.ansible.plugins.callback_plugins
++
++
++class JobDir(object):
++    def __init__(self):
++        self.root = tempfile.mkdtemp()
++        self.git_root = os.path.join(self.root, 'git')
++        os.makedirs(self.git_root)
++        self.ansible_root = os.path.join(self.root, 'ansible')
++        os.makedirs(self.ansible_root)
++        self.plugins_root = os.path.join(self.ansible_root, 'plugins')
++        os.makedirs(self.plugins_root)
++        self.inventory = os.path.join(self.ansible_root, 'inventory')
++        self.playbook = os.path.join(self.ansible_root, 'playbook')
++        self.post_playbook = os.path.join(self.ansible_root, 'post_playbook')
++        self.config = os.path.join(self.ansible_root, 'ansible.cfg')
++        self.script_root = os.path.join(self.ansible_root, 'scripts')
++        os.makedirs(self.script_root)
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, etype, value, tb):
++        shutil.rmtree(self.root)
++
++
++class LaunchServer(object):
++    log = logging.getLogger("zuul.LaunchServer")
++    section_re = re.compile('site "(.*?)"')
++
++    def __init__(self, config):
++        self.config = config
++        self.hostname = socket.gethostname()
++        self.node_workers = {}
++        self.mpmanager = multiprocessing.Manager()
++        self.jobs = self.mpmanager.dict()
++        self.builds = self.mpmanager.dict()
++        self.zmq_send_queue = multiprocessing.JoinableQueue()
++        self.termination_queue = multiprocessing.JoinableQueue()
++        self.sites = {}
++
++        for section in config.sections():
++            m = self.section_re.match(section)
++            if m:
++                sitename = m.group(1)
++                d = {}
++                d['host'] = config.get(section, 'host')
++                d['user'] = config.get(section, 'user')
++                d['pass'] = config.get(section, 'pass', '')
++                d['root'] = config.get(section, 'root', '/')
++                self.sites[sitename] = d
++
++    def start(self):
++        self._gearman_running = True
++        self._zmq_running = True
++        self._reaper_running = True
++
++        # Setup ZMQ
++        self.zcontext = zmq.Context()
++        self.zsocket = self.zcontext.socket(zmq.PUB)
++        self.zsocket.bind("tcp://*:8881")
++
++        # Setup Gearman
++        server = self.config.get('gearman', 'server')
++        if self.config.has_option('gearman', 'port'):
++            port = self.config.get('gearman', 'port')
++        else:
++            port = 4730
++        self.worker = gear.Worker('Zuul Launch Server')
++        self.worker.addServer(server, port)
++        self.log.debug("Waiting for server")
++        self.worker.waitForServer()
++        self.log.debug("Registering")
++        self.register()
++
++        # Load JJB config
++        self.loadJobs()
++
++        # Start ZMQ worker thread
++        self.log.debug("Starting ZMQ processor")
++        self.zmq_thread = threading.Thread(target=self.runZMQ)
++        self.zmq_thread.daemon = True
++        self.zmq_thread.start()
++
++        # Start node worker reaper thread
++        self.log.debug("Starting reaper")
++        self.reaper_thread = threading.Thread(target=self.runReaper)
++        self.reaper_thread.daemon = True
++        self.reaper_thread.start()
++
++        # Start Gearman worker thread
++        self.log.debug("Starting worker")
++        self.gearman_thread = threading.Thread(target=self.run)
++        self.gearman_thread.daemon = True
++        self.gearman_thread.start()
++
++    def loadJobs(self):
++        self.log.debug("Loading jobs")
++        builder = JJB()
++        path = self.config.get('launcher', 'jenkins_jobs')
++        builder.load_files([path])
++        builder.parser.expandYaml()
++        unseen = set(self.jobs.keys())
++        for job in builder.parser.jobs:
++            self.jobs[job['name']] = job
++            unseen.discard(job['name'])
++        for name in unseen:
++            del self.jobs[name]
++
++    def register(self):
++        self.worker.registerFunction("node-assign:zuul")
++        self.worker.registerFunction("stop:%s" % self.hostname)
++
++    def reconfigure(self, config):
++        self.log.debug("Reconfiguring")
++        self.config = config
++        self.loadJobs()
++        for node in self.node_workers.values():
++            try:
++                if node.isAlive():
++                    node.queue.put(dict(action='reconfigure'))
++            except Exception:
++                self.log.exception("Exception sending reconfigure command "
++                                   "to worker:")
++
++    def stop(self):
++        self.log.debug("Stopping")
++        self._gearman_running = False
++        self._reaper_running = False
++        self.worker.shutdown()
++        for node in self.node_workers.values():
++            try:
++                if node.isAlive():
++                    node.stop()
++            except Exception:
++                self.log.exception("Exception sending stop command to worker:")
++        self._zmq_running = False
++        self.zmq_send_queue.put(None)
++        self.zmq_send_queue.join()
++        self.log.debug("Stopped")
++
++    def join(self):
++        self.gearman_thread.join()
++
++    def runZMQ(self):
++        while self._zmq_running or not self.zmq_send_queue.empty():
++            try:
++                item = self.zmq_send_queue.get()
++                self.log.debug("Got ZMQ event %s" % (item,))
++                if item is None:
++                    continue
++                self.zsocket.send(item)
++            except Exception:
++                self.log.exception("Exception while processing ZMQ events")
++            finally:
++                self.zmq_send_queue.task_done()
++
++    def run(self):
++        while self._gearman_running:
++            try:
++                job = self.worker.getJob()
++                try:
++                    if job.name.startswith('node-assign:'):
++                        self.log.debug("Got node-assign job: %s" % job.unique)
++                        self.assignNode(job)
++                    elif job.name.startswith('stop:'):
++                        self.log.debug("Got stop job: %s" % job.unique)
++                        self.stopJob(job)
++                    else:
++                        self.log.error("Unable to handle job %s" % job.name)
++                        job.sendWorkFail()
++                except Exception:
++                    self.log.exception("Exception while running job")
++                    job.sendWorkException(traceback.format_exc())
++            except gear.InterruptedError:
++                return
++            except Exception:
++                self.log.exception("Exception while getting job")
++
++    def assignNode(self, job):
++        args = json.loads(job.arguments)
++        self.log.debug("Assigned node with arguments: %s" % (args,))
++        worker = NodeWorker(self.config, self.jobs, self.builds,
++                            self.sites, args['name'], args['host'],
++                            args['description'], args['labels'],
++                            self.hostname, self.zmq_send_queue,
++                            self.termination_queue)
++        self.node_workers[worker.name] = worker
++
++        worker.process = multiprocessing.Process(target=worker.run)
++        worker.process.start()
++
++        data = dict(manager=self.hostname)
++        job.sendWorkData(json.dumps(data))
++        job.sendWorkComplete()
++
++    def stopJob(self, job):
++        try:
++            args = json.loads(job.arguments)
++            self.log.debug("Stop job with arguments: %s" % (args,))
++            unique = args['number']
++            build_worker_name = self.builds.get(unique)
++            if not build_worker_name:
++                self.log.debug("Unable to find build for job %s" % (unique,))
++                return
++            node = self.node_workers.get(build_worker_name)
++            if not node:
++                self.log.debug("Unable to find worker for job %s" % (unique,))
++                return
++            try:
++                if node.isAlive():
++                    node.queue.put(dict(action='abort'))
++                else:
++                    self.log.debug("Node %s is not alive while aborting job" %
++                                   (node.name,))
++            except Exception:
++                self.log.exception("Exception sending abort command "
++                                   "to worker:")
++        finally:
++            job.sendWorkComplete()
++
++    def runReaper(self):
++        # We don't actually care if all the events are processed
++        while self._reaper_running:
++            try:
++                item = self.termination_queue.get()
++                self.log.debug("Got termination event %s" % (item,))
++                if item is None:
++                    continue
++                del self.node_workers[item]
++            except Exception:
++                self.log.exception("Exception while processing "
++                                   "termination events:")
++            finally:
++                self.termination_queue.task_done()
++
++
++class NodeWorker(object):
++    log = logging.getLogger("zuul.NodeWorker")
++
++    def __init__(self, config, jobs, builds, sites, name, host,
++                 description, labels, manager_name, zmq_send_queue,
++                 termination_queue):
++        self.log.debug("Creating node worker %s" % (name,))
++        self.config = config
++        self.jobs = jobs
++        self.builds = builds
++        self.sites = sites
++        self.name = name
++        self.host = host
++        self.description = description
++        if not isinstance(labels, list):
++            labels = [labels]
++        self.labels = labels
++        self.process = None
++        self.registered_functions = set()
++        self._running = True
++        self.queue = multiprocessing.JoinableQueue()
++        self.manager_name = manager_name
++        self.zmq_send_queue = zmq_send_queue
++        self.termination_queue = termination_queue
++        self.running_job_lock = threading.Lock()
++        self._job_complete_event = threading.Event()
++        self._running_job = False
++        self._sent_complete_event = False
++        self.workspace_root = config.get('launcher', 'workspace_root')
++        if self.config.has_option('launcher', 'private_key_file'):
++            self.private_key_file = config.get('launcher', 'private_key_file')
++        else:
++            self.private_key_file = '~/.ssh/id_rsa'
++        if self.config.has_option('launcher', 'username'):
++            self.username = config.get('launcher', 'username')
++        else:
++            self.username = 'zuul'
++
++    def isAlive(self):
++        # Meant to be called from the manager
++        if self.process and self.process.is_alive():
++            return True
++        return False
++
++    def run(self):
++        signal.signal(signal.SIGINT, signal.SIG_IGN)
++        self.log.debug("Node worker %s starting" % (self.name,))
++        server = self.config.get('gearman', 'server')
++        if self.config.has_option('gearman', 'port'):
++            port = self.config.get('gearman', 'port')
++        else:
++            port = 4730
++        self.worker = gear.Worker(self.name)
++        self.worker.addServer(server, port)
++        self.log.debug("Waiting for server")
++        self.worker.waitForServer()
++        self.register()
++
++        self.gearman_thread = threading.Thread(target=self.runGearman)
++        self.gearman_thread.daemon = True
++        self.gearman_thread.start()
++
++        while self._running or not self.queue.empty():
++            try:
++                self._runQueue()
++            except Exception:
++                self.log.exception("Exception in queue manager:")
++
++    def stop(self):
++        # If this is called locally, setting _running will be
++        # effictive, if it's called remotely, it will not be, but it
++        # will be set by the queue thread.
++        self.log.debug("Submitting stop request")
++        self._running = False
++        self.queue.put(dict(action='stop'))
++        self.queue.join()
++
++    def _runQueue(self):
++        item = self.queue.get()
++        try:
++            if item['action'] == 'stop':
++                self.log.debug("Received stop request")
++                self._running = False
++                self.termination_queue.put(self.name)
++                if not self.abortRunningJob():
++                    self.sendFakeCompleteEvent()
++                else:
++                    self._job_complete_event.wait()
++                self.worker.shutdown()
++            elif item['action'] == 'reconfigure':
++                self.log.debug("Received reconfigure request")
++                self.register()
++            elif item['action'] == 'abort':
++                self.log.debug("Received abort request")
++                self.abortRunningJob()
++        finally:
++            self.queue.task_done()
++
++    def runGearman(self):
++        while self._running:
++            try:
++                self._runGearman()
++            except Exception:
++                self.log.exception("Exception in gearman manager:")
++
++    def _runGearman(self):
++        try:
++            job = self.worker.getJob()
++        except gear.InterruptedError:
++            return
++        self.log.debug("Node worker %s got job %s" % (self.name, job.name))
++        try:
++            if job.name not in self.registered_functions:
++                self.log.error("Unable to handle job %s" % job.name)
++                job.sendWorkFail()
++                return
++            self.launch(job)
++        except Exception:
++            self.log.exception("Exception while running job")
++            job.sendWorkException(traceback.format_exc())
++
++    def generateFunctionNames(self, job):
++        # This only supports "node: foo" and "node: foo || bar"
++        ret = set()
++        job_labels = job.get('node')
++        matching_labels = set()
++        if job_labels:
++            job_labels = [x.strip() for x in job_labels.split('||')]
++            matching_labels = set(self.labels) & set(job_labels)
++            if not matching_labels:
++                return ret
++        ret.add('build:%s' % (job['name'],))
++        for label in matching_labels:
++            ret.add('build:%s:%s' % (job['name'], label))
++        return ret
++
++    def register(self):
++        if self._running_job:
++            return
++        new_functions = set()
++        for job in self.jobs.values():
++            new_functions |= self.generateFunctionNames(job)
++        for function in new_functions - self.registered_functions:
++            self.worker.registerFunction(function)
++        for function in self.registered_functions - new_functions:
++            self.worker.unRegisterFunction(function)
++        self.registered_functions = new_functions
++
++    def abortRunningJob(self):
++        aborted = False
++        self.log.debug("Abort: acquiring job lock")
++        with self.running_job_lock:
++            if self._running_job:
++                self.log.debug("Abort: a job is running")
++                proc = self.ansible_proc
++                if proc:
++                    self.log.debug("Abort: sending kill signal to job "
++                                   "process group")
++                    try:
++                        pgid = os.getpgid(proc.pid)
++                        os.killpg(pgid, signal.SIGKILL)
++                        aborted = True
++                    except Exception:
++                        self.log.exception("Exception while killing "
++                                           "ansible process:")
++            else:
++                self.log.debug("Abort: no job is running")
++
++        return aborted
++
++    def launch(self, job):
++        self.log.info("Node worker %s launching job %s" %
++                      (self.name, job.name))
++
++        # Make sure we can parse what we need from the job first
++        args = json.loads(job.arguments)
++        # This may be configurable later, or we may choose to honor
++        # OFFLINE_NODE_WHEN_COMPLETE
++        offline = True
++        job_name = job.name.split(':')[1]
++
++        # Initialize the result so we have something regardless of
++        # whether the job actually runs
++        result = None
++        self._sent_complete_event = False
++
++        try:
++            self.sendStartEvent(job_name, args)
++        except Exception:
++            self.log.exception("Exception while sending job start event")
++
++        try:
++            result = self.runJob(job, args)
++        except Exception:
++            self.log.exception("Exception while launching job thread")
++
++        self._running_job = False
++        if not result:
++            result = b''
++
++        try:
++            job.sendWorkComplete(result)
++        except Exception:
++            self.log.exception("Exception while sending job completion packet")
++
++        try:
++            self.sendCompleteEvent(job_name, result, args)
++        except Exception:
++            self.log.exception("Exception while sending job completion event")
++
++        try:
++            del self.builds[job.unique]
++        except Exception:
++            self.log.exception("Exception while clearing build record")
++
++        self._job_complete_event.set()
++        if offline and self._running:
++            self.stop()
++
++    def sendStartEvent(self, name, parameters):
++        build = dict(node_name=self.name,
++                     host_name=self.manager_name,
++                     parameters=parameters)
++
++        event = dict(name=name,
++                     build=build)
++
++        item = "onStarted %s" % json.dumps(event)
++        self.log.debug("Sending over ZMQ: %s" % (item,))
++        self.zmq_send_queue.put(item)
++
++    def sendCompleteEvent(self, name, status, parameters):
++        build = dict(status=status,
++                     node_name=self.name,
++                     host_name=self.manager_name,
++                     parameters=parameters)
++
++        event = dict(name=name,
++                     build=build)
++
++        item = "onFinalized %s" % json.dumps(event)
++        self.log.debug("Sending over ZMQ: %s" % (item,))
++        self.zmq_send_queue.put(item)
++        self._sent_complete_event = True
++
++    def sendFakeCompleteEvent(self):
++        if self._sent_complete_event:
++            return
++        self.sendCompleteEvent('zuul:launcher-shutdown',
++                               'SUCCESS', {})
++
++    def runJob(self, job, args):
++        self.ansible_proc = None
++        result = None
++        with self.running_job_lock:
++            if not self._running:
++                return result
++            self._running_job = True
++            self._job_complete_event.clear()
++
++        self.log.debug("Job %s: beginning" % (job.unique,))
++        self.builds[job.unique] = self.name
++        with JobDir() as jobdir:
++            self.log.debug("Job %s: job root at %s" %
++                           (job.unique, jobdir.root))
++            timeout = self.prepareAnsibleFiles(jobdir, job, args)
++
++            data = {
++                'manager': self.manager_name,
++                'number': job.unique,
++                'url': 'telnet://%s:8088' % self.host,
++            }
++            job.sendWorkData(json.dumps(data))
++            job.sendWorkStatus(0, 100)
++
++            job_status = self.runAnsiblePlaybook(jobdir, timeout)
++            post_status = self.runAnsiblePostPlaybook(jobdir, job_status)
++            if job_status and post_status:
++                status = 'SUCCESS'
++            else:
++                status = 'FAILURE'
++
++            result = json.dumps(dict(result=status))
++
++        return result
++
++    def getHostList(self):
++        return [('node', dict(
++            ansible_host=self.host, ansible_user=self.username))]
++
++    def _makeSCPTask(self, publisher):
++        tasks = []
++        for scpfile in publisher['scp']['files']:
++            site = publisher['scp']['site']
++            if site not in self.sites:
++                raise Exception("Undefined SCP site: %s" % (site,))
++            site = self.sites[site]
++            if scpfile.get('copy-console'):
++                src = '/tmp/console.log'
++            else:
++                src = scpfile['source']
++            dest = os.path.join(site['root'], scpfile['target'])
++            dest = os.path.normpath(dest)
++            if not dest.startswith(site['root']):
++                raise Exception("Target path %s is not below site root" %
++                                (dest,))
++            syncargs = dict(src=src,
++                            dest=dest)
++            task = dict(synchronize=syncargs,
++                        delegate_to=site['host'])
++            if not scpfile.get('copy-after-failure'):
++                task['when'] = 'success'
++            tasks.append(task)
++        return tasks
++
++    def _makeFTPTask(self, jobdir, publisher):
++        tasks = []
++        ftp = publisher['ftp']
++        site = ftp['site']
++        if site not in self.sites:
++            raise Exception("Undefined FTP site: %s" % site)
++        site = self.sites[site]
++        ftproot = tempfile.mkdtemp(dir=jobdir.ansible_root)
++        ftpcontent = os.path.join(ftproot, 'content')
++        os.makedirs(ftpcontent)
++        ftpscript = os.path.join(ftproot, 'script')
++        syncargs = dict(src=ftp['source'],
++                        dest=ftpcontent)
++        task = dict(synchronize=syncargs,
++                    when='success')
++        tasks.append(task)
++        task = dict(shell='lftp -f %s' % ftpscript,
++                    when='success')
++        ftpsource = ftpcontent
++        if ftp.get('remove-prefix'):
++            ftpsource = os.path.join(ftpcontent, ftp['remove-prefix'])
++        while ftpsource[-1] == '/':
++            ftpsource = ftpsource[:-1]
++        ftptarget = ftp['target']
++        ftptarget = os.path.join(site['root'], ftp['target'])
++        ftptarget = os.path.normpath(ftptarget)
++        if not ftptarget.startswith(site['root']):
++            raise Exception("Target path %s is not below site root" %
++                            (ftptarget,))
++        while ftptarget[-1] == '/':
++            ftptarget = ftptarget[:-1]
++        with open(ftpscript, 'w') as script:
++            script.write('open %s\n' % site['host'])
++            script.write('user %s %s\n' % (site['user'], site['pass']))
++            script.write('mirror -R %s %s\n' % (ftpsource, ftptarget))
++        tasks.append(task)
++        return tasks
++
++    def _makeBuilderTask(self, jobdir, builder, parameters, timeout):
++        tasks = []
++        script_fn = '%s.sh' % str(uuid.uuid4().hex)
++        script_path = os.path.join(jobdir.script_root, script_fn)
++        with open(script_path, 'w') as script:
++            script.write(builder['shell'])
++
++        remote_path = os.path.join('/tmp', script_fn)
++        copy = dict(src=script_path,
++                    dest=remote_path,
++                    mode=0555)
++        task = dict(copy=copy)
++        tasks.append(task)
++
++        runner = dict(command=remote_path,
++                      cwd=parameters['WORKSPACE'],
++                      parameters=parameters)
++        task = dict(zuul_runner=runner)
++        if timeout:
++            task['when'] = '{{ timeout | int > 0 }}'
++            task['async'] = '{{ timeout }}'
++        else:
++            task['async'] = 2 * 60 * 60  # 2 hour default timeout
++        task['poll'] = 5
++        tasks.append(task)
++
++        filetask = dict(path=remote_path,
++                        state='absent')
++        task = dict(file=filetask)
++        tasks.append(task)
++
++        return tasks
++
++    def prepareAnsibleFiles(self, jobdir, gearman_job, args):
++        job_name = gearman_job.name.split(':')[1]
++        jjb_job = self.jobs[job_name]
++
++        parameters = args.copy()
++        parameters['WORKSPACE'] = os.path.join(self.workspace_root, job_name)
++
++        with open(jobdir.inventory, 'w') as inventory:
++            for host_name, host_vars in self.getHostList():
++                inventory.write(host_name)
++                for k, v in host_vars.items():
++                    inventory.write(' %s=%s' % (k, v))
++                inventory.write('\n')
++
++        timeout = None
++        for wrapper in jjb_job.get('wrappers', []):
++            if isinstance(wrapper, dict):
++                timeout = wrapper.get('build-timeout', {})
++                if isinstance(timeout, dict):
++                    timeout = timeout.get('timeout')
++                    if timeout:
++                        timeout = timeout * 60
++
++        with open(jobdir.playbook, 'w') as playbook:
++            tasks = []
++
++            task = dict(file=dict(path='/tmp/console.log', state='absent'))
++            tasks.append(task)
++
++            task = dict(zuul_console=dict(path='/tmp/console.log', port=8088))
++            tasks.append(task)
++
++            task = dict(file=dict(path=parameters['WORKSPACE'],
++                                  state='directory'))
++            tasks.append(task)
++
++            for builder in jjb_job.get('builders', []):
++                if 'shell' in builder:
++                    tasks.extend(self._makeBuilderTask(jobdir, builder,
++                                                       parameters, timeout))
++            play = dict(hosts='node', name='Job body',
++                        tasks=tasks)
++            playbook.write(yaml.dump([play]))
++
++        with open(jobdir.post_playbook, 'w') as playbook:
++            tasks = []
++            for publisher in jjb_job.get('publishers', []):
++                if 'scp' in publisher:
++                    tasks.extend(self._makeSCPTask(publisher))
++                if 'ftp' in publisher:
++                    tasks.extend(self._makeFTPTask(jobdir, publisher))
++            play = dict(hosts='node', name='Publishers',
++                        tasks=tasks)
++            playbook.write(yaml.dump([play]))
++
++        with open(jobdir.config, 'w') as config:
++            config.write('[defaults]\n')
++            config.write('hostfile = %s\n' % jobdir.inventory)
++            config.write('host_key_checking = False\n')
++            config.write('private_key_file = %s\n' % self.private_key_file)
++
++            callback_path = zuul.ansible.plugins.callback_plugins.__file__
++            callback_path = os.path.abspath(callback_path)
++            callback_path = os.path.dirname(callback_path)
++            config.write('callback_plugins = %s\n' % callback_path)
++
++            library_path = zuul.ansible.library.__file__
++            library_path = os.path.abspath(library_path)
++            library_path = os.path.dirname(library_path)
++            config.write('library = %s\n' % library_path)
++
++        return timeout
++
++    def runAnsiblePlaybook(self, jobdir, timeout):
++        self.ansible_proc = subprocess.Popen(
++            ['ansible-playbook', jobdir.playbook,
++             '-e', 'timeout=%s' % timeout, '-v'],
++            cwd=jobdir.ansible_root,
++            stdout=subprocess.PIPE,
++            stderr=subprocess.PIPE,
++            preexec_fn=os.setsid,
++        )
++        (out, err) = self.ansible_proc.communicate()
++        self.log.debug("Ansible stdout:\n%s" % out)
++        self.log.debug("Ansible stderr:\n%s" % err)
++        ret = self.ansible_proc.wait()
++        self.ansible_proc = None
++        return ret == 0
++
++    def runAnsiblePostPlaybook(self, jobdir, success):
++        proc = subprocess.Popen(
++            ['ansible-playbook', jobdir.post_playbook,
++             '-e', 'success=%s' % success],
++            cwd=jobdir.ansible_root,
++            stdout=subprocess.PIPE,
++            stderr=subprocess.PIPE,
++            preexec_fn=os.setsid,
++        )
++        (out, err) = proc.communicate()
++        return proc.wait() == 0
++
++
++class JJB(jenkins_jobs.builder.Builder):
++    def __init__(self):
++        self.global_config = None
++        self._plugins_list = []
+diff --git a/zuul/lib/cloner.py b/zuul/lib/cloner.py
+index 77f52fa..62ab938 100644
+--- a/zuul/lib/cloner.py
++++ b/zuul/lib/cloner.py
+@@ -20,6 +20,7 @@ import re
+ import yaml
+ 
+ from git import GitCommandError
++from zuul import exceptions
+ from zuul.lib.clonemapper import CloneMapper
+ from zuul.merger.merger import Repo
+ 
+@@ -29,8 +30,8 @@ class Cloner(object):
+ 
+     def __init__(self, git_base_url, projects, workspace, zuul_branch,
+                  zuul_ref, zuul_url, branch=None, clone_map_file=None,
+-                 project_branches=None, cache_dir=None,
+-                 cache_no_hardlinks=None):
++                 project_branches=None, cache_dir=None, zuul_newrev=None,
++                 zuul_project=None):
+ 
+         self.clone_map = []
+         self.dests = None
+@@ -38,13 +39,16 @@ class Cloner(object):
+         self.branch = branch
+         self.git_url = git_base_url
+         self.cache_dir = cache_dir
+-        self.cache_no_hardlinks = cache_no_hardlinks
+         self.projects = projects
+         self.workspace = workspace
+         self.zuul_branch = zuul_branch or ''
+         self.zuul_ref = zuul_ref or ''
+         self.zuul_url = zuul_url
+         self.project_branches = project_branches or {}
++        self.project_revisions = {}
++
++        if zuul_newrev and zuul_project:
++            self.project_revisions[zuul_project] = zuul_newrev
+ 
+         if clone_map_file:
+             self.readCloneMap(clone_map_file)
+@@ -71,34 +75,22 @@ class Cloner(object):
+     def cloneUpstream(self, project, dest):
+         # Check for a cached git repo first
+         git_cache = '%s/%s' % (self.cache_dir, project)
+-        git_cache_bare = '%s.git' % (git_cache)
+         git_upstream = '%s/%s' % (self.git_url, project)
+-
+         repo_is_cloned = os.path.exists(os.path.join(dest, '.git'))
+-
+-        repo_cache = None
+-        if (self.cache_dir and not repo_is_cloned):
+-            if os.path.exists(git_cache_bare):
+-                repo_cache = git_cache_bare
+-            elif os.path.exists(git_cache):
+-                repo_cache = git_cache
+-
+-            if repo_cache:
+-                if self.cache_no_hardlinks:
+-                    # file:// tells git not to hard-link across repos
+-                    repo_cache = 'file://%s' % repo_cache
+-
+-                self.log.info("Creating repo %s from cache %s",
+-                              project, repo_cache)
+-                new_repo = git.Repo.clone_from(repo_cache, dest)
+-                self.log.info("Updating origin remote in repo %s to %s",
+-                              project, git_upstream)
+-                new_repo.remotes.origin.config_writer.set('url', git_upstream)
+-
+-        if not repo_cache:
++        if (self.cache_dir and
++            os.path.exists(git_cache) and
++            not repo_is_cloned):
++            # file:// tells git not to hard-link across repos
++            git_cache = 'file://%s' % git_cache
++            self.log.info("Creating repo %s from cache %s",
++                          project, git_cache)
++            new_repo = git.Repo.clone_from(git_cache, dest)
++            self.log.info("Updating origin remote in repo %s to %s",
++                          project, git_upstream)
++            new_repo.remotes.origin.config_writer.set('url', git_upstream)
++        else:
+             self.log.info("Creating repo %s from upstream %s",
+                           project, git_upstream)
+-
+         repo = Repo(
+             remote=git_upstream,
+             local=dest,
+@@ -133,10 +125,15 @@ class Cloner(object):
+         """Clone a repository for project at dest and apply a reference
+         suitable for testing. The reference lookup is attempted in this order:
+ 
+-         1) Zuul reference for the indicated branch
+-         2) Zuul reference for the master branch
+-         3) The tip of the indicated branch
+-         4) The tip of the master branch
++         1) The indicated revision for specific project
++         2) Zuul reference for the indicated branch
++         3) Zuul reference for the master branch
++         4) The tip of the indicated branch
++         5) The tip of the master branch
++
++        If an "indicated revision" is specified for this project, and we are
++        unable to meet this requirement, we stop attempting to check this
++        repo out and raise a zuul.exceptions.RevNotFound exception.
+ 
+         The "indicated branch" is one of the following:
+ 
+@@ -156,6 +153,10 @@ class Cloner(object):
+         # `git branch` is happy with.
+         repo.reset()
+ 
++        indicated_revision = None
++        if project in self.project_revisions:
++            indicated_revision = self.project_revisions[project]
++
+         indicated_branch = self.branch or self.zuul_branch
+         if project in self.project_branches:
+             indicated_branch = self.project_branches[project]
+@@ -181,13 +182,26 @@ class Cloner(object):
+         else:
+             fallback_zuul_ref = None
+ 
++        # If the user has requested an explicit revision to be checked out,
++        # we use it above all else, and if we cannot satisfy this requirement
++        # we raise an error and do not attempt to continue.
++        if indicated_revision:
++            self.log.info("Attempting to check out revision %s for "
++                          "project %s", indicated_revision, project)
++            try:
++                self.fetchFromZuul(repo, project, self.zuul_ref)
++                commit = repo.checkout(indicated_revision)
++            except (ValueError, GitCommandError):
++                raise exceptions.RevNotFound(project, indicated_revision)
++            self.log.info("Prepared '%s' repo at revision '%s'", project,
++                          indicated_revision)
+         # If we have a non empty zuul_ref to use, use it. Otherwise we fall
+         # back to checking out the branch.
+-        if ((override_zuul_ref and
+-            self.fetchFromZuul(repo, project, override_zuul_ref)) or
+-            (fallback_zuul_ref and
+-             fallback_zuul_ref != override_zuul_ref and
+-            self.fetchFromZuul(repo, project, fallback_zuul_ref))):
++        elif ((override_zuul_ref and
++              self.fetchFromZuul(repo, project, override_zuul_ref)) or
++              (fallback_zuul_ref and
++               fallback_zuul_ref != override_zuul_ref and
++              self.fetchFromZuul(repo, project, fallback_zuul_ref))):
+             # Work around a bug in GitPython which can not parse FETCH_HEAD
+             gitcmd = git.Git(dest)
+             fetch_head = gitcmd.rev_parse('FETCH_HEAD')
+diff --git a/zuul/merger/merger.py b/zuul/merger/merger.py
+index fed8394..c6ae35d 100644
+--- a/zuul/merger/merger.py
++++ b/zuul/merger/merger.py
+@@ -70,18 +70,7 @@ class Repo(object):
+         if self.username:
+             repo.config_writer().set_value('user', 'name',
+                                            self.username)
+-        config_writer = repo.config_writer()
+-        try:
+-            # GitConfigParser.write() acquires a lock but does not release it.
+-            # The lock is released in the object's __del__ method, which is
+-            # invoked when the object is about to be dereferenced. This is not
+-            # a reliable means of ensuring the lock is released, because it can
+-            # break if there is a circular reference keeping the object alive,
+-            # or if another GitConfigParser object for the same repository is
+-            # initiated while a reference to the existing one is still held.
+-            config_writer.write()
+-        finally:
+-            config_writer._lock._release_lock()
++        repo.config_writer().write()
+         self._initialized = True
+ 
+     def isInitialized(self):
+diff --git a/zuul/scheduler.py b/zuul/scheduler.py
+index b631344..aea9a67 100644
+--- a/zuul/scheduler.py
++++ b/zuul/scheduler.py
+@@ -313,14 +313,11 @@ class Scheduler(threading.Thread):
+             # Any skip-if predicate can be matched to trigger a skip
+             return cm.MatchAny(skip_matchers)
+ 
+-    def registerConnections(self, connections, load=True):
+-        # load: whether or not to trigger the onLoad for the connection. This
+-        # is useful for not doing a full load during layout validation.
++    def registerConnections(self, connections):
+         self.connections = connections
+         for connection_name, connection in self.connections.items():
+             connection.registerScheduler(self)
+-            if load:
+-                connection.onLoad()
++            connection.onLoad()
+ 
+     def stopConnections(self):
+         for connection_name, connection in self.connections.items():

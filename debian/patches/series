@@ -7,3 +7,5 @@
 0007-GerritWatcher-add-poll_timeout.patch
 0008-Do-not-import-paramiko-before-daemonization.patch
 0009-Register-connections-when-testing-configuration.patch
+0010-Me-testing-something-new.patch
+0011-me-testing-yay.patch

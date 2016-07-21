@@ -1,0 +1,508 @@
+From: root <root@test-random-wikisaur.tk>
+Date: Thu, 21 Jul 2016 17:03:11 +0100
+Subject: me testing yay
+
+Change-Id: Id84148ece99a09452c6acbe96b18ca501d8b8b98
+---
+ debian/changelog      | 268 +++++++++++++++++++++++++-------------------------
+ debian/control        | 204 +++++++++++++++++++-------------------
+ debian/patches/series |  10 +-
+ 3 files changed, 241 insertions(+), 241 deletions(-)
+
+diff --git a/debian/changelog b/debian/changelog
+index 1dd1e6b..73b80d7 100644
+--- a/debian/changelog
++++ b/debian/changelog
+@@ -1,134 +1,134 @@
+-zuul (2.1.0-151-g30a433b-wmf1precise1) precise-wikimedia; urgency=medium
+-
+-  * Bump upstream version
+-  * Should deal with circular dependencies which caused a complete deadlock of
+-    the Zuul scheduler: https://phabricator.wikimedia.org/T129938
+-  * Fix typo in previous changelog entry
+-  * Make myself the Maintainer
+-  * Patch maintenance:
+-  * wmf-soften-requirements:
+-    - apscheduler 3.0.x is now shipped via dh_virtualenv
+-      Note 3.1.0 fails with old setuptools
+-    - soften pbr, 1.1.0 is just for tests
+-  * Update-merge-status-after-merge-merge-is-submitted
+-    - merged upstream
+-  * Revert-Fix-passing-labels-to-Gerrit-when-they-are-no
+-    - no more needed with upstream "connections" refactoring
+-  * Rebased the couple Zuul cloner patches
+-  * Bump GitPython 2.0.3..2.0.5
+-
+- -- Antoine Musso <hashar@free.fr>  Tue, 31 May 2016 11:05:32 +0200
+-
+-zuul (2.1.0-95-g66c8e52-wmf1precise1) precise-wikimedia; urgency=medium
+-
+-  * Slowly catch up with upstream
+-  * 0008-wmf-pin-python-daemon-2.1.0 is no more needed.
+-
+- -- Antoine Musso <hashar@free.fr>  Mon, 30 May 2016 13:55:52 +0200
+-
+-zuul (2.1.0-60-g1cc37f7-wmf4precise1) precise-wikimedia; urgency=critical
+-
+-  * 0008-wmf-pin-python-daemon-2.1.0.patch
+-    Solves https://phabricator.wikimedia.org/T119741
+-
+- -- Antoine Musso <hashar@free.fr>  Thu, 26 Nov 2015 23:23:51 +0100
+-
+-zuul (2.1.0-60-g1cc37f7-wmf3precise1) precise-wikimedia; urgency=medium
+-
+-  * 0007-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
+-    upstream version: https://review.openstack.org/#/c/249207/2
+-
+- -- Antoine Musso <hashar@free.fr>  Tue, 24 Nov 2015 16:56:26 +0100
+-
+-zuul (2.1.0-60-g1cc37f7-wmf2precise1) precise-wikimedia; urgency=medium
+-
+-  * Refresh patch 0005-Cloner-Implement-cache-no-hardlinks-argument.patch to
+-    latest upstream version https://review.openstack.org/#/c/117626/11
+-    Closes https://phabricator.wikimedia.org/T97106
+-
+- -- Antoine Musso <hashar@free.fr>  Fri, 13 Nov 2015 14:15:50 +0100
+-
+-zuul (2.1.0-60-g1cc37f7-wmf1precise1) precise-wikimedia; urgency=medium
+-
+-  * Bump upstream from 3ebedde to 1cc37f7
+-
+-  * Rebased patches and dropped patches merged upstream
+-      0002-Merger-ensure_cloned-now-looks-for-.git.patch
+-      0007-Remove-lockfile-from-requirements.patch
+-
+-  * Dependencies changes:
+-    Babel            1.3 -> 2.1.1
+-    lockfile      0.10.2 -> 0.11.0
+-    python-daemon  2.0.5 -> 2.0.6
+-    + gear 0.5.8
+-
+- -- Antoine Musso <hashar@free.fr>  Mon, 02 Nov 2015 12:01:46 +0100
+-
+-zuul (2.0.0-327-g3ebedde-wmf3precise1) precise-wikimedia; urgency=medium
+-
+-  * 0008-Revert-Fix-passing-labels-to-Gerrit-when-they-are-no
+-    Makes Zuul to send code-review and verified label votes using the shortcuts
+-    --verified and --code-review since --label is case sensitive.
+-   See https://phabricator.wikimedia.org/T106596
+-
+- -- Antoine Musso <hashar@free.fr>  Thu, 23 Jul 2015 14:11:53 +0000
+-
+-zuul (2.0.0-327-g3ebedde-wmf2precise1) precise-wikimedia; urgency=medium
+-
+-  * 0007-Remove-lockfile-from-requirements.patch
+-  * python-daemon 2.x shipped via the venv
+-
+- -- Antoine Musso <hashar@free.fr>  Tue, 21 Jul 2015 21:27:42 +0200
+-
+-zuul (2.0.0-327-g3ebedde-wmf1precise1) precise-wikimedia; urgency=low
+-
+-  * Bump upstream 5984adc..3ebedde
+-  * python-daemon to >= 2.0.4
+-
+- -- Antoine Musso <hashar@free.fr>  Tue, 21 Jul 2015 16:29:03 +0200
+-
+-
+-zuul (2.0.0-306-g5984adc-wmf1precise1) precise-wikimedia; urgency=low
+-
+-  * Bump GitPython from 0.3.2.RC1 to 0.3.2.1. Fetched by dh_virtualenv.
+-
+- -- Antoine Musso <hashar@free.fr>  Mon, 20 Jul 2015 16:10:02 +0200
+-
+-zuul (2.0.0-304-g685ca22-wmf2precise1) precise-wikimedia; urgency=low
+-
+-  * T97106 zuul-cloner should use hard links when fetching from cache-dir
+-    Incorporate patch https://review.openstack.org/#/c/117626/4 which makes
+-    zuul-cloner to use hardlinks from git cache.
+-
+- -- Antoine Musso <hashar@free.fr>  Wed, 29 Apr 2015 15:42:21 +0200
+-
+-zuul (2.0.0-304-g685ca22-wmf1precise1) precise-wikimedia; urgency=low
+-
+-  * Snapshot from upstream, target is Wikimedia Ubuntu Precise which has some
+-    updated packages for python modules packages.
+-  * Adjust debian/gbp.conf to match our repository layout
+-  * Bump debian/compat from 8 to 9
+-  * Bump standard from 3.9.3 to 3.9.7
+-
+-  * Build for python 2.7 so we can get rid of the OrderDict and argparse
+-    python modules which are only needed for python 2.6.
+-  * Skip building sphinx doc entirely due to sphinx.programoutput not being
+-    able to find the shipped commands (zuul, zuul-merger, zuul-cloner)
+-  * Add dh-virtualenv to bring in additional dependencies not available in
+-    Wikimedia Ubuntu Precise. Require an unreleased snapshot of dh-virtualenv
+-    0.9, see:
+-        https://phabricator.wikimedia.org/T91631
+-        https://github.com/spotify/dh-virtualenv/issues/78
+-
+-  * Add init script for the zuul-merger
+-  * Keep the zuul user on purge and thus delete noop debian/postrm
+-  * Improve the init scripts to recognize START_DAEMON and do not start
+-    daemons.
+-
+- -- Antoine Musso <hashar@free.fr>  Sat, 07 Mar 2015 21:00:13 +0100
+-
+-zuul (1.3.0-1) UNRELEASED; urgency=low
+-
+-  * Initial release (Closes: #705844)
+-
+- -- Paul Belanger <paul.belanger@polybeacon.com>  Thu, 31 Oct 2013 16:57:26 +0000
++zuul (2.1.0-151-g30a433b-wmf1precise1) precise-wikimedia; urgency=medium
++
++  * Bump upstream version
++  * Should deal with circular dependencies which caused a complete deadlock of
++    the Zuul scheduler: https://phabricator.wikimedia.org/T129938
++  * Fix typo in previous changelog entry
++  * Make myself the Maintainer
++  * Patch maintenance:
++  * wmf-soften-requirements:
++    - apscheduler 3.0.x is now shipped via dh_virtualenv
++      Note 3.1.0 fails with old setuptools
++    - soften pbr, 1.1.0 is just for tests
++  * Update-merge-status-after-merge-merge-is-submitted
++    - merged upstream
++  * Revert-Fix-passing-labels-to-Gerrit-when-they-are-no
++    - no more needed with upstream "connections" refactoring
++  * Rebased the couple Zuul cloner patches
++  * Bump GitPython 2.0.3..2.0.5
++
++ -- Antoine Musso <hashar@free.fr>  Tue, 31 May 2016 11:05:32 +0200
++
++zuul (2.1.0-95-g66c8e52-wmf1precise1) precise-wikimedia; urgency=medium
++
++  * Slowly catch up with upstream
++  * 0008-wmf-pin-python-daemon-2.1.0 is no more needed.
++
++ -- Antoine Musso <hashar@free.fr>  Mon, 30 May 2016 13:55:52 +0200
++
++zuul (2.1.0-60-g1cc37f7-wmf4precise1) precise-wikimedia; urgency=critical
++
++  * 0008-wmf-pin-python-daemon-2.1.0.patch
++    Solves https://phabricator.wikimedia.org/T119741
++
++ -- Antoine Musso <hashar@free.fr>  Thu, 26 Nov 2015 23:23:51 +0100
++
++zuul (2.1.0-60-g1cc37f7-wmf3precise1) precise-wikimedia; urgency=medium
++
++  * 0007-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
++    upstream version: https://review.openstack.org/#/c/249207/2
++
++ -- Antoine Musso <hashar@free.fr>  Tue, 24 Nov 2015 16:56:26 +0100
++
++zuul (2.1.0-60-g1cc37f7-wmf2precise1) precise-wikimedia; urgency=medium
++
++  * Refresh patch 0005-Cloner-Implement-cache-no-hardlinks-argument.patch to
++    latest upstream version https://review.openstack.org/#/c/117626/11
++    Closes https://phabricator.wikimedia.org/T97106
++
++ -- Antoine Musso <hashar@free.fr>  Fri, 13 Nov 2015 14:15:50 +0100
++
++zuul (2.1.0-60-g1cc37f7-wmf1precise1) precise-wikimedia; urgency=medium
++
++  * Bump upstream from 3ebedde to 1cc37f7
++
++  * Rebased patches and dropped patches merged upstream
++      0002-Merger-ensure_cloned-now-looks-for-.git.patch
++      0007-Remove-lockfile-from-requirements.patch
++
++  * Dependencies changes:
++    Babel            1.3 -> 2.1.1
++    lockfile      0.10.2 -> 0.11.0
++    python-daemon  2.0.5 -> 2.0.6
++    + gear 0.5.8
++
++ -- Antoine Musso <hashar@free.fr>  Mon, 02 Nov 2015 12:01:46 +0100
++
++zuul (2.0.0-327-g3ebedde-wmf3precise1) precise-wikimedia; urgency=medium
++
++  * 0008-Revert-Fix-passing-labels-to-Gerrit-when-they-are-no
++    Makes Zuul to send code-review and verified label votes using the shortcuts
++    --verified and --code-review since --label is case sensitive.
++   See https://phabricator.wikimedia.org/T106596
++
++ -- Antoine Musso <hashar@free.fr>  Thu, 23 Jul 2015 14:11:53 +0000
++
++zuul (2.0.0-327-g3ebedde-wmf2precise1) precise-wikimedia; urgency=medium
++
++  * 0007-Remove-lockfile-from-requirements.patch
++  * python-daemon 2.x shipped via the venv
++
++ -- Antoine Musso <hashar@free.fr>  Tue, 21 Jul 2015 21:27:42 +0200
++
++zuul (2.0.0-327-g3ebedde-wmf1precise1) precise-wikimedia; urgency=low
++
++  * Bump upstream 5984adc..3ebedde
++  * python-daemon to >= 2.0.4
++
++ -- Antoine Musso <hashar@free.fr>  Tue, 21 Jul 2015 16:29:03 +0200
++
++
++zuul (2.0.0-306-g5984adc-wmf1precise1) precise-wikimedia; urgency=low
++
++  * Bump GitPython from 0.3.2.RC1 to 0.3.2.1. Fetched by dh_virtualenv.
++
++ -- Antoine Musso <hashar@free.fr>  Mon, 20 Jul 2015 16:10:02 +0200
++
++zuul (2.0.0-304-g685ca22-wmf2precise1) precise-wikimedia; urgency=low
++
++  * T97106 zuul-cloner should use hard links when fetching from cache-dir
++    Incorporate patch https://review.openstack.org/#/c/117626/4 which makes
++    zuul-cloner to use hardlinks from git cache.
++
++ -- Antoine Musso <hashar@free.fr>  Wed, 29 Apr 2015 15:42:21 +0200
++
++zuul (2.0.0-304-g685ca22-wmf1precise1) precise-wikimedia; urgency=low
++
++  * Snapshot from upstream, target is Wikimedia Ubuntu Precise which has some
++    updated packages for python modules packages.
++  * Adjust debian/gbp.conf to match our repository layout
++  * Bump debian/compat from 8 to 9
++  * Bump standard from 3.9.3 to 3.9.7
++
++  * Build for python 2.7 so we can get rid of the OrderDict and argparse
++    python modules which are only needed for python 2.6.
++  * Skip building sphinx doc entirely due to sphinx.programoutput not being
++    able to find the shipped commands (zuul, zuul-merger, zuul-cloner)
++  * Add dh-virtualenv to bring in additional dependencies not available in
++    Wikimedia Ubuntu Precise. Require an unreleased snapshot of dh-virtualenv
++    0.9, see:
++        https://phabricator.wikimedia.org/T91631
++        https://github.com/spotify/dh-virtualenv/issues/78
++
++  * Add init script for the zuul-merger
++  * Keep the zuul user on purge and thus delete noop debian/postrm
++  * Improve the init scripts to recognize START_DAEMON and do not start
++    daemons.
++
++ -- Antoine Musso <hashar@free.fr>  Sat, 07 Mar 2015 21:00:13 +0100
++
++zuul (1.3.0-1) UNRELEASED; urgency=low
++
++  * Initial release (Closes: #705844)
++
++ -- Paul Belanger <paul.belanger@polybeacon.com>  Thu, 31 Oct 2013 16:57:26 +0000
+diff --git a/debian/control b/debian/control
+index 7ecb5e4..176d6a3 100644
+--- a/debian/control
++++ b/debian/control
+@@ -1,102 +1,102 @@
+-Source: zuul
+-Maintainer: Antoine Musso <hashar@free.fr>
+-Uploaders: Antoine Musso <hashar@free.fr>
+-Section: python
+-Priority: optional
+-Build-Depends: debhelper (>= 9),
+- python-virtualenv (>= 1.11),
+- dh-virtualenv (>= 0.9),
+- openstack-pkg-tools,
+- python2.7,
+-## Following was Build-Depends-Indep
+-#
+-# Dependencies comes from upstream sources, they are not available under
+-# Wikimedia Ubuntu Precise distribution and will be provided via dh-virtualenv.
+-#
+-###################################
+-# requirements.txt
+-###################################
+- python-pbr (>= 0.5.21),
+-#Build in python 2.7:
+-#python-argparse,
+- python-yaml (>= 3.1.0),
+- python-paste,
+- python-webob,
+- python-paramiko,
+-# python-git (= 0.3.2.RC1-1),
+-# python-gitdb,
+-# python-smmap,
+-#Build in python 2.7:
+-#python-orderdict
+-#python-daemon,
+- python-extras,
+-#python-statsd (>= 1.0.0, <3.0)
+- python-voluptuous (>= 0.7),
+- python-gear (>= 0.5.4),
+-#python-apscheduler (>= 2.1.1),
+-#python-prettytable (>= 0.6),
+- python-tz,
+-#python-babel (>= 1.0),
+- python-six (>= 1.6.0),
+-###################################
+-# test-requirements.txt
+-###################################
+-#python-hacking (>= 0.9.2),
+-#python-coverage (>= 3.6),
+-#python-sphinx (>= 1.0.7+dfsg),
+-#python-sphinxcontrib.blockdiag (>= 0.5.5),  added by dh-virtualenv
+-#python-discover,
+-#python-fixtures (>= 0.3.14),
+-#python-keystoneclient (>= 0.4.2),
+- python-subunit,
+-#python-swiftclient (>= 1.6),
+-#python-testrepository (>= 0.0.17),
+-#python-testtools (>= 0.9.32),
+-#python-sphinxcontrib.programoutput    added by dh-virtualenv
+-###################################
+-# Debian packaging dependencies
+-###################################
+- python-nose
+-Standards-Version: 3.9.6
+-X-Python-Version: = 2.7
+-Homepage: https://launchpad.net/zuul
+-Vcs-Git: git://github.com/pabelanger/zuul-deb.git
+-Vcs-Browser: https://github.com/pabelanger/zuul-deb
+-
+-Package: zuul
+-# any since dh-virtualenv includes python
+-Architecture: any
+-Pre-Depends: dpkg (>= 1.16.1),
+- python2.7,
+- ${misc:Pre-Depends}
+-Depends: adduser,
+- libjs-jquery,
+- libjs-underscore,
+- python-pbr (>= 0.5.21),
+- python-yaml (>= 3.1.0),
+- python-paste,
+- python-webob,
+- python-paramiko,
+-# python-git (= 0.3.2.RC1-1),
+-# python-gitdb,
+-# python-smmap,
+-# python-daemon,
+- python-extras,
+- python-voluptuous (>= 0.7),
+- python-gear (>= 0.5.4),
+-#python-apscheduler (>= 2.1.1),
+- python-six (>= 1.6.0),
+- python-tz,
+- ${misc:Depends},
+- ${python:Depends},
+-# shlibs since dh-virtualenv includes python
+- ${shlibs:Depends}
+-Suggests:
+- jenkins (>= 1.426),
+-Description: Trunk gating system
+- Zuul is a program that is used to gate the source code repository of a project
+- so that changes are only merged if they pass tests.
+- .
+- The main component of Zuul is the scheduler. It receives events related to
+- proposed changes (currently from Gerrit), triggers tests based on those events
+- (currently on Jenkins), and reports back.
++Source: zuul
++Maintainer: Antoine Musso <hashar@free.fr>
++Uploaders: Antoine Musso <hashar@free.fr>
++Section: python
++Priority: optional
++Build-Depends: debhelper (>= 9),
++ python-virtualenv (>= 1.11),
++ dh-virtualenv (>= 0.9),
++ openstack-pkg-tools,
++ python2.7,
++## Following was Build-Depends-Indep
++#
++# Dependencies comes from upstream sources, they are not available under
++# Wikimedia Ubuntu Precise distribution and will be provided via dh-virtualenv.
++#
++###################################
++# requirements.txt
++###################################
++ python-pbr (>= 0.5.21),
++#Build in python 2.7:
++#python-argparse,
++ python-yaml (>= 3.1.0),
++ python-paste,
++ python-webob,
++ python-paramiko,
++# python-git (= 0.3.2.RC1-1),
++# python-gitdb,
++# python-smmap,
++#Build in python 2.7:
++#python-orderdict
++#python-daemon,
++ python-extras,
++#python-statsd (>= 1.0.0, <3.0)
++ python-voluptuous (>= 0.7),
++ python-gear (>= 0.5.4),
++#python-apscheduler (>= 2.1.1),
++#python-prettytable (>= 0.6),
++ python-tz,
++#python-babel (>= 1.0),
++ python-six (>= 1.6.0),
++###################################
++# test-requirements.txt
++###################################
++#python-hacking (>= 0.9.2),
++#python-coverage (>= 3.6),
++#python-sphinx (>= 1.0.7+dfsg),
++#python-sphinxcontrib.blockdiag (>= 0.5.5),  added by dh-virtualenv
++#python-discover,
++#python-fixtures (>= 0.3.14),
++#python-keystoneclient (>= 0.4.2),
++ python-subunit,
++#python-swiftclient (>= 1.6),
++#python-testrepository (>= 0.0.17),
++#python-testtools (>= 0.9.32),
++#python-sphinxcontrib.programoutput    added by dh-virtualenv
++###################################
++# Debian packaging dependencies
++###################################
++ python-nose
++Standards-Version: 3.9.6
++X-Python-Version: = 2.7
++Homepage: https://launchpad.net/zuul
++Vcs-Git: git://github.com/pabelanger/zuul-deb.git
++Vcs-Browser: https://github.com/pabelanger/zuul-deb
++
++Package: zuul
++# any since dh-virtualenv includes python
++Architecture: any
++Pre-Depends: dpkg (>= 1.16.1),
++ python2.7,
++ ${misc:Pre-Depends}
++Depends: adduser,
++ libjs-jquery,
++ libjs-underscore,
++ python-pbr (>= 0.5.21),
++ python-yaml (>= 3.1.0),
++ python-paste,
++ python-webob,
++ python-paramiko,
++# python-git (= 0.3.2.RC1-1),
++# python-gitdb,
++# python-smmap,
++# python-daemon,
++ python-extras,
++ python-voluptuous (>= 0.7),
++ python-gear (>= 0.5.4),
++#python-apscheduler (>= 2.1.1),
++ python-six (>= 1.6.0),
++ python-tz,
++ ${misc:Depends},
++ ${python:Depends},
++# shlibs since dh-virtualenv includes python
++ ${shlibs:Depends}
++Suggests:
++ jenkins (>= 1.426),
++Description: Trunk gating system
++ Zuul is a program that is used to gate the source code repository of a project
++ so that changes are only merged if they pass tests.
++ .
++ The main component of Zuul is the scheduler. It receives events related to
++ proposed changes (currently from Gerrit), triggers tests based on those events
++ (currently on Jenkins), and reports back.
+diff --git a/debian/patches/series b/debian/patches/series
+index 34f7472..2e5875f 100644
+--- a/debian/patches/series
++++ b/debian/patches/series
+@@ -1,5 +1,5 @@
+-0001-wmf-soften-requirements.patch
+-0002-Ensure-the-repository-configuration-lock-is-released.patch
+-0003-Replace-python-shebang-with-python2.7.patch
+-0004-Cloner-Implement-cache-no-hardlinks-argument.patch
+-0005-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
++0001-wmf-soften-requirements.patch
++0002-Ensure-the-repository-configuration-lock-is-released.patch
++0003-Replace-python-shebang-with-python2.7.patch
++0004-Cloner-Implement-cache-no-hardlinks-argument.patch
++0005-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
