@@ -1,3 +1,9 @@
+zuul (2.1.0-391-gbc58ea3-wmf1precise1) precise-wikimedia; urgency=medium
+
+  * New upstream release
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 22 Jul 2016 14:46:02 +0200
+
 zuul (2.1.0-151-g30a433b-wmf4precise1) precise-wikimedia; urgency=medium
 
   * Zuul server layout validation would not recognize multiple Gerrit
