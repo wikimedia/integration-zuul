@@ -29,7 +29,7 @@ override_dh_installinit:
 override_dh_virtualenv:
 	# Needs dh_virtualenv 0.9+ for --use-system-packages
 	# The .pyc are generated in postinst
-	PIP_NO_COMPILE=1 PYTHONDONTWRITEBYTECODE=true VIRTUALENV_VERBOSE=true dh_virtualenv \
+	DEB_BUILD_OPTIONS=nocheck PIP_NO_COMPILE=1 PYTHONDONTWRITEBYTECODE=true VIRTUALENV_VERBOSE=true dh_virtualenv \
 		--python '/usr/bin/python2.7' \
 		--use-system-packages \
 		--no-package ordereddict \
