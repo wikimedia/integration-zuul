@@ -1,0 +1,7 @@
+Code-Review+2: Hashar <hashar@free.fr>
+Verified+2: Hashar <hashar@free.fr>
+Submitted-by: Hashar <hashar@free.fr>
+Submitted-at: Fri, 22 Jul 2016 13:19:25 +0000
+Reviewed-on: https://gerrit.wikimedia.org/r/300539
+Project: integration/zuul
+Branch: refs/heads/patch-queue/debian/precise-wikimedia
