@@ -1,3 +1,22 @@
+zuul (2.1.0-391-gbc58ea3-wmf1precise1) precise-wikimedia; urgency=medium
+
+  * New upstream release
+  * Rebase patches
+  * Remove patches that have been merged upstream:
+    - Properly-shutdown-apscheduler-on-reconfigure.patch
+    - GerritWatcher-add-poll_timeout.patch
+    - Do-not-import-paramiko-before-daemonization.patch
+    - Register-connections-when-testing-configuration.patch
+  * Split our requirement tweaking patch wmf-soften-requirements.patch in
+    new atomic patches.
+  * Let us change the Gerrit event delay:
+    [12d23bf53] Gerrit trailing delay is now configurable
+  * Prevent dh_virtualenv from running tests by setting
+    DEB_BUILD_OPTIONS=nocheck . Apparently tries to run them outside of the
+    virtualenv/without using system packages.
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 22 Jul 2016 14:46:02 +0200
+
 zuul (2.1.0-151-g30a433b-wmf4precise1) precise-wikimedia; urgency=medium
 
   * Zuul server layout validation would not recognize multiple Gerrit
