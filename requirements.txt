@@ -5,7 +5,6 @@ Paste
 WebOb
 paramiko
 GitPython>=0.3.3
-ordereddict
 python-daemon>=2.0.4,<2.1.0
 extras
 statsd>=1.0.0,<3.0
