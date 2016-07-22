@@ -10,7 +10,7 @@ extras
 statsd>=1.0.0,<3.0
 voluptuous>=0.7
 gear>=0.5.7,<1.0.0
-apscheduler>=3.0
+apscheduler>=3.0,<3.1.0
 PrettyTable>=0.6,<0.8
 babel>=1.0
 six>=1.6.0
