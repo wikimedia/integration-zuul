@@ -1,9 +1,7 @@
-0001-wmf-soften-requirements.patch
-0002-Ensure-the-repository-configuration-lock-is-released.patch
-0003-Replace-python-shebang-with-python2.7.patch
-0004-Cloner-Implement-cache-no-hardlinks-argument.patch
-0005-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
-0006-Properly-shutdown-apscheduler-on-reconfigure.patch
-0007-GerritWatcher-add-poll_timeout.patch
-0008-Do-not-import-paramiko-before-daemonization.patch
-0009-Register-connections-when-testing-configuration.patch
+0001-Ensure-the-repository-configuration-lock-is-released.patch
+0002-Replace-python-shebang-with-python2.7.patch
+0003-Cloner-Implement-cache-no-hardlinks-argument.patch
+0004-zuul-cloner-recognizes-bare-repos-in-cache-dir.patch
+0005-WMF-soften-paramiko-requirement.patch
+0006-WMF-soften-WebOb-requirement.patch
+0007-WMF-drop-requirement-ordereddict.patch
