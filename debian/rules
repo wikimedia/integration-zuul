@@ -11,7 +11,7 @@ include /usr/share/openstack-pkg-tools/pkgos.make
 export OSLO_PACKAGE_VERSION=$(DEBVERS)
 
 %:
-	dh $@ --with python-virtualenv
+	dh $@ --buildsystem=dh_virtualenv
 
 override_dh_auto_build:
 	dh_auto_build
