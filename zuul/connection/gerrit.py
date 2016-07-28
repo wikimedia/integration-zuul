@@ -18,11 +18,11 @@ import select
 import json
 import time
 from six.moves import queue as Queue
+from six.moves import urllib
 import paramiko
 import logging
 import pprint
 import voluptuous as v
-import urllib2
 
 from zuul.connection import BaseConnection
 from zuul.model import TriggerEvent
@@ -32,7 +32,7 @@ class GerritEventConnector(threading.Thread):
     """Move events from Gerrit to the scheduler."""
 
     log = logging.getLogger("zuul.GerritEventConnector")
-    delay = 5.0
+    delay = 10.0
 
     def __init__(self, connection):
         super(GerritEventConnector, self).__init__()
@@ -132,6 +132,7 @@ class GerritEventConnector(threading.Thread):
 
 class GerritWatcher(threading.Thread):
     log = logging.getLogger("gerrit.GerritWatcher")
+    poll_timeout = 500
 
     def __init__(self, gerrit_connection, username, hostname, port=29418,
                  keyfile=None):
@@ -154,7 +155,7 @@ class GerritWatcher(threading.Thread):
         poll = select.poll()
         poll.register(stdout.channel)
         while not self._stopped:
-            ret = poll.poll()
+            ret = poll.poll(self.poll_timeout)
             for (fd, event) in ret:
                 if fd == stdout.channel.fileno():
                     if event == select.POLLIN:
@@ -387,10 +388,10 @@ class GerritConnection(BaseConnection):
         url = "%s/p/%s/info/refs?service=git-upload-pack" % (
             self.baseurl, project)
         try:
-            data = urllib2.urlopen(url).read()
+            data = urllib.request.urlopen(url).read()
         except:
             self.log.error("Cannot get references from %s" % url)
-            raise  # keeps urllib2 error informations
+            raise  # keeps urllib error informations
         ret = {}
         read_headers = False
         read_advertisement = False

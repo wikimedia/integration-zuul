@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import pickle
+import six
 from six.moves import queue as Queue
 import re
 import sys
@@ -27,10 +28,10 @@ import threading
 import time
 import yaml
 
-import layoutvalidator
-import model
-from model import Pipeline, Project, ChangeQueue
-from model import ChangeishFilter, NullChange
+from zuul import layoutvalidator
+from zuul import model
+from zuul.model import Pipeline, Project, ChangeQueue
+from zuul.model import ChangeishFilter, NullChange
 from zuul import change_matcher, exceptions
 from zuul import version as zuul_version
 
@@ -125,12 +126,10 @@ class ManagementEvent(object):
     """An event that should be processed within the main queue run loop"""
     def __init__(self):
         self._wait_event = threading.Event()
-        self._exception = None
-        self._traceback = None
+        self._exc_info = None
 
-    def exception(self, e, tb):
-        self._exception = e
-        self._traceback = tb
+    def exception(self, exc_info):
+        self._exc_info = exc_info
         self._wait_event.set()
 
     def done(self):
@@ -138,8 +137,8 @@ class ManagementEvent(object):
 
     def wait(self, timeout=None):
         self._wait_event.wait(timeout)
-        if self._exception:
-            raise self._exception, None, self._traceback
+        if self._exc_info:
+            six.reraise(*self._exc_info)
         return self._wait_event.is_set()
 
 
@@ -236,7 +235,7 @@ def toList(item):
 class Scheduler(threading.Thread):
     log = logging.getLogger("zuul.Scheduler")
 
-    def __init__(self, config):
+    def __init__(self, config, testonly=False):
         threading.Thread.__init__(self)
         self.daemon = True
         self.wake_event = threading.Event()
@@ -261,6 +260,10 @@ class Scheduler(threading.Thread):
         self.result_event_queue = Queue.Queue()
         self.management_event_queue = Queue.Queue()
         self.layout = model.Layout()
+
+        if not testonly:
+            time_dir = self._get_time_database_dir()
+            self.time_database = model.TimeDataBase(time_dir)
 
         self.zuul_version = zuul_version.version_info.release_string()
         self.last_reconfigured = None
@@ -313,11 +316,14 @@ class Scheduler(threading.Thread):
             # Any skip-if predicate can be matched to trigger a skip
             return cm.MatchAny(skip_matchers)
 
-    def registerConnections(self, connections):
+    def registerConnections(self, connections, load=True):
+        # load: whether or not to trigger the onLoad for the connection. This
+        # is useful for not doing a full load during layout validation.
         self.connections = connections
         for connection_name, connection in self.connections.items():
             connection.registerScheduler(self)
-            connection.onLoad()
+            if load:
+                connection.onLoad()
 
     def stopConnections(self):
         for connection_name, connection in self.connections.items():
@@ -408,7 +414,9 @@ class Scheduler(threading.Thread):
                     base = os.path.dirname(os.path.realpath(config_path))
                     fn = os.path.join(base, fn)
                 fn = os.path.expanduser(fn)
-                execfile(fn, config_env)
+                with open(fn) as _f:
+                    code = compile(_f.read(), fn, 'exec')
+                    six.exec_(code, config_env)
 
         for conf_pipeline in data.get('pipelines', []):
             pipeline = Pipeline(conf_pipeline['name'])
@@ -740,6 +748,17 @@ class Scheduler(threading.Thread):
             state_dir = '/var/lib/zuul'
         return os.path.join(state_dir, 'queue.pickle')
 
+    def _get_time_database_dir(self):
+        if self.config.has_option('zuul', 'state_dir'):
+            state_dir = os.path.expanduser(self.config.get('zuul',
+                                                           'state_dir'))
+        else:
+            state_dir = '/var/lib/zuul'
+        d = os.path.join(state_dir, 'times')
+        if not os.path.exists(d):
+            os.mkdir(d)
+        return d
+
     def _save_queue(self):
         pickle_file = self._get_queue_pickle_file()
         events = []
@@ -1038,8 +1057,8 @@ class Scheduler(threading.Thread):
             else:
                 self.log.error("Unable to handle event %s" % event)
             event.done()
-        except Exception as e:
-            event.exception(e, sys.exc_info()[2])
+        except Exception:
+            event.exception(sys.exc_info())
         self.management_event_queue.task_done()
 
     def process_result_queue(self):
@@ -1069,6 +1088,11 @@ class Scheduler(threading.Thread):
             self.log.warning("Build %s is not associated with a pipeline" %
                              (build,))
             return
+        try:
+            build.estimated_time = float(self.time_database.getEstimatedTime(
+                build.job.name))
+        except Exception:
+            self.log.exception("Exception estimating build time:")
         pipeline.manager.onBuildStarted(event.build)
 
     def _doBuildCompletedEvent(self, event):
@@ -1082,6 +1106,13 @@ class Scheduler(threading.Thread):
             self.log.warning("Build %s is not associated with a pipeline" %
                              (build,))
             return
+        if build.end_time and build.start_time and build.result:
+            duration = build.end_time - build.start_time
+            try:
+                self.time_database.update(
+                    build.job.name, duration, build.result)
+            except Exception:
+                self.log.exception("Exception recording build time:")
         pipeline.manager.onBuildCompleted(event.build)
 
     def _doMergeCompletedEvent(self, event):
