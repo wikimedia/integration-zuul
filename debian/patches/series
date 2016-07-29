@@ -9,3 +9,4 @@
 0009-Gerrit-trailing-delay-is-now-configurable.patch
 0010-WMF-soften-pbr-requirement.patch
 0011-WMF-constraint-apscheduler-to-3.1.0.patch
+0012-WMF-reduce-Gerrit-replication-delay-from-300-to-15-s.patch
