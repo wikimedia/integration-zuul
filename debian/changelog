@@ -1,3 +1,9 @@
+zuul (2.1.0-391-gbc58ea3-wmf1trusty1) trusty-wikimedia; urgency=medium
+
+  * Sync with precise-wikimedia
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 29 Jul 2016 10:59:24 +0200
+
 zuul (2.1.0-60-g1cc37f7-wmf4trusty1) trusty-wikimedia; urgency=critical
 
   * Sync with precise-wikimedia

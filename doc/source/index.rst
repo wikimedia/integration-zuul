@@ -13,15 +13,17 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   quick-start
    gating
+   connections
    triggers
-   merger
-   launchers
    reporters
    zuul
-   client
+   merger
    cloner
+   launchers
    statsd
+   client
 
 Indices and tables
 ==================

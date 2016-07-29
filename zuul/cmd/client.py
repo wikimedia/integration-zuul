@@ -154,7 +154,7 @@ class Client(zuul.cmd.ZuulApp):
         running_items = client.get_running_jobs()
 
         if len(running_items) == 0:
-            print "No jobs currently running"
+            print("No jobs currently running")
             return True
 
         all_fields = self._show_running_jobs_columns()
@@ -181,7 +181,7 @@ class Client(zuul.cmd.ZuulApp):
                         v += all_fields[f]['append']
                     values.append(v)
                 table.add_row(values)
-        print table
+        print(table)
         return True
 
     def _epoch_to_relative_time(self, epoch):
@@ -263,6 +263,12 @@ class Client(zuul.cmd.ZuulApp):
             'number': {
                 'title': 'Number'
             },
+            'node_labels': {
+                'title': 'Node Labels'
+            },
+            'node_name': {
+                'title': 'Node Name'
+            },
             'worker.name': {
                 'title': 'Worker'
             },
@@ -276,7 +282,7 @@ class Client(zuul.cmd.ZuulApp):
             'worker.fqdn': {
                 'title': 'Worker Domain'
             },
-            'worker.progam': {
+            'worker.program': {
                 'title': 'Worker Program'
             },
             'worker.version': {

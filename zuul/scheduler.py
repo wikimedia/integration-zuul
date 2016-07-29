@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import pickle
+import six
 from six.moves import queue as Queue
 import re
 import sys
@@ -27,11 +28,11 @@ import threading
 import time
 import yaml
 
-import layoutvalidator
-import model
-from model import ActionReporter, Pipeline, Project, ChangeQueue
-from model import EventFilter, ChangeishFilter
-from zuul import change_matcher
+from zuul import layoutvalidator
+from zuul import model
+from zuul.model import Pipeline, Project, ChangeQueue
+from zuul.model import ChangeishFilter, NullChange
+from zuul import change_matcher, exceptions
 from zuul import version as zuul_version
 
 statsd = extras.try_import('statsd.statsd')
@@ -59,20 +60,76 @@ def deep_format(obj, paramdict):
     return ret
 
 
-class MergeFailure(Exception):
-    pass
+class MutexHandler(object):
+    log = logging.getLogger("zuul.MutexHandler")
+
+    def __init__(self):
+        self.mutexes = {}
+
+    def acquire(self, item, job):
+        if not job.mutex:
+            return True
+        mutex_name = job.mutex
+        m = self.mutexes.get(mutex_name)
+        if not m:
+            # The mutex is not held, acquire it
+            self._acquire(mutex_name, item, job.name)
+            return True
+        held_item, held_job_name = m
+        if held_item is item and held_job_name == job.name:
+            # This item already holds the mutex
+            return True
+        held_build = held_item.current_build_set.getBuild(held_job_name)
+        if held_build and held_build.result:
+            # The build that held the mutex is complete, release it
+            # and let the new item have it.
+            self.log.error("Held mutex %s being released because "
+                           "the build that holds it is complete" %
+                           (mutex_name,))
+            self._release(mutex_name, item, job.name)
+            self._acquire(mutex_name, item, job.name)
+            return True
+        return False
+
+    def release(self, item, job):
+        if not job.mutex:
+            return
+        mutex_name = job.mutex
+        m = self.mutexes.get(mutex_name)
+        if not m:
+            # The mutex is not held, nothing to do
+            self.log.error("Mutex can not be released for %s "
+                           "because the mutex is not held" %
+                           (item,))
+            return
+        held_item, held_job_name = m
+        if held_item is item and held_job_name == job.name:
+            # This item holds the mutex
+            self._release(mutex_name, item, job.name)
+            return
+        self.log.error("Mutex can not be released for %s "
+                       "which does not hold it" %
+                       (item,))
+
+    def _acquire(self, mutex_name, item, job_name):
+        self.log.debug("Job %s of item %s acquiring mutex %s" %
+                       (job_name, item, mutex_name))
+        self.mutexes[mutex_name] = (item, job_name)
+
+    def _release(self, mutex_name, item, job_name):
+        self.log.debug("Job %s of item %s releasing mutex %s" %
+                       (job_name, item, mutex_name))
+        del self.mutexes[mutex_name]
 
 
 class ManagementEvent(object):
     """An event that should be processed within the main queue run loop"""
     def __init__(self):
         self._wait_event = threading.Event()
-        self._exception = None
-        self._traceback = None
+        self._exc_info = None
 
-    def exception(self, e, tb):
-        self._exception = e
-        self._traceback = tb
+    def exception(self, exc_info):
+        self._exc_info = exc_info
         self._wait_event.set()
 
     def done(self):
@@ -80,8 +137,8 @@ class ManagementEvent(object):
 
     def wait(self, timeout=None):
         self._wait_event.wait(timeout)
-        if self._exception:
-            raise self._exception, None, self._traceback
+        if self._exc_info:
+            six.reraise(*self._exc_info)
         return self._wait_event.is_set()
 
 
@@ -178,7 +235,7 @@ def toList(item):
 class Scheduler(threading.Thread):
     log = logging.getLogger("zuul.Scheduler")
 
-    def __init__(self):
+    def __init__(self, config, testonly=False):
         threading.Thread.__init__(self)
         self.daemon = True
         self.wake_event = threading.Event()
@@ -189,24 +246,47 @@ class Scheduler(threading.Thread):
         self._stopped = False
         self.launcher = None
         self.merger = None
+        self.mutex = MutexHandler()
+        self.connections = dict()
+        # Despite triggers being part of the pipeline, there is one trigger set
+        # per scheduler. The pipeline handles the trigger filters but since
+        # the events are handled by the scheduler itself it needs to handle
+        # the loading of the triggers.
+        # self.triggers['connection_name'] = triggerObject
         self.triggers = dict()
-        self.reporters = dict()
-        self.config = None
+        self.config = config
 
         self.trigger_event_queue = Queue.Queue()
         self.result_event_queue = Queue.Queue()
         self.management_event_queue = Queue.Queue()
         self.layout = model.Layout()
 
+        if not testonly:
+            time_dir = self._get_time_database_dir()
+            self.time_database = model.TimeDataBase(time_dir)
+
         self.zuul_version = zuul_version.version_info.release_string()
         self.last_reconfigured = None
 
+        # A set of reporter configuration keys to action mapping
+        self._reporter_actions = {
+            'start': 'start_actions',
+            'success': 'success_actions',
+            'failure': 'failure_actions',
+            'merge-failure': 'merge_failure_actions',
+            'disabled': 'disabled_actions',
+        }
+
     def stop(self):
         self._stopped = True
+        self._unloadDrivers()
+        self.stopConnections()
         self.wake_event.set()
 
-    def testConfig(self, config_path):
-        return self._parseConfig(config_path)
+    def testConfig(self, config_path, connections):
+        # Take the list of set up connections directly here rather than with
+        # registerConnections as we don't want to do the onLoad event yet.
+        return self._parseConfig(config_path, connections)
 
     def _parseSkipIf(self, config_job):
         cm = change_matcher
@@ -236,7 +316,82 @@ class Scheduler(threading.Thread):
             # Any skip-if predicate can be matched to trigger a skip
             return cm.MatchAny(skip_matchers)
 
-    def _parseConfig(self, config_path):
+    def registerConnections(self, connections, load=True):
+        # load: whether or not to trigger the onLoad for the connection. This
+        # is useful for not doing a full load during layout validation.
+        self.connections = connections
+        for connection_name, connection in self.connections.items():
+            connection.registerScheduler(self)
+            if load:
+                connection.onLoad()
+
+    def stopConnections(self):
+        for connection_name, connection in self.connections.items():
+            connection.onStop()
+
+    def _unloadDrivers(self):
+        for trigger in self.triggers.values():
+            trigger.stop()
+        self.triggers = {}
+        for pipeline in self.layout.pipelines.values():
+            pipeline.source.stop()
+            for action in self._reporter_actions.values():
+                for reporter in pipeline.__getattribute__(action):
+                    reporter.stop()
+
+    def _getDriver(self, dtype, connection_name, driver_config={}):
+        # Instantiate a driver such as a trigger, source or reporter
+        # TODO(jhesketh): Make this list dynamic or use entrypoints etc.
+        # Stevedore was not a good fit here due to the nature of triggers.
+        # Specifically we don't want to load a trigger per a pipeline as one
+        # trigger can listen to a stream (from gerrit, for example) and the
+        # scheduler decides which eventfilter to use. As such we want to load
+        # trigger+connection pairs uniquely.
+        drivers = {
+            'source': {
+                'gerrit': 'zuul.source.gerrit:GerritSource',
+            },
+            'trigger': {
+                'gerrit': 'zuul.trigger.gerrit:GerritTrigger',
+                'timer': 'zuul.trigger.timer:TimerTrigger',
+                'zuul': 'zuul.trigger.zuultrigger:ZuulTrigger',
+            },
+            'reporter': {
+                'gerrit': 'zuul.reporter.gerrit:GerritReporter',
+                'smtp': 'zuul.reporter.smtp:SMTPReporter',
+            },
+        }
+
+        # TODO(jhesketh): Check the connection_name exists
+        if connection_name in self.connections.keys():
+            driver_name = self.connections[connection_name].driver_name
+            connection = self.connections[connection_name]
+        else:
+            # In some cases a driver may not be related to a connection. For
+            # example, the 'timer' or 'zuul' triggers.
+            driver_name = connection_name
+            connection = None
+        driver = drivers[dtype][driver_name].split(':')
+        driver_instance = getattr(
+            __import__(driver[0], fromlist=['']), driver[1])(
+                driver_config, self, connection
+        )
+
+        if connection:
+            connection.registerUse(dtype, driver_instance)
+
+        return driver_instance
+
+    def _getSourceDriver(self, connection_name):
+        return self._getDriver('source', connection_name)
+
+    def _getReporterDriver(self, connection_name, driver_config={}):
+        return self._getDriver('reporter', connection_name, driver_config)
+
+    def _getTriggerDriver(self, connection_name, driver_config={}):
+        return self._getDriver('trigger', connection_name, driver_config)
+
+    def _parseConfig(self, config_path, connections):
         layout = model.Layout()
         project_templates = {}
 
@@ -245,11 +400,11 @@ class Scheduler(threading.Thread):
             if not os.path.exists(config_path):
                 raise Exception("Unable to read layout config file at %s" %
                                 config_path)
-        config_file = open(config_path)
-        data = yaml.load(config_file)
+        with open(config_path) as config_file:
+            data = yaml.load(config_file)
 
         validator = layoutvalidator.LayoutValidator()
-        validator.validate(data)
+        validator.validate(data, connections)
 
         config_env = {}
         for include in data.get('includes', []):
@@ -259,14 +414,16 @@ class Scheduler(threading.Thread):
                     base = os.path.dirname(os.path.realpath(config_path))
                     fn = os.path.join(base, fn)
                 fn = os.path.expanduser(fn)
-                execfile(fn, config_env)
+                with open(fn) as _f:
+                    code = compile(_f.read(), fn, 'exec')
+                    six.exec_(code, config_env)
 
         for conf_pipeline in data.get('pipelines', []):
             pipeline = Pipeline(conf_pipeline['name'])
             pipeline.description = conf_pipeline.get('description')
             # TODO(jeblair): remove backwards compatibility:
-            pipeline.source = self.triggers[conf_pipeline.get('source',
-                                                              'gerrit')]
+            pipeline.source = self._getSourceDriver(
+                conf_pipeline.get('source', 'gerrit'))
             precedence = model.PRECEDENCE_MAP[conf_pipeline.get('precedence')]
             pipeline.precedence = precedence
             pipeline.failure_message = conf_pipeline.get('failure-message',
@@ -285,26 +442,23 @@ class Scheduler(threading.Thread):
             pipeline.ignore_dependencies = conf_pipeline.get(
                 'ignore-dependencies', False)
 
-            action_reporters = {}
-            for action in ['start', 'success', 'failure', 'merge-failure']:
-                action_reporters[action] = []
-                if conf_pipeline.get(action):
+            for conf_key, action in self._reporter_actions.items():
+                reporter_set = []
+                if conf_pipeline.get(conf_key):
                     for reporter_name, params \
-                        in conf_pipeline.get(action).items():
-                        if reporter_name in self.reporters.keys():
-                            action_reporters[action].append(ActionReporter(
-                                self.reporters[reporter_name], params))
-                        else:
-                            self.log.error('Invalid reporter name %s' %
-                                           reporter_name)
-            pipeline.start_actions = action_reporters['start']
-            pipeline.success_actions = action_reporters['success']
-            pipeline.failure_actions = action_reporters['failure']
-            if len(action_reporters['merge-failure']) > 0:
-                pipeline.merge_failure_actions = \
-                    action_reporters['merge-failure']
-            else:
-                pipeline.merge_failure_actions = action_reporters['failure']
+                        in conf_pipeline.get(conf_key).items():
+                        reporter = self._getReporterDriver(reporter_name,
+                                                           params)
+                        reporter.setAction(conf_key)
+                        reporter_set.append(reporter)
+                setattr(pipeline, action, reporter_set)
+
+            # If merge-failure actions aren't explicit, use the failure actions
+            if not pipeline.merge_failure_actions:
+                pipeline.merge_failure_actions = pipeline.failure_actions
+
+            pipeline.disable_at = conf_pipeline.get(
+                'disable-after-consecutive-failures', None)
 
             pipeline.window = conf_pipeline.get('window', 20)
             pipeline.window_floor = conf_pipeline.get('window-floor', 3)
@@ -321,64 +475,28 @@ class Scheduler(threading.Thread):
             pipeline.setManager(manager)
             layout.pipelines[conf_pipeline['name']] = pipeline
 
-            if 'require' in conf_pipeline:
-                require = conf_pipeline['require']
+            if 'require' in conf_pipeline or 'reject' in conf_pipeline:
+                require = conf_pipeline.get('require', {})
+                reject = conf_pipeline.get('reject', {})
                 f = ChangeishFilter(
                     open=require.get('open'),
                     current_patchset=require.get('current-patchset'),
                     statuses=toList(require.get('status')),
-                    required_approvals=toList(require.get('approval')))
+                    required_approvals=toList(require.get('approval')),
+                    reject_approvals=toList(reject.get('approval'))
+                )
                 manager.changeish_filters.append(f)
 
-            # TODO: move this into triggers (may require pluggable
-            # configuration)
-            if 'gerrit' in conf_pipeline['trigger']:
-                for trigger in toList(conf_pipeline['trigger']['gerrit']):
-                    approvals = {}
-                    for approval_dict in toList(trigger.get('approval')):
-                        for k, v in approval_dict.items():
-                            approvals[k] = v
-                    # Backwards compat for *_filter versions of these args
-                    comments = toList(trigger.get('comment'))
-                    if not comments:
-                        comments = toList(trigger.get('comment_filter'))
-                    emails = toList(trigger.get('email'))
-                    if not emails:
-                        emails = toList(trigger.get('email_filter'))
-                    usernames = toList(trigger.get('username'))
-                    if not usernames:
-                        usernames = toList(trigger.get('username_filter'))
-                    f = EventFilter(
-                        trigger=self.triggers['gerrit'],
-                        types=toList(trigger['event']),
-                        branches=toList(trigger.get('branch')),
-                        refs=toList(trigger.get('ref')),
-                        event_approvals=approvals,
-                        comments=comments,
-                        emails=emails,
-                        usernames=usernames,
-                        required_approvals=toList(
-                            trigger.get('require-approval')
-                        )
-                    )
-                    manager.event_filters.append(f)
-            if 'timer' in conf_pipeline['trigger']:
-                for trigger in toList(conf_pipeline['trigger']['timer']):
-                    f = EventFilter(trigger=self.triggers['timer'],
-                                    types=['timer'],
-                                    timespecs=toList(trigger['time']))
-                    manager.event_filters.append(f)
-            if 'zuul' in conf_pipeline['trigger']:
-                for trigger in toList(conf_pipeline['trigger']['zuul']):
-                    f = EventFilter(
-                        trigger=self.triggers['zuul'],
-                        types=toList(trigger['event']),
-                        pipelines=toList(trigger.get('pipeline')),
-                        required_approvals=toList(
-                            trigger.get('require-approval')
-                        )
-                    )
-                    manager.event_filters.append(f)
+            for trigger_name, trigger_config\
+                in conf_pipeline.get('trigger').items():
+                if trigger_name not in self.triggers.keys():
+                    self.triggers[trigger_name] = \
+                        self._getTriggerDriver(trigger_name, trigger_config)
+
+            for trigger_name, trigger in self.triggers.items():
+                if trigger_name in conf_pipeline['trigger']:
+                    manager.event_filters += trigger.getEventFilters(
+                        conf_pipeline['trigger'][trigger_name])
 
         for project_template in data.get('project-templates', []):
             # Make sure the template only contains valid pipelines
@@ -414,6 +532,16 @@ class Scheduler(threading.Thread):
             m = config_job.get('voting', None)
             if m is not None:
                 job.voting = m
+            m = config_job.get('mutex', None)
+            if m is not None:
+                job.mutex = m
+            tags = toList(config_job.get('tags'))
+            if tags:
+                # Tags are merged via a union rather than a
+                # destructive copy because they are intended to
+                # accumulate onto any previously applied tags from
+                # metajobs.
+                job.tags = job.tags.union(set(tags))
             fname = config_job.get('parameter-function', None)
             if fname:
                 func = config_env.get(fname, None)
@@ -497,21 +625,15 @@ class Scheduler(threading.Thread):
     def setMerger(self, merger):
         self.merger = merger
 
-    def registerTrigger(self, trigger, name=None):
-        if name is None:
-            name = trigger.name
-        self.triggers[name] = trigger
-
-    def registerReporter(self, reporter, name=None):
-        if name is None:
-            name = reporter.name
-        self.reporters[name] = reporter
-
-    def getProject(self, name):
+    def getProject(self, name, create_foreign=False):
         self.layout_lock.acquire()
         p = None
         try:
             p = self.layout.projects.get(name)
+            if p is None and create_foreign:
+                self.log.info("Registering foreign project: %s" % name)
+                p = Project(name, foreign=True)
+                self.layout.projects[name] = p
         finally:
             self.layout_lock.release()
         return p
@@ -547,14 +669,29 @@ class Scheduler(threading.Thread):
         try:
             if statsd and build.pipeline:
                 jobname = build.job.name.replace('.', '_')
+                key = 'zuul.pipeline.%s.all_jobs' % build.pipeline.name
+                statsd.incr(key)
+                for label in build.node_labels:
+                    # Jenkins includes the node name in its list of labels, so
+                    # we filter it out here, since that is not statistically
+                    # interesting.
+                    if label == build.node_name:
+                        continue
+                    dt = int((build.start_time - build.launch_time) * 1000)
+                    key = 'zuul.pipeline.%s.label.%s.wait_time' % (
+                        build.pipeline.name, label)
+                    statsd.timing(key, dt)
                 key = 'zuul.pipeline.%s.job.%s.%s' % (build.pipeline.name,
                                                       jobname, build.result)
                 if build.result in ['SUCCESS', 'FAILURE'] and build.start_time:
                     dt = int((build.end_time - build.start_time) * 1000)
                     statsd.timing(key, dt)
                 statsd.incr(key)
-                key = 'zuul.pipeline.%s.all_jobs' % build.pipeline.name
-                statsd.incr(key)
+
+                key = 'zuul.pipeline.%s.job.%s.wait_time' % (
+                    build.pipeline.name, jobname)
+                dt = int((build.start_time - build.launch_time) * 1000)
+                statsd.timing(key, dt)
         except:
             self.log.exception("Exception reporting runtime stats")
         event = BuildCompletedEvent(build)
@@ -611,6 +748,17 @@ class Scheduler(threading.Thread):
             state_dir = '/var/lib/zuul'
         return os.path.join(state_dir, 'queue.pickle')
 
+    def _get_time_database_dir(self):
+        if self.config.has_option('zuul', 'state_dir'):
+            state_dir = os.path.expanduser(self.config.get('zuul',
+                                                           'state_dir'))
+        else:
+            state_dir = '/var/lib/zuul'
+        d = os.path.join(state_dir, 'times')
+        if not os.path.exists(d):
+            os.mkdir(d)
+        return d
+
     def _save_queue(self):
         pickle_file = self._get_queue_pickle_file()
         events = []
@@ -663,8 +811,9 @@ class Scheduler(threading.Thread):
         self.config = event.config
         try:
             self.log.debug("Performing reconfiguration")
+            self._unloadDrivers()
             layout = self._parseConfig(
-                self.config.get('zuul', 'layout_config'))
+                self.config.get('zuul', 'layout_config'), self.connections)
             for name, new_pipeline in layout.pipelines.items():
                 old_pipeline = self.layout.pipelines.get(name)
                 if not old_pipeline:
@@ -685,15 +834,15 @@ class Scheduler(threading.Thread):
                         item.items_behind = []
                         item.pipeline = None
                         item.queue = None
-                        project = layout.projects.get(item.change.project.name)
-                        if not project:
-                            self.log.warning("Unable to find project for "
-                                             "change %s while reenqueueing" %
-                                             item.change)
-                            item.change.project = None
-                            items_to_remove.append(item)
-                            continue
-                        item.change.project = project
+                        project_name = item.change.project.name
+                        item.change.project = layout.projects.get(project_name)
+                        if not item.change.project:
+                            self.log.debug("Project %s not defined, "
+                                           "re-instantiating as foreign" %
+                                           project_name)
+                            project = Project(project_name, foreign=True)
+                            layout.projects[project_name] = project
+                            item.change.project = project
                         item_jobs = new_pipeline.getJobs(item)
                         for build in item.current_build_set.getBuilds():
                             job = layout.jobs.get(build.job.name)
@@ -718,9 +867,14 @@ class Scheduler(threading.Thread):
                             "Exception while canceling build %s "
                             "for change %s" % (build, item.change))
             self.layout = layout
-            self.maintainTriggerCache()
+            self.maintainConnectionCache()
             for trigger in self.triggers.values():
                 trigger.postConfig()
+            for pipeline in self.layout.pipelines.values():
+                pipeline.source.postConfig()
+                for action in self._reporter_actions.values():
+                    for reporter in pipeline.__getattribute__(action):
+                        reporter.postConfig()
             if statsd:
                 try:
                     for pipeline in self.layout.pipelines.values():
@@ -843,17 +997,18 @@ class Scheduler(threading.Thread):
             finally:
                 self.run_handler_lock.release()
 
-    def maintainTriggerCache(self):
+    def maintainConnectionCache(self):
         relevant = set()
         for pipeline in self.layout.pipelines.values():
-            self.log.debug("Start maintain trigger cache for: %s" % pipeline)
+            self.log.debug("Gather relevant cache items for: %s" % pipeline)
             for item in pipeline.getAllItems():
                 relevant.add(item.change)
                 relevant.update(item.change.getRelatedChanges())
-            self.log.debug("End maintain trigger cache for: %s" % pipeline)
-        self.log.debug("Trigger cache size: %s" % len(relevant))
-        for trigger in self.triggers.values():
-            trigger.maintainCache(relevant)
+        for connection in self.connections.values():
+            connection.maintainCache(relevant)
+            self.log.debug(
+                "End maintain connection cache for: %s" % connection)
+        self.log.debug("Connection cache size: %s" % len(relevant))
 
     def process_event_queue(self):
         self.log.debug("Fetching trigger event")
@@ -861,12 +1016,22 @@ class Scheduler(threading.Thread):
         self.log.debug("Processing trigger event %s" % event)
         try:
             project = self.layout.projects.get(event.project_name)
-            if not project:
-                self.log.debug("Project %s not found" % event.project_name)
-                return
 
             for pipeline in self.layout.pipelines.values():
-                change = pipeline.source.getChange(event, project)
+                # Get the change even if the project is unknown to us for the
+                # use of updating the cache if there is another change
+                # depending on this foreign one.
+                try:
+                    change = pipeline.source.getChange(event, project)
+                except exceptions.ChangeNotFound as e:
+                    self.log.debug("Unable to get change %s from source %s. "
+                                   "(most likely looking for a change from "
+                                   "another connection trigger)",
+                                   e.change, pipeline.source)
+                    continue
+                if not project or project.foreign:
+                    self.log.debug("Project %s not found" % event.project_name)
+                    continue
                 if event.type == 'patchset-created':
                     pipeline.manager.removeOldVersionsOfChange(change)
                 elif event.type == 'change-abandoned':
@@ -892,8 +1057,8 @@ class Scheduler(threading.Thread):
             else:
                 self.log.error("Unable to handle event %s" % event)
             event.done()
-        except Exception as e:
-            event.exception(e, sys.exc_info()[2])
+        except Exception:
+            event.exception(sys.exc_info())
         self.management_event_queue.task_done()
 
     def process_result_queue(self):
@@ -923,6 +1088,11 @@ class Scheduler(threading.Thread):
             self.log.warning("Build %s is not associated with a pipeline" %
                              (build,))
             return
+        try:
+            build.estimated_time = float(self.time_database.getEstimatedTime(
+                build.job.name))
+        except Exception:
+            self.log.exception("Exception estimating build time:")
         pipeline.manager.onBuildStarted(event.build)
 
     def _doBuildCompletedEvent(self, event):
@@ -936,6 +1106,13 @@ class Scheduler(threading.Thread):
             self.log.warning("Build %s is not associated with a pipeline" %
                              (build,))
             return
+        if build.end_time and build.start_time and build.result:
+            duration = build.end_time - build.start_time
+            try:
+                self.time_database.update(
+                    build.job.name, duration, build.result)
+            except Exception:
+                self.log.exception("Exception recording build time:")
         pipeline.manager.onBuildCompleted(event.build)
 
     def _doMergeCompletedEvent(self, event):
@@ -951,6 +1128,11 @@ class Scheduler(threading.Thread):
         pipeline.manager.onMergeCompleted(event)
 
     def formatStatusJSON(self):
+        if self.config.has_option('zuul', 'url_pattern'):
+            url_pattern = self.config.get('zuul', 'url_pattern')
+        else:
+            url_pattern = None
+
         data = {}
 
         data['zuul_version'] = self.zuul_version
@@ -976,7 +1158,7 @@ class Scheduler(threading.Thread):
         pipelines = []
         data['pipelines'] = pipelines
         for pipeline in self.layout.pipelines.values():
-            pipelines.append(pipeline.formatStatusJSON())
+            pipelines.append(pipeline.formatStatusJSON(url_pattern))
         return json.dumps(data)
 
 
@@ -988,12 +1170,6 @@ class BasePipelineManager(object):
         self.pipeline = pipeline
         self.event_filters = []
         self.changeish_filters = []
-        if self.sched.config and self.sched.config.has_option(
-            'zuul', 'report_times'):
-            self.report_times = self.sched.config.getboolean(
-                'zuul', 'report_times')
-        else:
-            self.report_times = True
 
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.pipeline.name)
@@ -1021,14 +1197,16 @@ class BasePipelineManager(object):
                     efilters += str(tree.job.skip_if_matcher)
                 if efilters:
                     efilters = ' ' + efilters
-                hold = ''
+                tags = []
                 if tree.job.hold_following_changes:
-                    hold = ' [hold]'
-                voting = ''
+                    tags.append('[hold]')
                 if not tree.job.voting:
-                    voting = ' [nonvoting]'
-                self.log.info("%s%s%s%s%s" % (istr, repr(tree.job),
-                                              efilters, hold, voting))
+                    tags.append('[nonvoting]')
+                if tree.job.mutex:
+                    tags.append('[mutex: %s]' % tree.job.mutex)
+                tags = ' '.join(tags)
+                self.log.info("%s%s%s %s" % (istr, repr(tree.job),
+                                             efilters, tags))
             for x in tree.job_trees:
                 log_jobs(x, indent + 2)
 
@@ -1045,6 +1223,8 @@ class BasePipelineManager(object):
         self.log.info("    %s" % self.pipeline.failure_actions)
         self.log.info("  On merge-failure:")
         self.log.info("    %s" % self.pipeline.merge_failure_actions)
+        self.log.info("  When disabled:")
+        self.log.info("    %s" % self.pipeline.disabled_actions)
 
     def getSubmitAllowNeeds(self):
         # Get a list of code review labels that are allowed to be
@@ -1085,31 +1265,30 @@ class BasePipelineManager(object):
                 return True
         return False
 
-    def reportStart(self, change):
-        try:
-            self.log.info("Reporting start, action %s change %s" %
-                          (self.pipeline.start_actions, change))
-            msg = "Starting %s jobs." % self.pipeline.name
-            if self.sched.config.has_option('zuul', 'status_url'):
-                msg += "\n" + self.sched.config.get('zuul', 'status_url')
-            ret = self.sendReport(self.pipeline.start_actions,
-                                  change, msg)
-            if ret:
-                self.log.error("Reporting change start %s received: %s" %
-                               (change, ret))
-        except:
-            self.log.exception("Exception while reporting start:")
+    def reportStart(self, item):
+        if not self.pipeline._disabled:
+            try:
+                self.log.info("Reporting start, action %s item %s" %
+                              (self.pipeline.start_actions, item))
+                ret = self.sendReport(self.pipeline.start_actions,
+                                      self.pipeline.source, item)
+                if ret:
+                    self.log.error("Reporting item start %s received: %s" %
+                                   (item, ret))
+            except:
+                self.log.exception("Exception while reporting start:")
 
-    def sendReport(self, action_reporters, change, message):
+    def sendReport(self, action_reporters, source, item,
+                   message=None):
         """Sends the built message off to configured reporters.
 
-        Takes the action_reporters, change, message and extra options and
+        Takes the action_reporters, item, message and extra options and
         sends them to the pluggable reporters.
         """
         report_errors = []
         if len(action_reporters) > 0:
-            for action_reporter in action_reporters:
-                ret = action_reporter.report(change, message)
+            for reporter in action_reporters:
+                ret = reporter.report(source, self.pipeline, item)
                 if ret:
                     report_errors.append(ret)
             if len(report_errors) == 0:
@@ -1245,18 +1424,18 @@ class BasePipelineManager(object):
 
             self.log.debug("Adding change %s to queue %s" %
                            (change, change_queue))
-            if not quiet:
-                if len(self.pipeline.start_actions) > 0:
-                    self.reportStart(change)
             item = change_queue.enqueueChange(change)
             if enqueue_time:
                 item.enqueue_time = enqueue_time
             item.live = live
             self.reportStats(item)
+            if not quiet:
+                if len(self.pipeline.start_actions) > 0:
+                    self.reportStart(item)
             self.enqueueChangesBehind(change, quiet, ignore_requirements,
                                       change_queue)
-            self.sched.triggers['zuul'].onChangeEnqueued(item.change,
-                                                         self.pipeline)
+            for trigger in self.sched.triggers.values():
+                trigger.onChangeEnqueued(item.change, self.pipeline)
             return True
 
     def dequeueItem(self, item):
@@ -1285,9 +1464,11 @@ class BasePipelineManager(object):
         elif hasattr(item.change, 'newrev'):
             oldrev = item.change.oldrev
             newrev = item.change.newrev
+        connection_name = self.pipeline.source.connection.connection_name
         return dict(project=item.change.project.name,
                     url=self.pipeline.source.getGitUrl(
                         item.change.project),
+                    connection_name=connection_name,
                     merge_mode=item.change.project.merge_mode,
                     refspec=item.change.refspec,
                     branch=item.change.branch,
@@ -1305,7 +1486,6 @@ class BasePipelineManager(object):
             return True
         if build_set.merge_state == build_set.PENDING:
             return False
-        build_set.merge_state = build_set.PENDING
         ref = build_set.ref
         if hasattr(item.change, 'refspec') and not ref:
             self.log.debug("Preparing ref for: %s" % item.change)
@@ -1323,6 +1503,8 @@ class BasePipelineManager(object):
             self.sched.merger.updateRepo(item.change.project.name,
                                          url, build_set,
                                          self.pipeline.precedence)
+        # merge:merge has been emitted properly:
+        build_set.merge_state = build_set.PENDING
         return False
 
     def _launchJobs(self, item, jobs):
@@ -1342,7 +1524,7 @@ class BasePipelineManager(object):
                                    "for change %s:" % (job, item.change))
 
     def launchJobs(self, item):
-        jobs = self.pipeline.findJobsToRun(item)
+        jobs = self.pipeline.findJobsToRun(item, self.sched.mutex)
         if jobs:
             self._launchJobs(item, jobs)
 
@@ -1386,7 +1568,7 @@ class BasePipelineManager(object):
             if item.live:
                 try:
                     self.reportItem(item)
-                except MergeFailure:
+                except exceptions.MergeFailure:
                     pass
             return (True, nnfi)
         dep_items = self.getFailingDependentItems(item)
@@ -1427,7 +1609,7 @@ class BasePipelineManager(object):
             and item.live):
             try:
                 self.reportItem(item)
-            except MergeFailure:
+            except exceptions.MergeFailure:
                 failing_reasons.append("it did not merge")
                 for item_behind in item.items_behind:
                     self.log.info("Resetting builds for change %s because the "
@@ -1471,13 +1653,23 @@ class BasePipelineManager(object):
 
     def updateBuildDescriptions(self, build_set):
         for build in build_set.getBuilds():
-            desc = self.formatDescription(build)
-            self.sched.launcher.setBuildDescription(build, desc)
+            try:
+                desc = self.formatDescription(build)
+                self.sched.launcher.setBuildDescription(build, desc)
+            except:
+                # Log the failure and let loop continue
+                self.log.error("Failed to update description for build %s" %
+                               (build))
 
         if build_set.previous_build_set:
             for build in build_set.previous_build_set.getBuilds():
-                desc = self.formatDescription(build)
-                self.sched.launcher.setBuildDescription(build, desc)
+                try:
+                    desc = self.formatDescription(build)
+                    self.sched.launcher.setBuildDescription(build, desc)
+                except:
+                    # Log the failure and let loop continue
+                    self.log.error("Failed to update description for "
+                                   "build %s in previous build set" % (build))
 
     def onBuildStarted(self, build):
         self.log.debug("Build %s started" % build)
@@ -1488,6 +1680,7 @@ class BasePipelineManager(object):
         item = build.build_set.item
 
         self.pipeline.setResult(item, build)
+        self.sched.mutex.release(item, build.job)
         self.log.debug("Item %s status is now:\n %s" %
                        (item, item.formatStatus()))
         return True
@@ -1500,8 +1693,9 @@ class BasePipelineManager(object):
         if event.merged:
             build_set.commit = event.commit
         elif event.updated:
-            build_set.commit = item.change.newrev
-        if not build_set.commit:
+            if not isinstance(item.change, NullChange):
+                build_set.commit = item.change.newrev
+        if not build_set.commit and not isinstance(item.change, NullChange):
             self.log.info("Unable to merge change %s" % item.change)
             self.pipeline.setUnableToMerge(item)
 
@@ -1524,12 +1718,15 @@ class BasePipelineManager(object):
                 change_queue.decreaseWindowSize()
                 self.log.debug("%s window size decreased to %s" %
                                (change_queue, change_queue.window))
-                raise MergeFailure("Change %s failed to merge" % item.change)
+                raise exceptions.MergeFailure(
+                    "Change %s failed to merge" % item.change)
             else:
                 change_queue.increaseWindowSize()
                 self.log.debug("%s window size increased to %s" %
                                (change_queue, change_queue.window))
-                self.sched.triggers['zuul'].onChangeMerged(item.change)
+
+                for trigger in self.sched.triggers.values():
+                    trigger.onChangeMerged(item.change, self.pipeline.source)
 
     def _reportItem(self, item):
         self.log.debug("Reporting change %s" % item.change)
@@ -1544,99 +1741,34 @@ class BasePipelineManager(object):
             self.log.debug("success %s" % (self.pipeline.success_actions))
             actions = self.pipeline.success_actions
             item.setReportedResult('SUCCESS')
+            self.pipeline._consecutive_failures = 0
         elif not self.pipeline.didMergerSucceed(item):
             actions = self.pipeline.merge_failure_actions
             item.setReportedResult('MERGER_FAILURE')
         else:
             actions = self.pipeline.failure_actions
             item.setReportedResult('FAILURE')
+            self.pipeline._consecutive_failures += 1
+        if self.pipeline._disabled:
+            actions = self.pipeline.disabled_actions
+        # Check here if we should disable so that we only use the disabled
+        # reporters /after/ the last disable_at failure is still reported as
+        # normal.
+        if (self.pipeline.disable_at and not self.pipeline._disabled and
+            self.pipeline._consecutive_failures >= self.pipeline.disable_at):
+            self.pipeline._disabled = True
         if actions:
-            report = self.formatReport(item)
             try:
-                self.log.info("Reporting change %s, actions: %s" %
-                              (item.change, actions))
-                ret = self.sendReport(actions, item.change, report)
+                self.log.info("Reporting item %s, actions: %s" %
+                              (item, actions))
+                ret = self.sendReport(actions, self.pipeline.source, item)
                 if ret:
-                    self.log.error("Reporting change %s received: %s" %
-                                   (item.change, ret))
+                    self.log.error("Reporting item %s received: %s" %
+                                   (item, ret))
             except:
                 self.log.exception("Exception while reporting:")
                 item.setReportedResult('ERROR')
         self.updateBuildDescriptions(item.current_build_set)
-        return ret
-
-    def formatReport(self, item):
-        ret = ''
-
-        if item.dequeued_needing_change:
-            ret += 'This change depends on a change that failed to merge.\n'
-        elif not self.pipeline.didMergerSucceed(item):
-            ret += self.pipeline.merge_failure_message
-        else:
-            if self.pipeline.didAllJobsSucceed(item):
-                ret += self.pipeline.success_message + '\n\n'
-            else:
-                ret += self.pipeline.failure_message + '\n\n'
-            ret += self._formatReportJobs(item)
-
-        if self.pipeline.footer_message:
-            ret += '\n' + self.pipeline.footer_message
-
-        return ret
-
-    def _formatReportJobs(self, item):
-        # Return the list of jobs portion of the report
-        ret = ''
-
-        if self.sched.config.has_option('zuul', 'url_pattern'):
-            url_pattern = self.sched.config.get('zuul', 'url_pattern')
-        else:
-            url_pattern = None
-
-        for job in self.pipeline.getJobs(item):
-            build = item.current_build_set.getBuild(job.name)
-            result = build.result
-            pattern = url_pattern
-            if result == 'SUCCESS':
-                if job.success_message:
-                    result = job.success_message
-                if job.success_pattern:
-                    pattern = job.success_pattern
-            elif result == 'FAILURE':
-                if job.failure_message:
-                    result = job.failure_message
-                if job.failure_pattern:
-                    pattern = job.failure_pattern
-            if pattern:
-                url = pattern.format(change=item.change,
-                                     pipeline=self.pipeline,
-                                     job=job,
-                                     build=build)
-            else:
-                url = build.url or job.name
-            if not job.voting:
-                voting = ' (non-voting)'
-            else:
-                voting = ''
-            if self.report_times and build.end_time and build.start_time:
-                dt = int(build.end_time - build.start_time)
-                m, s = divmod(dt, 60)
-                h, m = divmod(m, 60)
-                if h:
-                    elapsed = ' in %dh %02dm %02ds' % (h, m, s)
-                elif m:
-                    elapsed = ' in %dm %02ds' % (m, s)
-                else:
-                    elapsed = ' in %ds' % (s)
-            else:
-                elapsed = ''
-            name = ''
-            if self.sched.config.has_option('zuul', 'job_name_in_report'):
-                if self.sched.config.getboolean('zuul',
-                                                'job_name_in_report'):
-                    name = job.name + ' '
-            ret += '- %s%s : %s%s%s\n' % (name, url, result, elapsed,
-                                          voting)
         return ret
 
     def formatDescription(self, build):
@@ -1797,10 +1929,11 @@ class IndependentPipelineManager(BasePipelineManager):
         if existing:
             return DynamicChangeQueueContextManager(existing)
         if change.project not in self.pipeline.getProjects():
-            return DynamicChangeQueueContextManager(None)
+            self.pipeline.addProject(change.project)
         change_queue = ChangeQueue(self.pipeline)
         change_queue.addProject(change.project)
         self.pipeline.addQueue(change_queue)
+        self.log.debug("Dynamically created queue %s", change_queue)
         return DynamicChangeQueueContextManager(change_queue)
 
     def enqueueChangesAhead(self, change, quiet, ignore_requirements,
