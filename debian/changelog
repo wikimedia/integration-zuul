@@ -1,3 +1,11 @@
+zuul (2.1.0-391-gbc58ea3-wmf2precise1) precise-wikimedia; urgency=medium
+
+  * reduce Gerrit replication delay from 300 to 15 secs
+    Monkey patching to prevent Zuul from being deadlocked for 300 seconds
+    whenever a patch is merged. T93812
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 29 Jul 2016 10:59:24 +0200
+
 zuul (2.1.0-391-gbc58ea3-wmf1precise1) precise-wikimedia; urgency=medium
 
   * New upstream release
