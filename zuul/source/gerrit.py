@@ -37,7 +37,7 @@ def detect_cycle(change, history=None):
 class GerritSource(BaseSource):
     name = 'gerrit'
     log = logging.getLogger("zuul.source.Gerrit")
-    replication_timeout = 300
+    replication_timeout = 15
     replication_retry_interval = 5
 
     depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$",
