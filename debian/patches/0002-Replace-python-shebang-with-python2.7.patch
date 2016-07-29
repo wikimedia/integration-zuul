@@ -36,7 +36,7 @@ index 70c2b3f..4ec20a6 100644
  #
  # Licensed under the Apache License, Version 2.0 (the "License");
 diff --git a/tests/base.py b/tests/base.py
-index 5ddb160..8bb0f01 100755
+index 38d2817..6d4f017 100755
 --- a/tests/base.py
 +++ b/tests/base.py
 @@ -1,4 +1,4 @@
@@ -46,7 +46,7 @@ index 5ddb160..8bb0f01 100755
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tests/test_cloner.py b/tests/test_cloner.py
-index 137c157..1ce4a0a 100644
+index e3576bd..064a61c 100644
 --- a/tests/test_cloner.py
 +++ b/tests/test_cloner.py
 @@ -1,4 +1,4 @@
@@ -56,7 +56,7 @@ index 137c157..1ce4a0a 100644
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  # Copyright 2014 Wikimedia Foundation Inc.
 diff --git a/tests/test_layoutvalidator.py b/tests/test_layoutvalidator.py
-index 5a8fc46..60824d3 100644
+index 46a8c7c..101e0d0 100644
 --- a/tests/test_layoutvalidator.py
 +++ b/tests/test_layoutvalidator.py
 @@ -1,4 +1,4 @@
@@ -76,7 +76,7 @@ index 454f3cc..55d16a0 100644
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  # Copyright 2014 Wikimedia Foundation Inc.
 diff --git a/tests/test_requirements.py b/tests/test_requirements.py
-index 4316925..85751ce 100644
+index 3ae56ad..202010c 100644
 --- a/tests/test_requirements.py
 +++ b/tests/test_requirements.py
 @@ -1,4 +1,4 @@
@@ -86,7 +86,7 @@ index 4316925..85751ce 100644
  # Copyright 2012-2014 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
-index 0c34684..3b755b7 100755
+index 628775d..ac70091 100755
 --- a/tests/test_scheduler.py
 +++ b/tests/test_scheduler.py
 @@ -1,4 +1,4 @@
@@ -96,7 +96,7 @@ index 0c34684..3b755b7 100755
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tests/test_webapp.py b/tests/test_webapp.py
-index b127c51..8a88261 100644
+index 94f097a..93d88a8 100644
 --- a/tests/test_webapp.py
 +++ b/tests/test_webapp.py
 @@ -1,4 +1,4 @@
@@ -116,7 +116,7 @@ index 0d52fc9..49b79ad 100644
  # Copyright 2014 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tools/trigger-job.py b/tools/trigger-job.py
-index dff4e3f..4651d7d 100755
+index 7123afc..0c307ca 100755
 --- a/tools/trigger-job.py
 +++ b/tools/trigger-job.py
 @@ -1,4 +1,4 @@
@@ -126,7 +126,7 @@ index dff4e3f..4651d7d 100755
  #
  # Licensed under the Apache License, Version 2.0 (the "License"); you may
 diff --git a/tools/zuul-changes.py b/tools/zuul-changes.py
-index 9dbf504..d825ef1 100755
+index 8b854c7..e156268 100755
 --- a/tools/zuul-changes.py
 +++ b/tools/zuul-changes.py
 @@ -1,4 +1,4 @@
@@ -136,7 +136,7 @@ index 9dbf504..d825ef1 100755
  # Copyright 2015 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/zuul/cmd/__init__.py b/zuul/cmd/__init__.py
-index d754815..a0bf1ad 100644
+index 5ffd431..120c62c 100644
 --- a/zuul/cmd/__init__.py
 +++ b/zuul/cmd/__init__.py
 @@ -1,4 +1,4 @@
@@ -146,7 +146,7 @@ index d754815..a0bf1ad 100644
  # Copyright 2013 OpenStack Foundation
  #
 diff --git a/zuul/cmd/client.py b/zuul/cmd/client.py
-index 6e14ff5..0948147 100644
+index 1ce2828..61183da 100644
 --- a/zuul/cmd/client.py
 +++ b/zuul/cmd/client.py
 @@ -1,4 +1,4 @@
@@ -156,7 +156,7 @@ index 6e14ff5..0948147 100644
  # Copyright 2013 OpenStack Foundation
  #
 diff --git a/zuul/cmd/cloner.py b/zuul/cmd/cloner.py
-index e4a0e7b..09bda3e 100755
+index 4f8b9f4..dbbe396 100755
 --- a/zuul/cmd/cloner.py
 +++ b/zuul/cmd/cloner.py
 @@ -1,4 +1,4 @@
@@ -166,7 +166,7 @@ index e4a0e7b..09bda3e 100755
  # Copyright 2014 Antoine "hashar" Musso
  # Copyright 2014 Wikimedia Foundation Inc.
 diff --git a/zuul/cmd/merger.py b/zuul/cmd/merger.py
-index dc3484a..6007368 100644
+index 797a990..2807f9e 100644
 --- a/zuul/cmd/merger.py
 +++ b/zuul/cmd/merger.py
 @@ -1,4 +1,4 @@
@@ -176,7 +176,7 @@ index dc3484a..6007368 100644
  # Copyright 2013-2014 OpenStack Foundation
  #
 diff --git a/zuul/cmd/server.py b/zuul/cmd/server.py
-index 2d99a1f..a201aba 100755
+index 0b7538d..59834ad 100755
 --- a/zuul/cmd/server.py
 +++ b/zuul/cmd/server.py
 @@ -1,4 +1,4 @@
