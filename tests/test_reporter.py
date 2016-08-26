@@ -15,7 +15,12 @@
 import logging
 import testtools
 
+import zuul.connection.gerrit
+import zuul.connection.smtp
+
 import zuul.reporter
+import zuul.reporter.gerrit
+import zuul.reporter.smtp
 
 
 class TestSMTPReporter(testtools.TestCase):
@@ -31,6 +36,12 @@ class TestSMTPReporter(testtools.TestCase):
     def test_reporter_name(self):
         self.assertEqual('smtp', zuul.reporter.smtp.SMTPReporter.name)
 
+    def test_repr(self):
+        smtp = zuul.connection.smtp.SMTPConnection('smtp.example.org', {})
+        self.assertEqual(
+            '<SMTPReporter connection: smtp://smtp.example.org>',
+            repr(zuul.reporter.smtp.SMTPReporter(connection=smtp)))
+
 
 class TestGerritReporter(testtools.TestCase):
     log = logging.getLogger("zuul.test_reporter")
@@ -44,3 +55,11 @@ class TestGerritReporter(testtools.TestCase):
 
     def test_reporter_name(self):
         self.assertEqual('gerrit', zuul.reporter.gerrit.GerritReporter.name)
+
+    def test_repr(self):
+        gerrit = zuul.connection.gerrit.GerritConnection(
+            'review.example.org',
+            {'server': 'review.example.org', 'user': 'zuul'})
+        self.assertEqual(
+            '<GerritReporter connection: gerrit://review.example.org>',
+            repr(zuul.reporter.gerrit.GerritReporter(connection=gerrit)))

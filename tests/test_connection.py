@@ -32,6 +32,22 @@ class TestConnections(ZuulTestCase):
     def setup_config(self, config_file='zuul-connections-same-gerrit.conf'):
         super(TestConnections, self).setup_config(config_file)
 
+    def test_repr(self):
+        self.assertEquals('<FakeGerritConnection name: review_gerrit>',
+                          repr(self.connections['review_gerrit']))
+        self.assertEquals('<FakeGerritConnection name: alt_voting_gerrit>',
+                          repr(self.connections['alt_voting_gerrit']))
+        self.assertEquals('<SMTPConnection name: outgoing_smtp>',
+                          repr(self.connections['outgoing_smtp']))
+
+    def test_str(self):
+        self.assertEquals('gerrit://review_gerrit',
+                          str(self.connections['review_gerrit']))
+        self.assertEquals('gerrit://alt_voting_gerrit',
+                          str(self.connections['alt_voting_gerrit']))
+        self.assertEquals('smtp://outgoing_smtp',
+                          str(self.connections['outgoing_smtp']))
+
     def test_multiple_connections(self):
         "Test multiple connections to the one gerrit"
 
