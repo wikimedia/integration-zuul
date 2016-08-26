@@ -15,7 +15,19 @@
 import logging
 import testtools
 
+import zuul.connection.gerrit
+import zuul.connection.smtp
+
 import zuul.trigger
+import zuul.trigger.gerrit
+import zuul.trigger.timer
+import zuul.trigger.zuultrigger
+
+
+def gerrit_conn():
+    return zuul.connection.gerrit.GerritConnection(
+        'review.example.org',
+        {'server': 'review.example.org', 'user': 'zuul'})
 
 
 class TestGerritTrigger(testtools.TestCase):
@@ -28,6 +40,11 @@ class TestGerritTrigger(testtools.TestCase):
     def test_trigger_name(self):
         self.assertEqual('gerrit', zuul.trigger.gerrit.GerritTrigger.name)
 
+    def test_repr(self):
+        self.assertEqual(
+            '<GerritTrigger connection: gerrit://review.example.org>',
+            repr(zuul.trigger.gerrit.GerritTrigger(connection=gerrit_conn())))
+
 
 class TestTimerTrigger(testtools.TestCase):
     log = logging.getLogger("zuul.test_trigger")
@@ -39,6 +56,11 @@ class TestTimerTrigger(testtools.TestCase):
     def test_trigger_name(self):
         self.assertEqual('timer', zuul.trigger.timer.TimerTrigger.name)
 
+    def test_repr(self):
+        self.assertEqual(
+            '<TimerTrigger connection: gerrit://review.example.org>',
+            repr(zuul.trigger.timer.TimerTrigger(connection=gerrit_conn())))
+
 
 class TestZuulTrigger(testtools.TestCase):
     log = logging.getLogger("zuul.test_trigger")
@@ -49,3 +71,8 @@ class TestZuulTrigger(testtools.TestCase):
 
     def test_trigger_name(self):
         self.assertEqual('zuul', zuul.trigger.zuultrigger.ZuulTrigger.name)
+
+    def test_repr(self):
+        self.assertEqual(
+            '<ZuulTrigger connection: None>',
+            repr(zuul.trigger.zuultrigger.ZuulTrigger({})))
