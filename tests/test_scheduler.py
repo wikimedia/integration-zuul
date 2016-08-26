@@ -2330,6 +2330,12 @@ jobs:
         self.sched.reconfigure(self.config)
         self.assertEqual(len(self.sched.layout.pipelines['gate'].queues), 1)
 
+    def test_noop_job_does_not_merge_queues(self):
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-noop-queues.yaml')
+        self.sched.reconfigure(self.config)
+        self.assertEqual(len(self.sched.layout.pipelines['gate'].queues), 2)
+
     def test_mutex(self):
         "Test job mutexes"
         self.config.set('zuul', 'layout_config',

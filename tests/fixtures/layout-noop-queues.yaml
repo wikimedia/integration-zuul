@@ -1,0 +1,20 @@
+pipelines:
+  - name: gate
+    manager: DependentPipelineManager
+    precedence: low
+    trigger:
+      gerrit:
+        - event: comment-added
+          approval:
+            - approved: 1
+
+projects:
+  - name: projectA
+    gate:
+      - test-only-a
+      - noop
+
+  - name: projectB
+    gate:
+      - test-only-b
+      - noop
