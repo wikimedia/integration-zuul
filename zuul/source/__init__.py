@@ -32,6 +32,12 @@ class BaseSource(object):
         self.sched = sched
         self.connection = connection
 
+    def __repr__(self):
+        return "<%s connection: %s>" % (
+            self.__class__.__name__,
+            self.connection
+        )
+
     def stop(self):
         """Stop the source."""
 

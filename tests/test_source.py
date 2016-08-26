@@ -15,7 +15,10 @@
 import logging
 import testtools
 
+import zuul.connection.gerrit
+
 import zuul.source
+import zuul.source.gerrit
 
 
 class TestGerritSource(testtools.TestCase):
@@ -23,3 +26,11 @@ class TestGerritSource(testtools.TestCase):
 
     def test_source_name(self):
         self.assertEqual('gerrit', zuul.source.gerrit.GerritSource.name)
+
+    def test_repr(self):
+        gerrit = zuul.connection.gerrit.GerritConnection(
+            'review.example.org',
+            {'server': 'review.example.org', 'user': 'zuul'})
+        self.assertEqual(
+            '<GerritSource connection: gerrit://review.example.org>',
+            repr(zuul.source.gerrit.GerritSource(connection=gerrit)))
