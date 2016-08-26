@@ -33,6 +33,12 @@ class BaseReporter(object):
         self.connection = connection
         self._action = None
 
+    def __repr__(self):
+        return "<%s connection: %s>" % (
+            self.__class__.__name__,
+            self.connection
+        )
+
     def setAction(self, action):
         self._action = action
 
