@@ -1,3 +1,14 @@
+zuul (2.5.0-8-gcbc7f62-wmf1precise1) precise-wikimedia; urgency=medium
+
+  * New upstream version 2.5.0 + tip of upstream branch. Notably get the
+    commit: a8b90b3 - Always create foreign projects if needed
+    Should definitely fix T128569
+  * [debian/gbp.conf] rename section to avoid a warning:
+      gbp:warning: Old style config section [git-buildpackage] found please
+      rename to [buildpackage]
+
+ -- Antoine Musso <hashar@free.fr>  Sat, 27 Aug 2016 14:15:42 +0200
+
 zuul (2.1.0-391-gbc58ea3-wmf2precise1) precise-wikimedia; urgency=medium
 
   * reduce Gerrit replication delay from 300 to 15 secs
