@@ -13,7 +13,9 @@
 # under the License.
 
 import copy
+import os
 import re
+import struct
 import time
 from uuid import uuid4
 import extras
@@ -21,6 +23,8 @@ import extras
 OrderedDict = extras.try_imports(['collections.OrderedDict',
                                   'ordereddict.OrderedDict'])
 
+
+EMPTY_GIT_REF = '0' * 40  # git sha of all zeros, used during creates/deletes
 
 MERGER_MERGE = 1          # "git merge"
 MERGER_MERGE_RESOLVE = 2  # "git merge -s resolve"
@@ -79,9 +83,14 @@ class Pipeline(object):
         self.queues = []
         self.precedence = PRECEDENCE_NORMAL
         self.source = None
-        self.start_actions = None
-        self.success_actions = None
-        self.failure_actions = None
+        self.start_actions = []
+        self.success_actions = []
+        self.failure_actions = []
+        self.merge_failure_actions = []
+        self.disabled_actions = []
+        self.disable_at = None
+        self._consecutive_failures = 0
+        self._disabled = False
         self.window = None
         self.window_floor = None
         self.window_increase_type = None
@@ -101,7 +110,11 @@ class Pipeline(object):
         return job_tree
 
     def getProjects(self):
-        return sorted(self.job_trees.keys(), lambda a, b: cmp(a.name, b.name))
+        # cmp is not in python3, applied idiom from
+        # http://python-future.org/compatible_idioms.html#cmp
+        return sorted(
+            self.job_trees.keys(),
+            key=lambda p: p.name)
 
     def addQueue(self, queue):
         self.queues.append(queue)
@@ -127,7 +140,7 @@ class Pipeline(object):
             return []
         return item.change.filterJobs(tree.getJobs())
 
-    def _findJobsToRun(self, job_trees, item):
+    def _findJobsToRun(self, job_trees, item, mutex):
         torun = []
         if item.item_ahead:
             # Only run jobs if any 'hold' jobs on the change ahead
@@ -146,20 +159,23 @@ class Pipeline(object):
                 else:
                     # There is no build for the root of this job tree,
                     # so we should run it.
-                    torun.append(job)
+                    if mutex.acquire(item, job):
+                        # If this job needs a mutex, either acquire it or make
+                        # sure that we have it before running the job.
+                        torun.append(job)
             # If there is no job, this is a null job tree, and we should
             # run all of its jobs.
             if result == 'SUCCESS' or not job:
-                torun.extend(self._findJobsToRun(tree.job_trees, item))
+                torun.extend(self._findJobsToRun(tree.job_trees, item, mutex))
         return torun
 
-    def findJobsToRun(self, item):
+    def findJobsToRun(self, item, mutex):
         if not item.live:
             return []
         tree = self.getJobTree(item.change.project)
         if not tree:
             return []
-        return self._findJobsToRun(tree.job_trees, item)
+        return self._findJobsToRun(tree.job_trees, item, mutex)
 
     def haveAllJobsStarted(self, item):
         for job in self.getJobs(item):
@@ -256,7 +272,7 @@ class Pipeline(object):
             items.extend(shared_queue.queue)
         return items
 
-    def formatStatusJSON(self):
+    def formatStatusJSON(self, url_pattern=None):
         j_pipeline = dict(name=self.name,
                           description=self.description)
         j_queues = []
@@ -273,7 +289,7 @@ class Pipeline(object):
                     if j_changes:
                         j_queue['heads'].append(j_changes)
                     j_changes = []
-                j_changes.append(e.formatJSON())
+                j_changes.append(e.formatJSON(url_pattern))
                 if (len(j_changes) > 1 and
                         (j_changes[-2]['remaining_time'] is not None) and
                         (j_changes[-1]['remaining_time'] is not None)):
@@ -283,28 +299,6 @@ class Pipeline(object):
             if j_changes:
                 j_queue['heads'].append(j_changes)
         return j_pipeline
-
-
-class ActionReporter(object):
-    """An ActionReporter has a reporter and its configured parameters"""
-
-    def __repr__(self):
-        return '<ActionReporter %s, %s>' % (self.reporter, self.params)
-
-    def __init__(self, reporter, params):
-        self.reporter = reporter
-        self.params = params
-
-    def report(self, change, message):
-        """Sends the built message off to the configured reporter.
-        Takes the change and message and adds the configured parameters.
-        """
-        return self.reporter.report(change, message, self.params)
-
-    def getSubmitAllowNeeds(self):
-        """Gets the submit allow needs from the reporter based off the
-        parameters."""
-        return self.reporter.getSubmitAllowNeeds(self.params)
 
 
 class ChangeQueue(object):
@@ -427,13 +421,17 @@ class ChangeQueue(object):
             elif self.window_decrease_type == 'exponential':
                 self.window = max(
                     self.window_floor,
-                    self.window / self.window_decrease_factor)
+                    int(self.window / self.window_decrease_factor))
 
 
 class Project(object):
-    def __init__(self, name):
+    def __init__(self, name, foreign=False):
         self.name = name
         self.merge_mode = MERGER_MERGE_RESOLVE
+        # foreign projects are those referenced in dependencies
+        # of layout projects, this should matter
+        # when deciding whether to enqueue their changes
+        self.foreign = foreign
 
     def __str__(self):
         return self.name
@@ -452,6 +450,8 @@ class Job(object):
         self.failure_pattern = None
         self.success_pattern = None
         self.parameter_function = None
+        self.tags = set()
+        self.mutex = None
         # A metajob should only supply values for attributes that have
         # been explicitly provided, so avoid setting boolean defaults.
         if self.is_metajob:
@@ -498,6 +498,13 @@ class Job(object):
             self.skip_if_matcher = other.skip_if_matcher.copy()
         if other.swift:
             self.swift.update(other.swift)
+        if other.mutex:
+            self.mutex = other.mutex
+        # Tags are merged via a union rather than a destructive copy
+        # because they are intended to accumulate as metajobs are
+        # applied.
+        if other.tags:
+            self.tags = self.tags.union(other.tags)
         # Only non-None values should be copied for boolean attributes.
         if other.hold_following_changes is not None:
             self.hold_following_changes = other.hold_following_changes
@@ -581,6 +588,8 @@ class Build(object):
         self.retry = False
         self.parameters = {}
         self.worker = Worker()
+        self.node_labels = []
+        self.node_name = None
 
     def __repr__(self):
         return ('<Build %s of %s on %s>' %
@@ -721,7 +730,34 @@ class QueueItem(object):
     def setReportedResult(self, result):
         self.current_build_set.result = result
 
-    def formatJSON(self):
+    def formatJobResult(self, job, url_pattern=None):
+        build = self.current_build_set.getBuild(job.name)
+        result = build.result
+        pattern = url_pattern
+        if result == 'SUCCESS':
+            if job.success_message:
+                result = job.success_message
+            if job.success_pattern:
+                pattern = job.success_pattern
+        elif result == 'FAILURE':
+            if job.failure_message:
+                result = job.failure_message
+            if job.failure_pattern:
+                pattern = job.failure_pattern
+        url = None
+        if pattern:
+            try:
+                url = pattern.format(change=self.change,
+                                     pipeline=self.pipeline,
+                                     job=job,
+                                     build=build)
+            except Exception:
+                pass  # FIXME: log this or something?
+        if not url:
+            url = build.url or job.name
+        return (result, url)
+
+    def formatJSON(self, url_pattern=None):
         changeish = self.change
         ret = {}
         ret['active'] = self.active
@@ -758,11 +794,13 @@ class QueueItem(object):
             elapsed = None
             remaining = None
             result = None
-            url = None
+            build_url = None
+            report_url = None
             worker = None
             if build:
                 result = build.result
-                url = build.url
+                build_url = build.url
+                (unused, report_url) = self.formatJobResult(job, url_pattern)
                 if build.start_time:
                     if build.end_time:
                         elapsed = int((build.end_time -
@@ -790,7 +828,8 @@ class QueueItem(object):
                 'name': job.name,
                 'elapsed_time': elapsed,
                 'remaining_time': remaining,
-                'url': url,
+                'url': build_url,
+                'report_url': report_url,
                 'result': result,
                 'voting': job.voting,
                 'uuid': build.uuid if build else None,
@@ -802,7 +841,9 @@ class QueueItem(object):
                 'canceled': build.canceled if build else None,
                 'retry': build.retry if build else None,
                 'number': build.number if build else None,
-                'worker': worker
+                'node_labels': build.node_labels if build else [],
+                'node_name': build.node_name if build else None,
+                'worker': worker,
             })
 
         if self.pipeline.haveAllJobsStarted(self):
@@ -1028,68 +1069,104 @@ class TriggerEvent(object):
 
 
 class BaseFilter(object):
-    def __init__(self, required_approvals=[]):
+    def __init__(self, required_approvals=[], reject_approvals=[]):
         self._required_approvals = copy.deepcopy(required_approvals)
-        self.required_approvals = required_approvals
+        self.required_approvals = self._tidy_approvals(required_approvals)
+        self._reject_approvals = copy.deepcopy(reject_approvals)
+        self.reject_approvals = self._tidy_approvals(reject_approvals)
 
-        for a in self.required_approvals:
+    def _tidy_approvals(self, approvals):
+        for a in approvals:
             for k, v in a.items():
                 if k == 'username':
-                    pass
+                    a['username'] = re.compile(v)
                 elif k in ['email', 'email-filter']:
                     a['email'] = re.compile(v)
                 elif k == 'newer-than':
                     a[k] = time_to_seconds(v)
                 elif k == 'older-than':
                     a[k] = time_to_seconds(v)
-                else:
-                    if not isinstance(v, list):
-                        a[k] = [v]
             if 'email-filter' in a:
                 del a['email-filter']
+        return approvals
+
+    def _match_approval_required_approval(self, rapproval, approval):
+        # Check if the required approval and approval match
+        if 'description' not in approval:
+            return False
+        now = time.time()
+        by = approval.get('by', {})
+        for k, v in rapproval.items():
+            if k == 'username':
+                if (not v.search(by.get('username', ''))):
+                        return False
+            elif k == 'email':
+                if (not v.search(by.get('email', ''))):
+                        return False
+            elif k == 'newer-than':
+                t = now - v
+                if (approval['grantedOn'] < t):
+                        return False
+            elif k == 'older-than':
+                t = now - v
+                if (approval['grantedOn'] >= t):
+                    return False
+            else:
+                if not isinstance(v, list):
+                    v = [v]
+                if (normalizeCategory(approval['description']) != k or
+                        int(approval['value']) not in v):
+                    return False
+        return True
+
+    def matchesApprovals(self, change):
+        if (self.required_approvals and not change.approvals
+                or self.reject_approvals and not change.approvals):
+            # A change with no approvals can not match
+            return False
+
+        # TODO(jhesketh): If we wanted to optimise this slightly we could
+        # analyse both the REQUIRE and REJECT filters by looping over the
+        # approvals on the change and keeping track of what we have checked
+        # rather than needing to loop on the change approvals twice
+        return (self.matchesRequiredApprovals(change) and
+                self.matchesNoRejectApprovals(change))
 
     def matchesRequiredApprovals(self, change):
-        now = time.time()
+        # Check if any approvals match the requirements
         for rapproval in self.required_approvals:
-            matches_approval = False
+            matches_rapproval = False
             for approval in change.approvals:
-                if 'description' not in approval:
-                    continue
-                found_approval = True
-                by = approval.get('by', {})
-                for k, v in rapproval.items():
-                    if k == 'username':
-                        if (by.get('username', '') != v):
-                            found_approval = False
-                    elif k == 'email':
-                        if (not v.search(by.get('email', ''))):
-                            found_approval = False
-                    elif k == 'newer-than':
-                        t = now - v
-                        if (approval['grantedOn'] < t):
-                            found_approval = False
-                    elif k == 'older-than':
-                        t = now - v
-                        if (approval['grantedOn'] >= t):
-                            found_approval = False
-                    else:
-                        if (normalizeCategory(approval['description']) != k or
-                            int(approval['value']) not in v):
-                            found_approval = False
-                if found_approval:
-                    matches_approval = True
+                if self._match_approval_required_approval(rapproval, approval):
+                    # We have a matching approval so this requirement is
+                    # fulfilled
+                    matches_rapproval = True
                     break
-            if not matches_approval:
+            if not matches_rapproval:
                 return False
+        return True
+
+    def matchesNoRejectApprovals(self, change):
+        # Check to make sure no approvals match a reject criteria
+        for rapproval in self.reject_approvals:
+            for approval in change.approvals:
+                if self._match_approval_required_approval(rapproval, approval):
+                    # A reject approval has been matched, so we reject
+                    # immediately
+                    return False
+        # To get here no rejects can have been matched so we should be good to
+        # queue
         return True
 
 
 class EventFilter(BaseFilter):
     def __init__(self, trigger, types=[], branches=[], refs=[],
                  event_approvals={}, comments=[], emails=[], usernames=[],
-                 timespecs=[], required_approvals=[], pipelines=[]):
+                 timespecs=[], required_approvals=[], reject_approvals=[],
+                 pipelines=[], ignore_deletes=True):
         super(EventFilter, self).__init__(
-            required_approvals=required_approvals)
+            required_approvals=required_approvals,
+            reject_approvals=reject_approvals)
         self.trigger = trigger
         self._types = types
         self._branches = branches
@@ -1107,6 +1184,7 @@ class EventFilter(BaseFilter):
         self.pipelines = [re.compile(x) for x in pipelines]
         self.event_approvals = event_approvals
         self.timespecs = timespecs
+        self.ignore_deletes = ignore_deletes
 
     def __repr__(self):
         ret = '<EventFilter'
@@ -1119,12 +1197,17 @@ class EventFilter(BaseFilter):
             ret += ' branches: %s' % ', '.join(self._branches)
         if self._refs:
             ret += ' refs: %s' % ', '.join(self._refs)
+        if self.ignore_deletes:
+            ret += ' ignore_deletes: %s' % self.ignore_deletes
         if self.event_approvals:
             ret += ' event_approvals: %s' % ', '.join(
                 ['%s:%s' % a for a in self.event_approvals.items()])
         if self.required_approvals:
             ret += ' required_approvals: %s' % ', '.join(
                 ['%s' % a for a in self._required_approvals])
+        if self.reject_approvals:
+            ret += ' reject_approvals: %s' % ', '.join(
+                ['%s' % a for a in self._reject_approvals])
         if self._comments:
             ret += ' comments: %s' % ', '.join(self._comments)
         if self._emails:
@@ -1170,6 +1253,10 @@ class EventFilter(BaseFilter):
                     matches_ref = True
         if self.refs and not matches_ref:
             return False
+        if self.ignore_deletes and event.newrev == EMPTY_GIT_REF:
+            # If the updated ref has an empty git sha (all 0s),
+            # then the ref is being deleted
+            return False
 
         # comments are ORed
         matches_comment_re = False
@@ -1213,12 +1300,8 @@ class EventFilter(BaseFilter):
             if not matches_approval:
                 return False
 
-        if self.required_approvals and not change.approvals:
-            # A change with no approvals can not match
-            return False
-
-        # required approvals are ANDed
-        if not self.matchesRequiredApprovals(change):
+        # required approvals are ANDed (reject approvals are ORed)
+        if not self.matchesApprovals(change):
             return False
 
         # timespecs are ORed
@@ -1234,9 +1317,11 @@ class EventFilter(BaseFilter):
 
 class ChangeishFilter(BaseFilter):
     def __init__(self, open=None, current_patchset=None,
-                 statuses=[], required_approvals=[]):
+                 statuses=[], required_approvals=[],
+                 reject_approvals=[]):
         super(ChangeishFilter, self).__init__(
-            required_approvals=required_approvals)
+            required_approvals=required_approvals,
+            reject_approvals=reject_approvals)
         self.open = open
         self.current_patchset = current_patchset
         self.statuses = statuses
@@ -1251,7 +1336,11 @@ class ChangeishFilter(BaseFilter):
         if self.statuses:
             ret += ' statuses: %s' % ', '.join(self.statuses)
         if self.required_approvals:
-            ret += ' required_approvals: %s' % str(self.required_approvals)
+            ret += (' required_approvals: %s' %
+                    str(self.required_approvals))
+        if self.reject_approvals:
+            ret += (' reject_approvals: %s' %
+                    str(self.reject_approvals))
         ret += '>'
 
         return ret
@@ -1269,12 +1358,8 @@ class ChangeishFilter(BaseFilter):
             if change.status not in self.statuses:
                 return False
 
-        if self.required_approvals and not change.approvals:
-            # A change with no approvals can not match
-            return False
-
-        # required approvals are ANDed
-        if not self.matchesRequiredApprovals(change):
+        # required approvals are ANDed (reject approvals are ORed)
+        if not self.matchesApprovals(change):
             return False
 
         return True
@@ -1301,3 +1386,78 @@ class Layout(object):
                     job.copy(metajob)
             self.jobs[name] = job
         return job
+
+
+class JobTimeData(object):
+    format = 'B10H10H10B'
+    version = 0
+
+    def __init__(self, path):
+        self.path = path
+        self.success_times = [0 for x in range(10)]
+        self.failure_times = [0 for x in range(10)]
+        self.results = [0 for x in range(10)]
+
+    def load(self):
+        if not os.path.exists(self.path):
+            return
+        with open(self.path) as f:
+            data = struct.unpack(self.format, f.read())
+        version = data[0]
+        if version != self.version:
+            raise Exception("Unkown data version")
+        self.success_times = list(data[1:11])
+        self.failure_times = list(data[11:21])
+        self.results = list(data[21:32])
+
+    def save(self):
+        tmpfile = self.path + '.tmp'
+        data = [self.version]
+        data.extend(self.success_times)
+        data.extend(self.failure_times)
+        data.extend(self.results)
+        data = struct.pack(self.format, *data)
+        with open(tmpfile, 'w') as f:
+            f.write(data)
+        os.rename(tmpfile, self.path)
+
+    def add(self, elapsed, result):
+        elapsed = int(elapsed)
+        if result == 'SUCCESS':
+            self.success_times.append(elapsed)
+            self.success_times.pop(0)
+            result = 0
+        else:
+            self.failure_times.append(elapsed)
+            self.failure_times.pop(0)
+            result = 1
+        self.results.append(result)
+        self.results.pop(0)
+
+    def getEstimatedTime(self):
+        times = [x for x in self.success_times if x]
+        if times:
+            return float(sum(times)) / len(times)
+        return 0.0
+
+
+class TimeDataBase(object):
+    def __init__(self, root):
+        self.root = root
+        self.jobs = {}
+
+    def _getTD(self, name):
+        td = self.jobs.get(name)
+        if not td:
+            td = JobTimeData(os.path.join(self.root, name))
+            self.jobs[name] = td
+            td.load()
+        return td
+
+    def getEstimatedTime(self, name):
+        return self._getTD(name).getEstimatedTime()
+
+    def update(self, name, elapsed, result):
+        td = self._getTD(name)
+        td.add(elapsed, result)
+        td.save()

@@ -17,6 +17,7 @@ import inspect
 import json
 import logging
 import os
+import six
 import time
 import threading
 from uuid import uuid4
@@ -164,6 +165,11 @@ class Gearman(object):
             port = config.get('gearman', 'port')
         else:
             port = 4730
+        if config.has_option('gearman', 'check_job_registration'):
+            self.job_registration = config.getboolean(
+                'gearman', 'check_job_registration')
+        else:
+            self.job_registration = True
 
         self.gearman = ZuulGearmanClient(self)
         self.gearman.addServer(server, port)
@@ -224,6 +230,19 @@ class Gearman(object):
         # NOTE(jhesketh): The params need to stay in a key=value data pair
         # as workers cannot necessarily handle lists.
 
+        if callable(job.parameter_function):
+            pargs = inspect.getargspec(job.parameter_function)
+            if len(pargs.args) == 2:
+                job.parameter_function(item, params)
+            else:
+                job.parameter_function(item, job, params)
+            self.log.debug("Custom parameter function used for job %s, "
+                           "change: %s, params: %s" % (job, item.change,
+                                                       params))
+
+        # NOTE(mmedvede): Swift parameter creation should remain after the call
+        # to job.parameter_function to make it possible to update LOG_PATH for
+        # swift upload url using parameter_function mechanism.
         if job.swift and self.swift.connection:
 
             for name, s in job.swift.items():
@@ -231,7 +250,7 @@ class Gearman(object):
                 s_config = {}
                 s_config.update((k, v.format(item=item, job=job,
                                              change=item.change))
-                                if isinstance(v, basestring)
+                                if isinstance(v, six.string_types)
                                 else (k, v)
                                 for k, v in s.items())
 
@@ -253,16 +272,6 @@ class Gearman(object):
                 # given  in the form of NAME_PARAMETER=VALUE
                 for key, value in swift_instructions.items():
                     params['_'.join(['SWIFT', name, key])] = value
-
-        if callable(job.parameter_function):
-            pargs = inspect.getargspec(job.parameter_function)
-            if len(pargs.args) == 2:
-                job.parameter_function(item, params)
-            else:
-                job.parameter_function(item, job, params)
-            self.log.debug("Custom parameter function used for job %s, "
-                           "change: %s, params: %s" % (job, item.change,
-                                                       params))
 
     def launch(self, job, item, pipeline, dependent_items=[]):
         uuid = str(uuid4().hex)
@@ -351,7 +360,8 @@ class Gearman(object):
         build.__gearman_job = gearman_job
         self.builds[uuid] = build
 
-        if not self.isJobRegistered(gearman_job.name):
+        if self.job_registration and not self.isJobRegistered(
+                gearman_job.name):
             self.log.error("Job %s is not registered with Gearman" %
                            gearman_job)
             self.onBuildCompleted(gearman_job, 'NOT_REGISTERED')
@@ -423,9 +433,11 @@ class Gearman(object):
 
         build = self.builds.get(job.unique)
         if build:
+            data = getJobData(job)
+            build.node_labels = data.get('node_labels', [])
+            build.node_name = data.get('node_name')
             if not build.canceled:
                 if result is None:
-                    data = getJobData(job)
                     result = data.get('result')
                 if result is None:
                     build.retry = True
@@ -454,9 +466,6 @@ class Gearman(object):
                 build.number = data.get('number')
                 build.__gearman_manager = data.get('manager')
                 self.sched.onBuildStarted(build)
-
-            if job.denominator:
-                build.estimated_time = float(job.denominator) / 1000
         else:
             self.log.error("Unable to find build %s" % job.unique)
 
@@ -503,7 +512,7 @@ class Gearman(object):
             # us where the job is running.
             return False
 
-        if not self.isJobRegistered(name):
+        if self.job_registration and not self.isJobRegistered(name):
             return False
 
         desc_uuid = str(uuid4().hex)

@@ -27,13 +27,15 @@ ZUUL_ENV_SUFFIXES = (
     'branch',
     'ref',
     'url',
+    'project',
+    'newrev',
 )
 
 
 class Cloner(zuul.cmd.ZuulApp):
     log = logging.getLogger("zuul.Cloner")
 
-    def parse_arguments(self):
+    def parse_arguments(self, args=sys.argv[1:]):
         """Parse command line arguments and returns argparse structure"""
         parser = argparse.ArgumentParser(
             description='Zuul Project Gating System Cloner.')
@@ -51,8 +53,11 @@ class Cloner(zuul.cmd.ZuulApp):
                             version=self._get_version(),
                             help='show zuul version')
         parser.add_argument('--cache-dir', dest='cache_dir',
+                            default=os.environ.get('ZUUL_CACHE_DIR'),
                             help=('a directory that holds cached copies of '
-                                  'repos from which to make an initial clone.'
+                                  'repos from which to make an initial clone. '
+                                  'Can also be set via ZUUL_CACHE_DIR '
+                                  'environment variable.'
                                   ))
         parser.add_argument('git_base_url',
                             help='reference repo to clone from')
@@ -87,7 +92,7 @@ class Cloner(zuul.cmd.ZuulApp):
                 default=os.environ.get(env_name)
             )
 
-        args = parser.parse_args()
+        args = parser.parse_args(args)
         # Validate ZUUL_* arguments. If ref is provided then URL is required.
         zuul_args = [zuul_opt for zuul_opt, val in vars(args).items()
                      if zuul_opt.startswith('zuul') and val is not None]
@@ -95,6 +100,10 @@ class Cloner(zuul.cmd.ZuulApp):
             parser.error("Specifying a Zuul ref requires a Zuul url. "
                          "Define Zuul arguments either via environment "
                          "variables or using options above.")
+        if 'zuul_newrev' in zuul_args and 'zuul_project' not in zuul_args:
+            parser.error("ZUUL_NEWREV has been specified without "
+                         "ZUUL_PROJECT. Please define a ZUUL_PROJECT or do "
+                         "not set ZUUL_NEWREV.")
 
         self.args = args
 
@@ -142,6 +151,8 @@ class Cloner(zuul.cmd.ZuulApp):
             clone_map_file=self.args.clone_map_file,
             project_branches=project_branches,
             cache_dir=self.args.cache_dir,
+            zuul_newrev=self.args.zuul_newrev,
+            zuul_project=self.args.zuul_project,
         )
         cloner.execute()
 
