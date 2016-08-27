@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-zuul (2.1.0-60-g1cc37f7-wmf4trusty1) trusty-wikimedia; urgency=critical
-=======
-zuul (2.5.0-8-gcbc7f62-wmf1precise1) precise-wikimedia; urgency=medium
+zuul (2.5.0-8-gcbc7f62-wmf1trusty1) trusty-wikimedia; urgency=medium
 
   * New upstream version 2.5.0 + tip of upstream branch. Notably get the
     commit: a8b90b3 - Always create foreign projects if needed
@@ -12,88 +9,7 @@ zuul (2.5.0-8-gcbc7f62-wmf1precise1) precise-wikimedia; urgency=medium
 
  -- Antoine Musso <hashar@free.fr>  Sat, 27 Aug 2016 14:15:42 +0200
 
-zuul (2.1.0-391-gbc58ea3-wmf2precise1) precise-wikimedia; urgency=medium
-
-  * reduce Gerrit replication delay from 300 to 15 secs
-    Monkey patching to prevent Zuul from being deadlocked for 300 seconds
-    whenever a patch is merged. T93812
-
- -- Antoine Musso <hashar@free.fr>  Fri, 29 Jul 2016 10:59:24 +0200
-
-zuul (2.1.0-391-gbc58ea3-wmf1precise1) precise-wikimedia; urgency=medium
-
-  * New upstream release
-  * Rebase patches
-  * Remove patches that have been merged upstream:
-    - Properly-shutdown-apscheduler-on-reconfigure.patch
-    - GerritWatcher-add-poll_timeout.patch
-    - Register-connections-when-testing-configuration.patch
-  * Split our requirement tweaking patch wmf-soften-requirements.patch in
-    new atomic patches.
-  * Let us change the Gerrit event delay:
-    [12d23bf53] Gerrit trailing delay is now configurable
-
- -- Antoine Musso <hashar@free.fr>  Fri, 22 Jul 2016 14:46:02 +0200
-
-zuul (2.1.0-151-g30a433b-wmf4precise1) precise-wikimedia; urgency=medium
-
-  * Zuul server layout validation would not recognize multiple Gerrit
-    connections dieing with: KeyError: 'oldgerrit'. Add patch suggested by
-    Paladox:
-      [9a25675] Register connections when testing configuration
-  * Bump GitPython 2.0.6..2.0.7
-
- -- Antoine Musso <hashar@free.fr>  Mon, 18 Jul 2016 16:24:58 +0200
-
-zuul (2.1.0-151-g30a433b-wmf3precise1) precise-wikimedia; urgency=medium
-
-  * Fix upstream refactoring of Gerrit connections which caused Paramiko 1.7.1
-    on Precise to not be able to get a random number and thus never establish
-    SSH connection to Gerrit. Fix T137525.
-    [60a4494] Do not import paramiko before daemonization
-  * debian/control: comment have to start with '# '.
-  * debian/changelog: missing extra space in signature of a previous entry.
-
- -- Antoine Musso <hashar@free.fr>  Fri, 15 Jul 2016 15:04:55 +0200
-
-zuul (2.1.0-151-g30a433b-wmf2precise1) precise-wikimedia; urgency=medium
-
-  * Pick some upstream patches:
-    [9b41a0b] Properly shutdown apscheduler on reconfigure
-    [fc1b58a] GerritWatcher: add poll_timeout
-
- -- Antoine Musso <hashar@free.fr>  Thu, 02 Jun 2016 15:42:45 +0200
-
-zuul (2.1.0-151-g30a433b-wmf1precise1) precise-wikimedia; urgency=medium
-
-  * Bump upstream version
-  * Should deal with circular dependencies which caused a complete deadlock of
-    the Zuul scheduler: https://phabricator.wikimedia.org/T129938
-  * Fix typo in previous changelog entry
-  * Make myself the Maintainer
-  * Patch maintenance:
-  * wmf-soften-requirements:
-    - apscheduler 3.0.x is now shipped via dh_virtualenv
-      Note 3.1.0 fails with old setuptools
-    - soften pbr, 1.1.0 is just for tests
-  * Update-merge-status-after-merge-merge-is-submitted
-    - merged upstream
-  * Revert-Fix-passing-labels-to-Gerrit-when-they-are-no
-    - no more needed with upstream "connections" refactoring
-  * Rebased the couple Zuul cloner patches
-  * Bump GitPython 2.0.3..2.0.5
-
- -- Antoine Musso <hashar@free.fr>  Tue, 31 May 2016 11:05:32 +0200
-
-zuul (2.1.0-95-g66c8e52-wmf1precise1) precise-wikimedia; urgency=medium
-
-  * Slowly catch up with upstream
-  * 0008-wmf-pin-python-daemon-2.1.0 is no more needed.
-
- -- Antoine Musso <hashar@free.fr>  Mon, 30 May 2016 13:55:52 +0200
-
-zuul (2.1.0-60-g1cc37f7-wmf4precise1) precise-wikimedia; urgency=critical
->>>>>>> debian/precise-wikimedia
+zuul (2.1.0-60-g1cc37f7-wmf4trusty1) trusty-wikimedia; urgency=critical
 
   * Sync with precise-wikimedia
   * 0008-wmf-pin-python-daemon-2.1.0.patch

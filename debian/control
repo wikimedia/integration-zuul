@@ -32,15 +32,9 @@ Build-Depends: debhelper (>= 9),
  python-extras,
 #python-statsd (>= 1.0.0, <3.0)
  python-voluptuous (>= 0.7),
-<<<<<<< HEAD
-# python-gear (>= 0.5.4),
- python-apscheduler (>= 2.1.1),
- python-prettytable (>= 0.6),
-=======
- python-gear (>= 0.5.4),
+#python-gear (>= 0.5.4),
 #python-apscheduler (>= 2.1.1),
 #python-prettytable (>= 0.6),
->>>>>>> debian/precise-wikimedia
  python-tz,
  python-babel (>= 1.0),
  python-six (>= 1.6.0),
@@ -89,14 +83,8 @@ Depends: adduser,
 # python-daemon,
  python-extras,
  python-voluptuous (>= 0.7),
-<<<<<<< HEAD
-# python-gear (>= 0.5.4),
- python-apscheduler (>= 2.1.1),
- python-prettytable (>= 0.6),
-=======
- python-gear (>= 0.5.4),
+#python-gear (>= 0.5.4),
 #python-apscheduler (>= 2.1.1),
->>>>>>> debian/precise-wikimedia
  python-six (>= 1.6.0),
  python-tz,
  python-babel (>= 1.0),
