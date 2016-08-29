@@ -20,6 +20,21 @@ import logging
 import zuul.model
 
 
+def reset_repo_to_head(repo):
+    # This lets us reset the repo even if there is a file in the root
+    # directory named 'HEAD'.  Currently, GitPython does not allow us
+    # to instruct it to always include the '--' to disambiguate.  This
+    # should no longer be necessary if this PR merges:
+    #   https://github.com/gitpython-developers/GitPython/pull/319
+    try:
+        repo.git.reset('--hard', 'HEAD', '--')
+    except git.GitCommandError as e:
+        # git nowadays may use 1 as status to indicate there are still unstaged
+        # modifications after the reset
+        if e.status != 1:
+            raise
+
+
 class ZuulReference(git.Reference):
     _common_path_default = "refs/zuul"
     _points_to_commits_only = True
@@ -82,9 +97,9 @@ class Repo(object):
         return repo
 
     def reset(self):
-        repo = self.createRepoObject()
         self.log.debug("Resetting repository %s" % self.local_path)
         self.update()
+        repo = self.createRepoObject()
         origin = repo.remotes.origin
         for ref in origin.refs:
             if ref.remote_head == 'HEAD':
@@ -93,7 +108,7 @@ class Repo(object):
 
         # Reset to remote HEAD (usually origin/master)
         repo.head.reference = origin.refs['HEAD']
-        repo.head.reset(index=True, working_tree=True)
+        reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
 
     def prune(self):
@@ -116,7 +131,7 @@ class Repo(object):
 
     def getCommitFromRef(self, refname):
         repo = self.createRepoObject()
-        if not refname in repo.refs:
+        if refname not in repo.refs:
             return None
         ref = repo.refs[refname]
         return ref.commit
@@ -125,7 +140,8 @@ class Repo(object):
         repo = self.createRepoObject()
         self.log.debug("Checking out %s" % ref)
         repo.head.reference = ref
-        repo.head.reset(index=True, working_tree=True)
+        reset_repo_to_head(repo)
+        return repo.head.commit
 
     def cherryPick(self, ref):
         repo = self.createRepoObject()
@@ -163,7 +179,7 @@ class Repo(object):
 
     def createZuulRef(self, ref, commit='HEAD'):
         repo = self.createRepoObject()
-        self.log.debug("CreateZuulRef %s at %s" % (ref, commit))
+        self.log.debug("CreateZuulRef %s at %s on %s" % (ref, commit, repo))
         ref = ZuulReference.create(repo, ref, commit)
         return ref.commit
 
@@ -177,30 +193,42 @@ class Repo(object):
         repo = self.createRepoObject()
         self.log.debug("Updating repository %s" % self.local_path)
         origin = repo.remotes.origin
-        origin.update()
+        if repo.git.version_info[:2] < (1, 9):
+            # Before 1.9, 'git fetch --tags' did not include the
+            # behavior covered by 'git --fetch', so we run both
+            # commands in that case.  Starting with 1.9, 'git fetch
+            # --tags' is all that is necessary.  See
+            # https://github.com/git/git/blob/master/Documentation/RelNotes/1.9.0.txt#L18-L20
+            origin.fetch()
+        origin.fetch(tags=True)
 
 
 class Merger(object):
     log = logging.getLogger("zuul.Merger")
 
-    def __init__(self, working_root, sshkey, email, username):
+    def __init__(self, working_root, connections, email, username):
         self.repos = {}
         self.working_root = working_root
         if not os.path.exists(working_root):
             os.makedirs(working_root)
-        if sshkey:
-            self._makeSSHWrapper(sshkey)
+        self._makeSSHWrappers(working_root, connections)
         self.email = email
         self.username = username
 
-    def _makeSSHWrapper(self, key):
-        name = os.path.join(self.working_root, '.ssh_wrapper')
+    def _makeSSHWrappers(self, working_root, connections):
+        for connection_name, connection in connections.items():
+            sshkey = connection.connection_config.get('sshkey')
+            if sshkey:
+                self._makeSSHWrapper(sshkey, working_root, connection_name)
+
+    def _makeSSHWrapper(self, key, merge_root, connection_name='default'):
+        wrapper_name = '.ssh_wrapper_%s' % connection_name
+        name = os.path.join(merge_root, wrapper_name)
         fd = open(name, 'w')
         fd.write('#!/bin/bash\n')
         fd.write('ssh -i %s $@\n' % key)
         fd.close()
-        os.chmod(name, 0755)
-        os.environ['GIT_SSH'] = name
+        os.chmod(name, 0o755)
 
     def addProject(self, project, url):
         repo = None
@@ -258,10 +286,19 @@ class Merger(object):
 
         return commit
 
+    def _setGitSsh(self, connection_name):
+        wrapper_name = '.ssh_wrapper_%s' % connection_name
+        name = os.path.join(self.working_root, wrapper_name)
+        if os.path.isfile(name):
+            os.environ['GIT_SSH'] = name
+        elif 'GIT_SSH' in os.environ:
+            del os.environ['GIT_SSH']
+
     def _mergeItem(self, item, recent):
         self.log.debug("Processing refspec %s for project %s / %s ref %s" %
                        (item['refspec'], item['project'], item['branch'],
                         item['ref']))
+        self._setGitSsh(item['connection_name'])
         repo = self.getRepo(item['project'], item['url'])
         key = (item['project'], item['branch'])
         # See if we have a commit for this change already in this repo

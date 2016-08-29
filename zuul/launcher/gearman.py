@@ -17,6 +17,7 @@ import inspect
 import json
 import logging
 import os
+import six
 import time
 import threading
 from uuid import uuid4
@@ -164,6 +165,11 @@ class Gearman(object):
             port = config.get('gearman', 'port')
         else:
             port = 4730
+        if config.has_option('gearman', 'check_job_registration'):
+            self.job_registration = config.getboolean(
+                'gearman', 'check_job_registration')
+        else:
+            self.job_registration = True
 
         self.gearman = ZuulGearmanClient(self)
         self.gearman.addServer(server, port)
@@ -224,6 +230,19 @@ class Gearman(object):
         # NOTE(jhesketh): The params need to stay in a key=value data pair
         # as workers cannot necessarily handle lists.
 
+        if callable(job.parameter_function):
+            pargs = inspect.getargspec(job.parameter_function)
+            if len(pargs.args) == 2:
+                job.parameter_function(item, params)
+            else:
+                job.parameter_function(item, job, params)
+            self.log.debug("Custom parameter function used for job %s, "
+                           "change: %s, params: %s" % (job, item.change,
+                                                       params))
+
+        # NOTE(mmedvede): Swift parameter creation should remain after the call
+        # to job.parameter_function to make it possible to update LOG_PATH for
+        # swift upload url using parameter_function mechanism.
         if job.swift and self.swift.connection:
 
             for name, s in job.swift.items():
@@ -231,6 +250,8 @@ class Gearman(object):
                 s_config = {}
                 s_config.update((k, v.format(item=item, job=job,
                                              change=item.change))
+                                if isinstance(v, six.string_types)
+                                else (k, v)
                                 for k, v in s.items())
 
                 (swift_instructions['URL'],
@@ -252,27 +273,20 @@ class Gearman(object):
                 for key, value in swift_instructions.items():
                     params['_'.join(['SWIFT', name, key])] = value
 
-        if callable(job.parameter_function):
-            pargs = inspect.getargspec(job.parameter_function)
-            if len(pargs.args) == 2:
-                job.parameter_function(item, params)
-            else:
-                job.parameter_function(item, job, params)
-            self.log.debug("Custom parameter function used for job %s, "
-                           "change: %s, params: %s" % (job, item.change,
-                                                       params))
-
     def launch(self, job, item, pipeline, dependent_items=[]):
-        self.log.info("Launch job %s for change %s with dependent changes %s" %
-                      (job, item.change,
-                       [x.change for x in dependent_items]))
+        uuid = str(uuid4().hex)
+        self.log.info(
+            "Launch job %s (uuid: %s) for change %s with dependent "
+            "changes %s" % (
+                job, uuid, item.change,
+                [x.change for x in dependent_items]))
         dependent_items = dependent_items[:]
         dependent_items.reverse()
-        uuid = str(uuid4().hex)
         params = dict(ZUUL_UUID=uuid,
                       ZUUL_PROJECT=item.change.project.name)
         params['ZUUL_PIPELINE'] = pipeline.name
         params['ZUUL_URL'] = item.current_build_set.zuul_url
+        params['ZUUL_VOTING'] = job.voting and '1' or '0'
         if hasattr(item.change, 'refspec'):
             changes_str = '^'.join(
                 ['%s:%s:%s' % (i.change.project.name, i.change.branch,
@@ -338,8 +352,7 @@ class Gearman(object):
         build.parameters = params
 
         if job.name == 'noop':
-            build.result = 'SUCCESS'
-            self.sched.onBuildCompleted(build)
+            self.sched.onBuildCompleted(build, 'SUCCESS')
             return build
 
         gearman_job = gear.Job(name, json.dumps(params),
@@ -347,7 +360,8 @@ class Gearman(object):
         build.__gearman_job = gearman_job
         self.builds[uuid] = build
 
-        if not self.isJobRegistered(gearman_job.name):
+        if self.job_registration and not self.isJobRegistered(
+                gearman_job.name):
             self.log.error("Job %s is not registered with Gearman" %
                            gearman_job)
             self.onBuildCompleted(gearman_job, 'NOT_REGISTERED')
@@ -402,14 +416,15 @@ class Gearman(object):
             self.log.debug("Removed build %s from queue" % build)
             return
 
+        time.sleep(1)
+
         self.log.debug("Still unable to find build %s to cancel" % build)
         if build.number:
             self.log.debug("Build %s has just started" % build)
-        else:
-            self.log.error("Build %s has not started but was not"
-                           "found in queue; canceling anyway" % build)
-        self.cancelRunningBuild(build)
-        self.log.debug("Canceled possibly running build %s" % build)
+            self.log.debug("Canceled running build %s" % build)
+            self.cancelRunningBuild(build)
+            return
+        self.log.debug("Unable to cancel build %s" % build)
 
     def onBuildCompleted(self, job, result=None):
         if job.unique in self.meta_jobs:
@@ -418,16 +433,17 @@ class Gearman(object):
 
         build = self.builds.get(job.unique)
         if build:
+            data = getJobData(job)
+            build.node_labels = data.get('node_labels', [])
+            build.node_name = data.get('node_name')
             if not build.canceled:
                 if result is None:
-                    data = getJobData(job)
                     result = data.get('result')
                 if result is None:
                     build.retry = True
                 self.log.info("Build %s complete, result %s" %
                               (job, result))
-                build.result = result
-                self.sched.onBuildCompleted(build)
+                self.sched.onBuildCompleted(build, result)
             # The test suite expects the build to be removed from the
             # internal dict after it's added to the report queue.
             del self.builds[job.unique]
@@ -450,9 +466,6 @@ class Gearman(object):
                 build.number = data.get('number')
                 build.__gearman_manager = data.get('manager')
                 self.sched.onBuildStarted(build)
-
-            if job.denominator:
-                build.estimated_time = float(job.denominator) / 1000
         else:
             self.log.error("Unable to find build %s" % job.unique)
 
@@ -499,7 +512,7 @@ class Gearman(object):
             # us where the job is running.
             return False
 
-        if not self.isJobRegistered(name):
+        if self.job_registration and not self.isJobRegistered(name):
             return False
 
         desc_uuid = str(uuid4().hex)

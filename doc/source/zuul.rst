@@ -10,11 +10,11 @@ Zuul has three configuration files:
 
 **zuul.conf**
   Connection information for Gerrit and Gearman, locations of the
-  other config files.
+  other config files. (required)
 **layout.yaml**
-  Project and pipeline configuration -- what Zuul does.
+  Project and pipeline configuration -- what Zuul does. (required)
 **logging.conf**
-    Python logging config.
+    Python logging config. (optional)
 
 Examples of each of the three files can be found in the etc/ directory
 of the source distribution.
@@ -41,50 +41,58 @@ You can also find an example zuul.conf file in the git
 gearman
 """""""
 
+Client connection information for gearman. If using Zuul's builtin gearmand
+server just set **server** to 127.0.0.1.
+
 **server**
   Hostname or IP address of the Gearman server.
-  ``server=gearman.example.com``
+  ``server=gearman.example.com`` (required)
 
 **port**
   Port on which the Gearman server is listening.
-  ``port=4730``
+  ``port=4730`` (optional)
+
+**check_job_registration**
+  Check to see if job is registered with Gearman or not. When True
+  a build result of NOT_REGISTERED will be return if job is not found.
+  ``check_job_registration=True``
 
 gearman_server
 """"""""""""""
+
+The builtin gearman server. Zuul can fork a gearman process from itself rather
+than connecting to an external one.
 
 **start**
   Whether to start the internal Gearman server (default: False).
   ``start=true``
 
+**listen_address**
+  IP address or domain name on which to listen (default: all addresses).
+  ``listen_address=127.0.0.1``
+
 **log_config**
   Path to log config file for internal Gearman server.
   ``log_config=/etc/zuul/gearman-logging.yaml``
 
-gerrit
+webapp
 """"""
 
-**server**
-  FQDN of Gerrit server.
-  ``server=review.example.com``
+**listen_address**
+  IP address or domain name on which to listen (default: 0.0.0.0).
+  ``listen_address=127.0.0.1``
 
 **port**
-  Optional: Gerrit server port.
-  ``port=29418``
-
-**baseurl**
-  Optional: path to Gerrit web interface. Defaults to ``https://<value
-  of server>/``. ``baseurl=https://review.example.com/review_site/``
-
-**user**
-  User name to use when logging into above server via ssh.
-  ``user=zuul``
-
-**sshkey**
-  Path to SSH key to use when logging into above server.
-  ``sshkey=/home/zuul/.ssh/id_rsa``
+  Port on which the webapp is listening (default: 8001).
+  ``port=8008``
 
 zuul
 """"
+
+Zuul's main configuration section. At minimum zuul must be able to find
+layout.yaml to be useful.
+
+.. note:: Must be provided when running zuul-server
 
 .. _layout_config:
 
@@ -137,6 +145,13 @@ zuul
 merger
 """"""
 
+The zuul-merger process configuration. Detailed documentation on this process
+can be found on the :doc:`merger` page.
+
+.. note:: Must be provided when running zuul-merger. Both services may share the
+          same configuration (and even host) or otherwise have an individual
+          zuul.conf.
+
 **git_dir**
   Directory that Zuul should clone local git repositories to.
   ``git_dir=/var/lib/zuul/git``
@@ -161,27 +176,6 @@ merger
 **pidfile**
   Path to PID lock file for the merger process.
   ``pidfile=/var/run/zuul-merger/merger.pid``
-
-smtp
-""""
-
-**server**
-  SMTP server hostname or address to use.
-  ``server=localhost``
-
-**port**
-  Optional: SMTP server port.
-  ``port=25``
-
-**default_from**
-  Who the email should appear to be sent from when emailing the report.
-  This can be overridden by individual pipelines.
-  ``default_from=zuul@example.com``
-
-**default_to**
-  Who the report should be emailed to by default.
-  This can be overridden by individual pipelines.
-  ``default_to=you@example.com``
 
 .. _swift:
 
@@ -253,6 +247,17 @@ default values that it may overwrite.
   url and the object path.
   ``For example: http://logs.example.org/server.app?obj=``
 
+.. _connection:
+
+connection ArbitraryName
+""""""""""""""""""""""""
+
+A connection can be listed with any arbitrary name. The required
+parameters are specified in the :ref:`connections` documentation
+depending on what driver you are using.
+
+.. _layoutyaml:
+
 layout.yaml
 ~~~~~~~~~~~
 
@@ -299,14 +304,16 @@ explanation of each of the parameters::
 
   - name: check
     manager: IndependentPipelineManager
-    source: gerrit
+    source: my_gerrit
     trigger:
-      gerrit:
+      my_gerrit:
         - event: patchset-created
     success:
-      verified: 1
+      my_gerrit:
+        verified: 1
     failure:
-      verified: -1
+      my_gerrit
+        verified: -1
 
 **name**
   This is used later in the project definition to indicate what jobs
@@ -317,9 +324,11 @@ explanation of each of the parameters::
   description of the pipeline.
 
 **source**
-  A required field that specifies a trigger that provides access to
-  the change objects that this pipeline operates on.  Currently only
-  the value ``gerrit`` is supported.
+  A required field that specifies a connection that provides access to
+  the change objects that this pipeline operates on. The name of the
+  connection as per the zuul.conf should be specified. The driver used
+  for the connection named will be the source. Currently only ``gerrit``
+  drivers are supported.
 
 **success-message**
   An optional field that supplies the introductory text in message
@@ -396,115 +405,11 @@ explanation of each of the parameters::
   At least one trigger source must be supplied for each pipeline.
   Triggers are not exclusive -- matching events may be placed in
   multiple pipelines, and they will behave independently in each of
-  the pipelines they match.  You may select from the following:
+  the pipelines they match.
 
-  **gerrit**
-    This describes what Gerrit events should be placed in the
-    pipeline.  Multiple gerrit triggers may be listed.  Further
-    parameters describe the kind of events that match:
-
-    *event*
-    The event name from gerrit.  Examples: ``patchset-created``,
-    ``comment-added``, ``ref-updated``.  This field is treated as a
-    regular expression.
-
-    *branch*
-    The branch associated with the event.  Example: ``master``.  This
-    field is treated as a regular expression, and multiple branches may
-    be listed.
-
-    *ref*
-    On ref-updated events, the branch parameter is not used, instead the
-    ref is provided.  Currently Gerrit has the somewhat idiosyncratic
-    behavior of specifying bare refs for branch names (e.g., ``master``),
-    but full ref names for other kinds of refs (e.g., ``refs/tags/foo``).
-    Zuul matches what you put here exactly against what Gerrit
-    provides.  This field is treated as a regular expression, and
-    multiple refs may be listed.
-
-    *approval*
-    This is only used for ``comment-added`` events.  It only matches if
-    the event has a matching approval associated with it.  Example:
-    ``code-review: 2`` matches a ``+2`` vote on the code review category.
-    Multiple approvals may be listed.
-
-    *email*
-    This is used for any event.  It takes a regex applied on the performer
-    email, i.e. Gerrit account email address.  If you want to specify
-    several email filters, you must use a YAML list.  Make sure to use non
-    greedy matchers and to escapes dots!
-    Example: ``email: ^.*?@example\.org$``.
-
-    *email_filter* (deprecated)
-    A deprecated alternate spelling of *email*.  Only one of *email* or
-    *email_filter* should be used.
-
-    *username*
-    This is used for any event.  It takes a regex applied on the performer
-    username, i.e. Gerrit account name.  If you want to specify several
-    username filters, you must use a YAML list.  Make sure to use non greedy
-    matchers and to escapes dots!
-    Example: ``username: ^jenkins$``.
-
-    *username_filter* (deprecated)
-    A deprecated alternate spelling of *username*.  Only one of *username* or
-    *username_filter* should be used.
-
-    *comment*
-    This is only used for ``comment-added`` events.  It accepts a list of
-    regexes that are searched for in the comment string. If any of these
-    regexes matches a portion of the comment string the trigger is
-    matched. ``comment: retrigger`` will match when comments
-    containing 'retrigger' somewhere in the comment text are added to a
-    change.
-
-    *comment_filter* (deprecated)
-    A deprecated alternate spelling of *comment*.  Only one of *comment* or
-    *comment_filter* should be used.
-
-    *require-approval*
-    This may be used for any event.  It requires that a certain kind
-    of approval be present for the current patchset of the change (the
-    approval could be added by the event in question).  It follows the
-    same syntax as the :ref:`"approval" pipeline requirement below
-    <pipeline-require-approval>`.
-
-  **timer**
-    This trigger will run based on a cron-style time specification.
-    It will enqueue an event into its pipeline for every project
-    defined in the configuration.  Any job associated with the
-    pipeline will run in response to that event.
-
-    *time*
-    The time specification in cron syntax.  Only the 5 part syntax is
-    supported, not the symbolic names.  Example: ``0 0 * * *`` runs
-    at midnight.
-
-  **zuul**
-    This trigger supplies events generated internally by Zuul.
-    Multiple events may be listed.
-
-    *event*
-    The event name.  Currently supported:
-
-      *project-change-merged* when Zuul merges a change to a project,
-      it generates this event for every open change in the project.
-
-      *parent-change-enqueued* when Zuul enqueues a change into any
-      pipeline, it generates this event for every child of that
-      change.
-
-    *pipeline*
-    Only available for ``parent-change-enqueued`` events.  This is the
-    name of the pipeline in which the parent change was enqueued.
-
-    *require-approval*
-    This may be used for any event.  It requires that a certain kind
-    of approval be present for the current patchset of the change (the
-    approval could be added by the event in question).  It follows the
-    same syntax as the :ref:`"approval" pipeline requirement below
-    <pipeline-require-approval>`.
-
+  Triggers are loaded from their connection name. The driver type of
+  the connection will dictate which options are available.
+  See :doc:`triggers`.
 
 **require**
   If this section is present, it established pre-requisites for any
@@ -523,11 +428,12 @@ explanation of each of the parameters::
   approval matching all specified requirements.
 
     *username*
-    If present, an approval from this username is required.
+    If present, an approval from this username is required.  It is
+    treated as a regular expression.
 
     *email*
     If present, an approval with this email address is required.  It
-    is treated as a regular expression as above.
+    is treated as a regular expression.
 
     *email-filter* (deprecated)
     A deprecated alternate spelling of *email*.  Only one of *email* or
@@ -562,12 +468,38 @@ explanation of each of the parameters::
   reported by the trigger.  For example, when using the Gerrit
   trigger, status values such as ``NEW`` or ``MERGED`` may be useful.
 
+**reject**
+  If this section is present, it establishes pre-requisites that can
+  block an item from being enqueued. It can be considered a negative
+  version of **require**.
+
+  **approval**
+  This takes a list of approvals. If an approval matches the provided
+  criteria the change can not be entered into the pipeline. It follows
+  the same syntax as the :ref:`"require approval" pipeline above
+  <pipeline-require-approval>`.
+
+  Example to reject a change with any negative vote::
+
+    reject:
+      approval:
+        - code-review: [-1, -2]
+
 **dequeue-on-new-patchset**
   Normally, if a new patchset is uploaded to a change that is in a
   pipeline, the existing entry in the pipeline will be removed (with
   jobs canceled and any dependent changes that can no longer merge as
   well.  To suppress this behavior (and allow jobs to continue
   running), set this to ``false``.  Default: ``true``.
+
+**ignore-dependencies**
+  In any kind of pipeline (dependent or independent), Zuul will
+  attempt to enqueue all dependencies ahead of the current change so
+  that they are tested together (independent pipelines report the
+  results of each change regardless of the results of changes ahead).
+  To ignore dependencies completely in an independent pipeline, set
+  this to ``true``.  This option is ignored by dependent pipelines.
+  The default is: ``false``.
 
 **success**
   Describes where Zuul should report to if all the jobs complete
@@ -576,8 +508,9 @@ explanation of each of the parameters::
   do nothing on success; it will not even report a message to Gerrit.
   If the section is present, the listed reporter plugins will be
   asked to report on the jobs.
-  Each reporter's value dictionary is handled by the reporter. See
-  reporters for more details.
+  The reporters are listed by their connection name. The options
+  available depend on the driver for the supplied connection.
+  See :doc:`reporters` for more details.
 
 **failure**
   Uses the same syntax as **success**, but describes what Zuul should
@@ -593,6 +526,18 @@ explanation of each of the parameters::
   Uses the same syntax as **success**, but describes what Zuul should
   do when a change is added to the pipeline manager.  This can be used,
   for example, to reset the value of the Verified review category.
+
+**disabled**
+  Uses the same syntax as **success**, but describes what Zuul should
+  do when a pipeline is disabled.
+  See ``disable-after-consecutive-failures``.
+
+**disable-after-consecutive-failures**
+  If set, a pipeline can enter a ''disabled'' state if too many changes
+  in a row fail. When this value is exceeded the pipeline will stop
+  reporting to any of the ``success``, ``failure`` or ``merge-failure``
+  reporters and instead only report to the ``disabled`` reporters.
+  (No ``start`` reports are made when a pipeline is disabled).
 
 **precedence**
   Indicates how the build scheduler should prioritize jobs for
@@ -626,7 +571,7 @@ explanation of each of the parameters::
   Default: ``linear``.
 
 **window-increase-factor**
-  DependentPipelineManagers only. The value to be added or mulitplied
+  DependentPipelineManagers only. The value to be added or multiplied
   against the previous window value to determine the new window after
   successful change merges.
   Default: ``1``.
@@ -652,12 +597,13 @@ file.  The first is called a *check* pipeline::
   - name: check
     manager: IndependentPipelineManager
     trigger:
-      - event: patchset-created
+      my_gerrit:
+        - event: patchset-created
     success:
-      gerrit:
+      my_gerrit:
         verified: 1
     failure:
-      gerrit:
+      my_gerrit:
         verified: -1
 
 This will trigger jobs each time a new patchset (or change) is
@@ -667,15 +613,16 @@ uploaded to Gerrit, and report +/-1 values to Gerrit in the
   - name: gate
     manager: DependentPipelineManager
     trigger:
-      - event: comment-added
-        approval:
-          - approved: 1
+      my_gerrit:
+        - event: comment-added
+          approval:
+            - approved: 1
     success:
-      gerrit:
+      my_gerrit:
         verified: 2
         submit: true
     failure:
-      gerrit:
+      my_gerrit:
         verified: -2
 
 This will trigger jobs whenever a reviewer leaves a vote of ``1`` in the
@@ -688,8 +635,9 @@ speculative execution of jobs. ::
   - name: post
     manager: IndependentPipelineManager
     trigger:
-      - event: ref-updated
-        ref: ^(?!refs/).*$
+      my_gerrit:
+        - event: ref-updated
+          ref: ^(?!refs/).*$
 
 This will trigger jobs whenever a change is merged to a named branch
 (e.g., ``master``).  No output will be reported to Gerrit.  This is
@@ -698,7 +646,8 @@ useful for side effects such as creating per-commit tarballs. ::
   - name: silent
     manager: IndependentPipelineManager
     trigger:
-      - event: patchset-created
+      my_gerrit:
+        - event: patchset-created
 
 This also triggers jobs when changes are uploaded to Gerrit, but no
 results are reported to Gerrit.  This is useful for jobs that are in
@@ -708,12 +657,13 @@ development and not yet ready to be presented to developers. ::
     - name: post-merge
       manager: IndependentPipelineManager
       trigger:
-        - event: change-merged
+        my_gerrit:
+          - event: change-merged
       success:
-        gerrit:
+        my_gerrit:
           force-message: True
       failure:
-        gerrit:
+        my_gerrit:
           force-message: True
 
 The ``change-merged`` events happen when a change has been merged in the git
@@ -789,6 +739,11 @@ each job as it builds a list from the project specification.
   would largely defeat the parallelization of dependent change testing
   that is the main feature of Zuul.  Default: ``false``.
 
+**mutex (optional)**
+  This is a string that names a mutex that should be observed by this
+  job.  Only one build of any job that references the same named mutex
+  will be enqueued at a time.  This applies across all pipelines.
+
 **branch (optional)**
   This job should only be run on matching branches.  This field is
   treated as a regular expression and multiple branches may be
@@ -800,9 +755,59 @@ each job as it builds a list from the project specification.
   file patterns listed here.  This field is treated as a regular
   expression and multiple expressions may be listed.
 
+**skip-if (optional)**
+
+  This job should not be run if all the patterns specified by the
+  optional fields listed below match on their targets.  When multiple
+  sets of parameters are provided, this job will be skipped if any set
+  matches.  For example: ::
+
+    jobs:
+      - name: check-tempest-dsvm-neutron
+        skip-if:
+          - project: ^openstack/neutron$
+            branch: ^stable/juno$
+            all-files-match-any:
+              - ^neutron/tests/.*$
+              - ^tools/.*$
+          - all-files-match-any:
+              - ^doc/.*$
+              - ^.*\.rst$
+
+  With this configuration, the job would be skipped for a neutron
+  patchset for the stable/juno branch provided that every file in the
+  change matched at least one of the specified file regexes.  The job
+  will also be skipped for any patchset that modified only the doc
+  tree or rst files.
+
+  *project* (optional)
+    The regular expression to match against the project of the change.
+
+  *branch* (optional)
+    The regular expression to match against the branch or ref of the
+    change.
+
+  *all-files-match-any* (optional)
+    A list of regular expressions intended to match the files involved
+    in the change.  This parameter will be considered matching a
+    change only if all files in a change match at least one of these
+    expressions.
+
+    The pattern for '/COMMIT_MSG' is always matched on and does not
+    have to be included. Exception is merge commits (without modified
+    files), in this case '/COMMIT_MSG' is not matched, and job is not
+    skipped. In case of merge commits it's assumed that list of modified
+    files isn't predictible and CI should be run.
+
 **voting (optional)**
   Boolean value (``true`` or ``false``) that indicates whatever
   a job is voting or not.  Default: ``true``.
+
+**tags (optional)**
+  A list of arbitrary strings which will be associated with the job.
+  Can be used by the parameter-function to alter behavior based on
+  their presence on a job.  If the job name is a regular expression,
+  tags will accumulate on jobs that match.
 
 **parameter-function (optional)**
   Specifies a function that should be applied to the parameters before
@@ -874,9 +879,10 @@ Here is an example of setting the failure message for jobs that check
 whether a change merges cleanly::
 
   - name: ^.*-merge$
-    failure-message: This change was unable to be automatically merged
-    with the current state of the repository. Please rebase your
-    change and upload a new patchset.
+    failure-message: This change or one of its cross-repo dependencies
+    was unable to be automatically merged with the current state of
+    its repository. Please rebase the change and upload a new
+    patchset.
 
 Projects
 """"""""
@@ -987,7 +993,7 @@ also be added::
       - foobar-extra-special-job
 
 Individual jobs may optionally be added to pipelines (e.g. check,
-gate, et cetera) for a project, in addtion to those provided by
+gate, et cetera) for a project, in addition to those provided by
 templates.
 
 The order of the jobs listed in the project (which only affects the
@@ -1029,9 +1035,8 @@ normal operation, omit ``-d`` and let Zuul run as a daemon.
 
 If you send signal 1 (SIGHUP) to the zuul-server process, Zuul will
 stop executing new jobs, wait until all executing jobs are finished,
-reload its configuration, and resume.  Any values in any of the
-configuration files may be changed, except the location of Zuul's PID
-file (a change to that will be ignored until Zuul is restarted).
+reload its layout.yaml, and resume. Changes to any connections or
+the PID  file will be ignored until Zuul is restarted.
 
 If you send a SIGUSR1 to the zuul-server process, Zuul will stop
 executing new jobs, wait until all executing jobs are finished,
@@ -1042,17 +1047,17 @@ read these saved events and act on them.
 If you need to abort Zuul and intend to manually requeue changes for
 jobs which were running in its pipelines, prior to terminating you can
 use the zuul-changes.py tool script to simplify the process. For
-example, this would give you a list of Gerrit commands to reverify or
-recheck changes for the gate and check pipelines respectively::
+example, this would give you a list of zuul-enqueue commands to requeue
+changes for the gate and check pipelines respectively::
 
-  ./tools/zuul-changes.py --review-host=review.openstack.org \
-      http://zuul.openstack.org/ gate 'reverify no bug'
-  ./tools/zuul-changes.py --review-host=review.openstack.org \
-      http://zuul.openstack.org/ check 'recheck no bug'
+  ./tools/zuul-changes.py http://zuul.openstack.org/ gate
+  ./tools/zuul-changes.py http://zuul.openstack.org/ check
 
-If you send a SIGUSR2 to the zuul-server process, Zuul will dump a stack
-trace for each running thread into its debug log. This is useful for
-tracking down deadlock or otherwise slow threads.
+If you send a SIGUSR2 to the zuul-server process, or the forked process
+that runs the Gearman daemon, Zuul will dump a stack trace for each
+running thread into its debug log. It is written under the log bucket
+``zuul.stack_dump``.  This is useful for tracking down deadlock or
+otherwise slow threads.
 
 When `yappi <https://code.google.com/p/yappi/>`_ (Yet Another Python
 Profiler) is available, additional functions' and threads' stats are
