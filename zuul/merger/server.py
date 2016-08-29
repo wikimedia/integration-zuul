@@ -19,13 +19,13 @@ import traceback
 
 import gear
 
-import merger
+from zuul.merger import merger
 
 
 class MergeServer(object):
     log = logging.getLogger("zuul.MergeServer")
 
-    def __init__(self, config):
+    def __init__(self, config, connections={}):
         self.config = config
         self.zuul_url = config.get('merger', 'zuul_url')
 
@@ -44,13 +44,8 @@ class MergeServer(object):
         else:
             merge_name = None
 
-        if self.config.has_option('gerrit', 'sshkey'):
-            sshkey = self.config.get('gerrit', 'sshkey')
-        else:
-            sshkey = None
-
-        self.merger = merger.Merger(merge_root, sshkey,
-                                    merge_email, merge_name)
+        self.merger = merger.Merger(merge_root, connections, merge_email,
+                                    merge_name)
 
     def start(self):
         self._running = True
@@ -90,10 +85,10 @@ class MergeServer(object):
                 job = self.worker.getJob()
                 try:
                     if job.name == 'merger:merge':
-                        self.log.debug("Got merge job.")
+                        self.log.debug("Got merge job: %s" % job.unique)
                         self.merge(job)
                     elif job.name == 'merger:update':
-                        self.log.debug("Got update job.")
+                        self.log.debug("Got update job: %s" % job.unique)
                         self.update(job)
                     else:
                         self.log.error("Unable to handle job %s" % job.name)

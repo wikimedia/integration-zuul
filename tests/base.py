@@ -22,34 +22,39 @@ import logging
 import os
 import pprint
 from six.moves import queue as Queue
+from six.moves import urllib
 import random
 import re
 import select
 import shutil
+from six.moves import reload_module
 import socket
 import string
 import subprocess
 import swiftclient
 import threading
 import time
-import urllib2
 
 import git
 import gear
 import fixtures
-import six.moves.urllib.parse as urlparse
 import statsd
 import testtools
+from git import GitCommandError
 
+import zuul.connection.gerrit
+import zuul.connection.smtp
 import zuul.scheduler
 import zuul.webapp
 import zuul.rpclistener
 import zuul.launcher.gearman
 import zuul.lib.swift
-import zuul.merger.server
 import zuul.merger.client
+import zuul.merger.merger
+import zuul.merger.server
 import zuul.reporter.gerrit
 import zuul.reporter.smtp
+import zuul.source.gerrit
 import zuul.trigger.gerrit
 import zuul.trigger.timer
 import zuul.trigger.zuultrigger
@@ -76,6 +81,16 @@ def repack_repo(path):
 
 def random_sha1():
     return hashlib.sha1(str(random.random())).hexdigest()
+
+
+def iterate_timeout(max_seconds, purpose):
+    start = time.time()
+    count = 0
+    while (time.time() < start + max_seconds):
+        count += 1
+        yield count
+        time.sleep(0)
+    raise Exception("Timeout waiting for %s" % purpose)
 
 
 class ChangeReference(git.Reference):
@@ -134,7 +149,7 @@ class FakeChange(object):
                                                         self.latest_patchset),
                                      'refs/tags/init')
         repo.head.reference = ref
-        repo.head.reset(index=True, working_tree=True)
+        zuul.merger.merger.reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
 
         path = os.path.join(self.upstream_root, self.project)
@@ -156,7 +171,7 @@ class FakeChange(object):
 
         r = repo.index.commit(msg)
         repo.head.reference = 'master'
-        repo.head.reset(index=True, working_tree=True)
+        zuul.merger.merger.reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
         repo.heads['master'].checkout()
         return r
@@ -247,37 +262,39 @@ class FakeChange(object):
                  "comment": "This is a comment"}
         return event
 
-    def addApproval(self, category, value, username='jenkins',
-                    granted_on=None):
+    def addApproval(self, category, value, username='reviewer_john',
+                    granted_on=None, message=''):
         if not granted_on:
             granted_on = time.time()
-        approval = {'description': self.categories[category][0],
-                    'type': category,
-                    'value': str(value),
-                    'by': {
-                        'username': username,
-                        'email': username + '@example.com',
-                    },
-                    'grantedOn': int(granted_on)}
+        approval = {
+            'description': self.categories[category][0],
+            'type': category,
+            'value': str(value),
+            'by': {
+                'username': username,
+                'email': username + '@example.com',
+            },
+            'grantedOn': int(granted_on)
+        }
         for i, x in enumerate(self.patchsets[-1]['approvals'][:]):
             if x['by']['username'] == username and x['type'] == category:
                 del self.patchsets[-1]['approvals'][i]
         self.patchsets[-1]['approvals'].append(approval)
         event = {'approvals': [approval],
-                 'author': {'email': 'user@example.com',
-                            'name': 'User Name',
-                            'username': 'username'},
+                 'author': {'email': 'author@example.com',
+                            'name': 'Patchset Author',
+                            'username': 'author_phil'},
                  'change': {'branch': self.branch,
                             'id': 'Iaa69c46accf97d0598111724a38250ae76a22c87',
                             'number': str(self.number),
-                            'owner': {'email': 'user@example.com',
-                                      'name': 'User Name',
-                                      'username': 'username'},
+                            'owner': {'email': 'owner@example.com',
+                                      'name': 'Change Owner',
+                                      'username': 'owner_jane'},
                             'project': self.project,
                             'subject': self.subject,
                             'topic': 'master',
                             'url': 'https://hostname/459'},
-                 'comment': '',
+                 'comment': message,
                  'patchSet': self.patchsets[-1],
                  'type': 'comment-added'}
         self.data['submitRecords'] = self.getSubmitRecords()
@@ -348,7 +365,7 @@ class FakeChange(object):
 
     def setMerged(self):
         if (self.depends_on_change and
-            self.depends_on_change.data['status'] != 'MERGED'):
+                self.depends_on_change.data['status'] != 'MERGED'):
             return
         if self.fail_merge:
             return
@@ -364,13 +381,20 @@ class FakeChange(object):
         self.reported += 1
 
 
-class FakeGerrit(object):
-    def __init__(self, *args, **kw):
-        self.event_queue = Queue.Queue()
+class FakeGerritConnection(zuul.connection.gerrit.GerritConnection):
+    log = logging.getLogger("zuul.test.FakeGerritConnection")
+
+    def __init__(self, connection_name, connection_config,
+                 changes_db=None, queues_db=None, upstream_root=None):
+        super(FakeGerritConnection, self).__init__(connection_name,
+                                                   connection_config)
+
+        self.event_queue = queues_db
         self.fixture_dir = os.path.join(FIXTURE_DIR, 'gerrit')
         self.change_number = 0
-        self.changes = {}
+        self.changes = changes_db
         self.queries = []
+        self.upstream_root = upstream_root
 
     def addFakeChange(self, project, branch, subject, status='NEW'):
         self.change_number += 1
@@ -380,19 +404,30 @@ class FakeGerrit(object):
         self.changes[self.change_number] = c
         return c
 
-    def addEvent(self, data):
-        return self.event_queue.put(data)
-
-    def getEvent(self):
-        return self.event_queue.get()
-
-    def eventDone(self):
-        self.event_queue.task_done()
-
     def review(self, project, changeid, message, action):
         number, ps = changeid.split(',')
         change = self.changes[int(number)]
+
+        # Add the approval back onto the change (ie simulate what gerrit would
+        # do).
+        # Usually when zuul leaves a review it'll create a feedback loop where
+        # zuul's review enters another gerrit event (which is then picked up by
+        # zuul). However, we can't mimic this behaviour (by adding this
+        # approval event into the queue) as it stops jobs from checking what
+        # happens before this event is triggered. If a job needs to see what
+        # happens they can add their own verified event into the queue.
+        # Nevertheless, we can update change with the new review in gerrit.
+
+        for cat in ['CRVW', 'VRFY', 'APRV']:
+            if cat in action:
+                change.addApproval(cat, action[cat], username=self.user)
+
+        if 'label' in action:
+            parts = action['label'].split('=')
+            change.addApproval(parts[0], parts[2], username=self.user)
+
         change.messages.append(message)
+
         if 'submit' in action:
             change.setMerged()
         if message:
@@ -405,15 +440,28 @@ class FakeGerrit(object):
         return {}
 
     def simpleQuery(self, query):
-        # This is currently only used to return all open changes for a
-        # project
+        self.log.debug("simpleQuery: %s" % query)
         self.queries.append(query)
-        l = [change.query() for change in self.changes.values()]
-        l.append({"type":"stats","rowCount":1,"runTimeMilliseconds":3})
+        if query.startswith('change:'):
+            # Query a specific changeid
+            changeid = query[len('change:'):]
+            l = [change.query() for change in self.changes.values()
+                 if change.data['id'] == changeid]
+        elif query.startswith('message:'):
+            # Query the content of a commit message
+            msg = query[len('message:'):].strip()
+            l = [change.query() for change in self.changes.values()
+                 if msg in change.data['commitMessage']]
+        else:
+            # Query all open changes
+            l = [change.query() for change in self.changes.values()]
         return l
 
-    def startWatching(self, *args, **kw):
+    def _start_watcher_thread(self, *args, **kw):
         pass
+
+    def getGitUrl(self, project):
+        return os.path.join(self.upstream_root, project.name)
 
 
 class BuildHistory(object):
@@ -426,13 +474,12 @@ class BuildHistory(object):
 
 
 class FakeURLOpener(object):
-    def __init__(self, upstream_root, fake_gerrit, url):
+    def __init__(self, upstream_root, url):
         self.upstream_root = upstream_root
-        self.fake_gerrit = fake_gerrit
         self.url = url
 
     def read(self):
-        res = urlparse.urlparse(self.url)
+        res = urllib.parse.urlparse(self.url)
         path = res.path
         project = '/'.join(path.split('/')[2:-2])
         ret = '001e# service=git-upload-pack\n'
@@ -446,17 +493,6 @@ class FakeURLOpener(object):
             ret += '%04x%s' % (len(r) + 4, r)
         ret += '0000'
         return ret
-
-
-class FakeGerritTrigger(zuul.trigger.gerrit.Gerrit):
-    name = 'gerrit'
-
-    def __init__(self, upstream_root, *args):
-        super(FakeGerritTrigger, self).__init__(*args)
-        self.upstream_root = upstream_root
-
-    def getGitUrl(self, project):
-        return os.path.join(self.upstream_root, project.name)
 
 
 class FakeStatsd(threading.Thread):
@@ -572,6 +608,8 @@ class FakeBuild(threading.Thread):
             result = 'RUN_ERROR'
         else:
             data['result'] = result
+            data['node_labels'] = ['bare-necessities']
+            data['node_name'] = 'foo'
             work_fail = False
 
         changes = None
@@ -582,6 +620,7 @@ class FakeBuild(threading.Thread):
             BuildHistory(name=self.name, number=self.number,
                          result=result, changes=changes, node=self.node,
                          uuid=self.unique, description=self.description,
+                         parameters=self.parameters,
                          pipeline=self.parameters['ZUUL_PIPELINE'])
         )
 
@@ -794,11 +833,11 @@ class FakeSwiftClientConnection(swiftclient.client.Connection):
         return endpoint, ''
 
 
-class ZuulTestCase(testtools.TestCase):
+class BaseTestCase(testtools.TestCase):
     log = logging.getLogger("zuul.test")
 
     def setUp(self):
-        super(ZuulTestCase, self).setUp()
+        super(BaseTestCase, self).setUp()
         test_timeout = os.environ.get('OS_TEST_TIMEOUT', 0)
         try:
             test_timeout = int(test_timeout)
@@ -822,26 +861,58 @@ class ZuulTestCase(testtools.TestCase):
                 level=logging.DEBUG,
                 format='%(asctime)s %(name)-32s '
                 '%(levelname)-8s %(message)s'))
+
+            # NOTE(notmorgan): Extract logging overrides for specific libraries
+            # from the OS_LOG_DEFAULTS env and create FakeLogger fixtures for
+            # each. This is used to limit the output during test runs from
+            # libraries that zuul depends on such as gear.
+            log_defaults_from_env = os.environ.get('OS_LOG_DEFAULTS')
+
+            if log_defaults_from_env:
+                for default in log_defaults_from_env.split(','):
+                    try:
+                        name, level_str = default.split('=', 1)
+                        level = getattr(logging, level_str, logging.DEBUG)
+                        self.useFixture(fixtures.FakeLogger(
+                            name=name,
+                            level=level,
+                            format='%(asctime)s %(name)-32s '
+                                   '%(levelname)-8s %(message)s'))
+                    except ValueError:
+                        # NOTE(notmorgan): Invalid format of the log default,
+                        # skip and don't try and apply a logger for the
+                        # specified module
+                        pass
+
+
+class ZuulTestCase(BaseTestCase):
+
+    def setUp(self):
+        super(ZuulTestCase, self).setUp()
         if USE_TEMPDIR:
             tmp_root = self.useFixture(fixtures.TempDir(
-                    rootdir=os.environ.get("ZUUL_TEST_ROOT"))).path
+                rootdir=os.environ.get("ZUUL_TEST_ROOT"))
+            ).path
         else:
             tmp_root = os.environ.get("ZUUL_TEST_ROOT")
         self.test_root = os.path.join(tmp_root, "zuul-test")
         self.upstream_root = os.path.join(self.test_root, "upstream")
         self.git_root = os.path.join(self.test_root, "git")
+        self.state_root = os.path.join(self.test_root, "lib")
 
         if os.path.exists(self.test_root):
             shutil.rmtree(self.test_root)
         os.makedirs(self.test_root)
         os.makedirs(self.upstream_root)
-        os.makedirs(self.git_root)
+        os.makedirs(self.state_root)
 
         # Make per test copy of Configuration.
         self.setup_config()
         self.config.set('zuul', 'layout_config',
-                        os.path.join(FIXTURE_DIR, "layout.yaml"))
+                        os.path.join(FIXTURE_DIR,
+                                     self.config.get('zuul', 'layout_config')))
         self.config.set('merger', 'git_dir', self.git_root)
+        self.config.set('zuul', 'state_dir', self.state_root)
 
         # For each project in config:
         self.init_repo("org/project")
@@ -859,14 +930,17 @@ class ZuulTestCase(testtools.TestCase):
         self.init_repo("org/conflict-project")
         self.init_repo("org/noop-project")
         self.init_repo("org/experimental-project")
+        self.init_repo("org/no-jobs-project")
 
         self.statsd = FakeStatsd()
-        os.environ['STATSD_HOST'] = 'localhost'
+        # note, use 127.0.0.1 rather than localhost to avoid getting ipv6
+        # see: https://github.com/jsocol/pystatsd/issues/61
+        os.environ['STATSD_HOST'] = '127.0.0.1'
         os.environ['STATSD_PORT'] = str(self.statsd.port)
         self.statsd.start()
         # the statsd client object is configured in the statsd module import
-        reload(statsd)
-        reload(zuul.scheduler)
+        reload_module(statsd)
+        reload_module(zuul.scheduler)
 
         self.gearman_server = FakeGearmanServer()
 
@@ -876,63 +950,47 @@ class ZuulTestCase(testtools.TestCase):
         self.worker.addServer('127.0.0.1', self.gearman_server.port)
         self.gearman_server.worker = self.worker
 
-        self.merge_server = zuul.merger.server.MergeServer(self.config)
-        self.merge_server.start()
+        zuul.source.gerrit.GerritSource.replication_timeout = 1.5
+        zuul.source.gerrit.GerritSource.replication_retry_interval = 0.5
+        zuul.connection.gerrit.GerritEventConnector.delay = 0.0
 
-        self.sched = zuul.scheduler.Scheduler()
+        self.sched = zuul.scheduler.Scheduler(self.config)
 
         self.useFixture(fixtures.MonkeyPatch('swiftclient.client.Connection',
                                              FakeSwiftClientConnection))
         self.swift = zuul.lib.swift.Swift(self.config)
 
+        self.event_queues = [
+            self.sched.result_event_queue,
+            self.sched.trigger_event_queue
+        ]
+
+        self.configure_connections()
+        self.sched.registerConnections(self.connections)
+
         def URLOpenerFactory(*args, **kw):
-            if isinstance(args[0], urllib2.Request):
+            if isinstance(args[0], urllib.request.Request):
                 return old_urlopen(*args, **kw)
-            args = [self.fake_gerrit] + list(args)
             return FakeURLOpener(self.upstream_root, *args, **kw)
 
-        old_urlopen = urllib2.urlopen
-        urllib2.urlopen = URLOpenerFactory
+        old_urlopen = urllib.request.urlopen
+        urllib.request.urlopen = URLOpenerFactory
+
+        self.merge_server = zuul.merger.server.MergeServer(self.config,
+                                                           self.connections)
+        self.merge_server.start()
 
         self.launcher = zuul.launcher.gearman.Gearman(self.config, self.sched,
                                                       self.swift)
         self.merge_client = zuul.merger.client.MergeClient(
             self.config, self.sched)
 
-        self.smtp_messages = []
-
-        def FakeSMTPFactory(*args, **kw):
-            args = [self.smtp_messages] + list(args)
-            return FakeSMTP(*args, **kw)
-
-        zuul.lib.gerrit.Gerrit = FakeGerrit
-        self.useFixture(fixtures.MonkeyPatch('smtplib.SMTP', FakeSMTPFactory))
-
-        self.gerrit = FakeGerritTrigger(
-            self.upstream_root, self.config, self.sched)
-        self.gerrit.replication_timeout = 1.5
-        self.gerrit.replication_retry_interval = 0.5
-        self.fake_gerrit = self.gerrit.gerrit
-        self.fake_gerrit.upstream_root = self.upstream_root
-
-        self.webapp = zuul.webapp.WebApp(self.sched, port=0)
-        self.rpc = zuul.rpclistener.RPCListener(self.config, self.sched)
-
         self.sched.setLauncher(self.launcher)
         self.sched.setMerger(self.merge_client)
-        self.sched.registerTrigger(self.gerrit)
-        self.timer = zuul.trigger.timer.Timer(self.config, self.sched)
-        self.sched.registerTrigger(self.timer)
-        self.zuultrigger = zuul.trigger.zuultrigger.ZuulTrigger(self.config, self.sched)
-        self.sched.registerTrigger(self.zuultrigger)
 
-        self.sched.registerReporter(
-            zuul.reporter.gerrit.Reporter(self.gerrit))
-        self.smtp_reporter = zuul.reporter.smtp.Reporter(
-            self.config.get('smtp', 'default_from'),
-            self.config.get('smtp', 'default_to'),
-            self.config.get('smtp', 'server'))
-        self.sched.registerReporter(self.smtp_reporter)
+        self.webapp = zuul.webapp.WebApp(
+            self.sched, port=0, listen_address='127.0.0.1')
+        self.rpc = zuul.rpclistener.RPCListener(self.config, self.sched)
 
         self.sched.start()
         self.sched.reconfigure(self.config)
@@ -947,10 +1005,80 @@ class ZuulTestCase(testtools.TestCase):
         self.addCleanup(self.assertFinalState)
         self.addCleanup(self.shutdown)
 
-    def setup_config(self):
+    def configure_connections(self):
+        # Register connections from the config
+        self.smtp_messages = []
+
+        def FakeSMTPFactory(*args, **kw):
+            args = [self.smtp_messages] + list(args)
+            return FakeSMTP(*args, **kw)
+
+        self.useFixture(fixtures.MonkeyPatch('smtplib.SMTP', FakeSMTPFactory))
+
+        # Set a changes database so multiple FakeGerrit's can report back to
+        # a virtual canonical database given by the configured hostname
+        self.gerrit_changes_dbs = {}
+        self.gerrit_queues_dbs = {}
+        self.connections = {}
+
+        for section_name in self.config.sections():
+            con_match = re.match(r'^connection ([\'\"]?)(.*)(\1)$',
+                                 section_name, re.I)
+            if not con_match:
+                continue
+            con_name = con_match.group(2)
+            con_config = dict(self.config.items(section_name))
+
+            if 'driver' not in con_config:
+                raise Exception("No driver specified for connection %s."
+                                % con_name)
+
+            con_driver = con_config['driver']
+
+            # TODO(jhesketh): load the required class automatically
+            if con_driver == 'gerrit':
+                if con_config['server'] not in self.gerrit_changes_dbs.keys():
+                    self.gerrit_changes_dbs[con_config['server']] = {}
+                if con_config['server'] not in self.gerrit_queues_dbs.keys():
+                    self.gerrit_queues_dbs[con_config['server']] = \
+                        Queue.Queue()
+                    self.event_queues.append(
+                        self.gerrit_queues_dbs[con_config['server']])
+                self.connections[con_name] = FakeGerritConnection(
+                    con_name, con_config,
+                    changes_db=self.gerrit_changes_dbs[con_config['server']],
+                    queues_db=self.gerrit_queues_dbs[con_config['server']],
+                    upstream_root=self.upstream_root
+                )
+                setattr(self, 'fake_' + con_name, self.connections[con_name])
+            elif con_driver == 'smtp':
+                self.connections[con_name] = \
+                    zuul.connection.smtp.SMTPConnection(con_name, con_config)
+            else:
+                raise Exception("Unknown driver, %s, for connection %s"
+                                % (con_config['driver'], con_name))
+
+        # If the [gerrit] or [smtp] sections still exist, load them in as a
+        # connection named 'gerrit' or 'smtp' respectfully
+
+        if 'gerrit' in self.config.sections():
+            self.gerrit_changes_dbs['gerrit'] = {}
+            self.gerrit_queues_dbs['gerrit'] = Queue.Queue()
+            self.event_queues.append(self.gerrit_queues_dbs['gerrit'])
+            self.connections['gerrit'] = FakeGerritConnection(
+                '_legacy_gerrit', dict(self.config.items('gerrit')),
+                changes_db=self.gerrit_changes_dbs['gerrit'],
+                queues_db=self.gerrit_queues_dbs['gerrit'])
+
+        if 'smtp' in self.config.sections():
+            self.connections['smtp'] = \
+                zuul.connection.smtp.SMTPConnection(
+                    '_legacy_smtp', dict(self.config.items('smtp')))
+
+    def setup_config(self, config_file='zuul.conf'):
         """Per test config object. Override to set different config."""
         self.config = ConfigParser.ConfigParser()
-        self.config.read(os.path.join(FIXTURE_DIR, "zuul.conf"))
+        self.config.read(os.path.join(FIXTURE_DIR, config_file))
 
     def assertFinalState(self):
         # Make sure that git.Repo objects have been garbage collected.
@@ -961,6 +1089,10 @@ class ZuulTestCase(testtools.TestCase):
                 repos.append(obj)
         self.assertEqual(len(repos), 0)
         self.assertEmptyQueues()
+        for pipeline in self.sched.layout.pipelines.values():
+            if isinstance(pipeline.manager,
+                          zuul.scheduler.IndependentPipelineManager):
+                self.assertEqual(len(pipeline.queues), 0)
 
     def shutdown(self):
         self.log.debug("Shutting down after tests")
@@ -969,8 +1101,6 @@ class ZuulTestCase(testtools.TestCase):
         self.merge_server.join()
         self.merge_client.stop()
         self.worker.shutdown()
-        self.gerrit.stop()
-        self.timer.stop()
         self.sched.stop()
         self.sched.join()
         self.statsd.stop()
@@ -1006,7 +1136,7 @@ class ZuulTestCase(testtools.TestCase):
         repo.create_tag('init')
 
         repo.head.reference = master
-        repo.head.reset(index=True, working_tree=True)
+        zuul.merger.merger.reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
 
         self.create_branch(project, 'mp')
@@ -1025,15 +1155,29 @@ class ZuulTestCase(testtools.TestCase):
         repo.index.commit('%s commit' % branch)
 
         repo.head.reference = repo.heads['master']
-        repo.head.reset(index=True, working_tree=True)
+        zuul.merger.merger.reset_repo_to_head(repo)
         repo.git.clean('-x', '-f', '-d')
+
+    def create_commit(self, project):
+        path = os.path.join(self.upstream_root, project)
+        repo = git.Repo(path)
+        repo.head.reference = repo.heads['master']
+        file_name = os.path.join(path, 'README')
+        with open(file_name, 'a') as f:
+            f.write('creating fake commit\n')
+        repo.index.add([file_name])
+        commit = repo.index.commit('Creating a fake commit')
+        return commit.hexsha
 
     def ref_has_change(self, ref, change):
         path = os.path.join(self.git_root, change.project)
         repo = git.Repo(path)
-        for commit in repo.iter_commits(ref):
-            if commit.message.strip() == ('%s-1' % change.subject):
-                return True
+        try:
+            for commit in repo.iter_commits(ref):
+                if commit.message.strip() == ('%s-1' % change.subject):
+                    return True
+        except GitCommandError:
+            pass
         return False
 
     def job_has_changes(self, *args):
@@ -1074,6 +1218,12 @@ class ZuulTestCase(testtools.TestCase):
 
         while len(self.gearman_server.functions) < count:
             time.sleep(0)
+
+    def orderedRelease(self):
+        # Run one build at a time to ensure non-race order:
+        while len(self.builds):
+            self.release(self.builds[0])
+            self.waitUntilSettled()
 
     def release(self, job):
         if isinstance(job, FakeBuild):
@@ -1127,8 +1277,6 @@ class ZuulTestCase(testtools.TestCase):
         return True
 
     def areAllBuildsWaiting(self):
-        ret = True
-
         builds = self.launcher.builds.values()
         for build in builds:
             client_job = None
@@ -1140,46 +1288,53 @@ class ZuulTestCase(testtools.TestCase):
             if not client_job:
                 self.log.debug("%s is not known to the gearman client" %
                                build)
-                ret = False
-                continue
+                return False
             if not client_job.handle:
                 self.log.debug("%s has no handle" % client_job)
-                ret = False
-                continue
+                return False
             server_job = self.gearman_server.jobs.get(client_job.handle)
             if not server_job:
                 self.log.debug("%s is not known to the gearman server" %
                                client_job)
-                ret = False
-                continue
+                return False
             if not hasattr(server_job, 'waiting'):
                 self.log.debug("%s is being enqueued" % server_job)
-                ret = False
-                continue
+                return False
             if server_job.waiting:
                 continue
             worker_job = self.worker.gearman_jobs.get(server_job.unique)
             if worker_job:
+                if build.number is None:
+                    self.log.debug("%s has not reported start" % worker_job)
+                    return False
                 if worker_job.build.isWaiting():
                     continue
                 else:
                     self.log.debug("%s is running" % worker_job)
-                    ret = False
+                    return False
             else:
                 self.log.debug("%s is unassigned" % server_job)
-                ret = False
-        return ret
+                return False
+        return True
+
+    def eventQueuesEmpty(self):
+        for queue in self.event_queues:
+            yield queue.empty()
+
+    def eventQueuesJoin(self):
+        for queue in self.event_queues:
+            queue.join()
 
     def waitUntilSettled(self):
         self.log.debug("Waiting until settled...")
         start = time.time()
         while True:
             if time.time() - start > 10:
-                print 'queue status:',
-                print self.sched.trigger_event_queue.empty(),
-                print self.sched.result_event_queue.empty(),
-                print self.fake_gerrit.event_queue.empty(),
-                print self.areAllBuildsWaiting()
+                self.log.debug("Queue status:")
+                for queue in self.event_queues:
+                    self.log.debug("  %s: %s" % (queue, queue.empty()))
+                self.log.debug("All builds waiting: %s" %
+                               (self.areAllBuildsWaiting(),))
                 raise Exception("Timeout waiting for Zuul to settle")
             # Make sure no new events show up while we're checking
             self.worker.lock.acquire()
@@ -1187,14 +1342,10 @@ class ZuulTestCase(testtools.TestCase):
             if self.haveAllBuildsReported():
                 # Join ensures that the queue is empty _and_ events have been
                 # processed
-                self.fake_gerrit.event_queue.join()
-                self.sched.trigger_event_queue.join()
-                self.sched.result_event_queue.join()
+                self.eventQueuesJoin()
                 self.sched.run_handler_lock.acquire()
-                if (self.sched.trigger_event_queue.empty() and
-                    self.sched.result_event_queue.empty() and
-                    self.fake_gerrit.event_queue.empty() and
-                    not self.merge_client.build_sets and
+                if (not self.merge_client.build_sets and
+                    all(self.eventQueuesEmpty()) and
                     self.haveAllBuildsReported() and
                     self.areAllBuildsWaiting()):
                     self.sched.run_handler_lock.release()
@@ -1221,8 +1372,8 @@ class ZuulTestCase(testtools.TestCase):
         for pipeline in self.sched.layout.pipelines.values():
             for queue in pipeline.queues:
                 if len(queue.queue) != 0:
-                    print 'pipeline %s queue %s contents %s' % (
-                        pipeline.name, queue.name, queue.queue)
+                    print('pipeline %s queue %s contents %s' % (
+                        pipeline.name, queue.name, queue.queue))
                 self.assertEqual(len(queue.queue), 0,
                                  "Pipelines queues should be empty")
 

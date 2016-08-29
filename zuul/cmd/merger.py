@@ -58,7 +58,8 @@ class Merger(zuul.cmd.ZuulApp):
 
         self.setup_logging('merger', 'log_config')
 
-        self.merger = zuul.merger.server.MergeServer(self.config)
+        self.merger = zuul.merger.server.MergeServer(self.config,
+                                                     self.connections)
         self.merger.start()
 
         signal.signal(signal.SIGUSR1, self.exit_handler)
@@ -67,7 +68,7 @@ class Merger(zuul.cmd.ZuulApp):
             try:
                 signal.pause()
             except KeyboardInterrupt:
-                print "Ctrl + C: asking merger to exit nicely...\n"
+                print("Ctrl + C: asking merger to exit nicely...\n")
                 self.exit_handler(signal.SIGINT, None)
 
 
@@ -76,6 +77,7 @@ def main():
     server.parse_arguments()
 
     server.read_config()
+    server.configure_connections()
 
     if server.config.has_option('zuul', 'state_dir'):
         state_dir = os.path.expanduser(server.config.get('zuul', 'state_dir'))
@@ -87,9 +89,7 @@ def main():
         f.close()
         os.unlink(test_fn)
     except Exception:
-        print
-        print "Unable to write to state directory: %s" % state_dir
-        print
+        print("\nUnable to write to state directory: %s\n" % state_dir)
         raise
 
     if server.config.has_option('merger', 'pidfile'):
