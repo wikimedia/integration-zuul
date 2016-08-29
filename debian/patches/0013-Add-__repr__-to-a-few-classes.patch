@@ -1,0 +1,263 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Fri, 26 Aug 2016 12:26:47 +0200
+Subject: Add __repr__ to a few classes
+
+When validating the layout, various objects are shown with the default
+python representation which has a varying object id.  If one wants to
+validate the difference of layout between two configuration, it ends up
+with lot of noise such as:
+
+ INFO:zuul.IndependentPipelineManager:  On success:
+-INFO:zuul.IndependentPipelineManager:
+[<zuul.reporter.gerrit.GerritReporter object at 0x4a04210>]
++INFO:zuul.IndependentPipelineManager:
+[<zuul.reporter.gerrit.GerritReporter object at 0x357e210>]
+
+To BaseConnection class:
+* add __repr__ to show the concrete class name followed by the
+  connection name.
+* add a __str__ that is human/inclusion friendly using an URL like
+  scheme: driver_name://connectio_name. Eg: gerrit://my_review_site
+
+The base class for reporters, sources and triggers receive a __repr__
+which include the connection friendly name.
+
+Downstream bug:
+https://phabricator.wikimedia.org/T143966
+
+Change-Id: Ib7f1e1724e90160bbaefd581ed6b243728679892
+---
+ tests/test_connection.py    | 16 ++++++++++++++++
+ tests/test_reporter.py      | 19 +++++++++++++++++++
+ tests/test_source.py        | 11 +++++++++++
+ tests/test_trigger.py       | 27 +++++++++++++++++++++++++++
+ zuul/connection/__init__.py |  9 +++++++++
+ zuul/reporter/__init__.py   |  6 ++++++
+ zuul/source/__init__.py     |  6 ++++++
+ zuul/trigger/__init__.py    |  6 ++++++
+ 8 files changed, 100 insertions(+)
+
+diff --git a/tests/test_connection.py b/tests/test_connection.py
+index c3458ac..827f60c 100644
+--- a/tests/test_connection.py
++++ b/tests/test_connection.py
+@@ -32,6 +32,22 @@ class TestConnections(ZuulTestCase):
+     def setup_config(self, config_file='zuul-connections-same-gerrit.conf'):
+         super(TestConnections, self).setup_config(config_file)
+ 
++    def test_repr(self):
++        self.assertEquals('<FakeGerritConnection name: review_gerrit>',
++                          repr(self.connections['review_gerrit']))
++        self.assertEquals('<FakeGerritConnection name: alt_voting_gerrit>',
++                          repr(self.connections['alt_voting_gerrit']))
++        self.assertEquals('<SMTPConnection name: outgoing_smtp>',
++                          repr(self.connections['outgoing_smtp']))
++
++    def test_str(self):
++        self.assertEquals('gerrit://review_gerrit',
++                          str(self.connections['review_gerrit']))
++        self.assertEquals('gerrit://alt_voting_gerrit',
++                          str(self.connections['alt_voting_gerrit']))
++        self.assertEquals('smtp://outgoing_smtp',
++                          str(self.connections['outgoing_smtp']))
++
+     def test_multiple_connections(self):
+         "Test multiple connections to the one gerrit"
+ 
+diff --git a/tests/test_reporter.py b/tests/test_reporter.py
+index 8d3090a..1a52aed 100644
+--- a/tests/test_reporter.py
++++ b/tests/test_reporter.py
+@@ -15,7 +15,12 @@
+ import logging
+ import testtools
+ 
++import zuul.connection.gerrit
++import zuul.connection.smtp
++
+ import zuul.reporter
++import zuul.reporter.gerrit
++import zuul.reporter.smtp
+ 
+ 
+ class TestSMTPReporter(testtools.TestCase):
+@@ -31,6 +36,12 @@ class TestSMTPReporter(testtools.TestCase):
+     def test_reporter_name(self):
+         self.assertEqual('smtp', zuul.reporter.smtp.SMTPReporter.name)
+ 
++    def test_repr(self):
++        smtp = zuul.connection.smtp.SMTPConnection('smtp.example.org', {})
++        self.assertEqual(
++            '<SMTPReporter connection: smtp://smtp.example.org>',
++            repr(zuul.reporter.smtp.SMTPReporter(connection=smtp)))
++
+ 
+ class TestGerritReporter(testtools.TestCase):
+     log = logging.getLogger("zuul.test_reporter")
+@@ -44,3 +55,11 @@ class TestGerritReporter(testtools.TestCase):
+ 
+     def test_reporter_name(self):
+         self.assertEqual('gerrit', zuul.reporter.gerrit.GerritReporter.name)
++
++    def test_repr(self):
++        gerrit = zuul.connection.gerrit.GerritConnection(
++            'review.example.org',
++            {'server': 'review.example.org', 'user': 'zuul'})
++        self.assertEqual(
++            '<GerritReporter connection: gerrit://review.example.org>',
++            repr(zuul.reporter.gerrit.GerritReporter(connection=gerrit)))
+diff --git a/tests/test_source.py b/tests/test_source.py
+index 8a3e7d5..8470f07 100644
+--- a/tests/test_source.py
++++ b/tests/test_source.py
+@@ -15,7 +15,10 @@
+ import logging
+ import testtools
+ 
++import zuul.connection.gerrit
++
+ import zuul.source
++import zuul.source.gerrit
+ 
+ 
+ class TestGerritSource(testtools.TestCase):
+@@ -23,3 +26,11 @@ class TestGerritSource(testtools.TestCase):
+ 
+     def test_source_name(self):
+         self.assertEqual('gerrit', zuul.source.gerrit.GerritSource.name)
++
++    def test_repr(self):
++        gerrit = zuul.connection.gerrit.GerritConnection(
++            'review.example.org',
++            {'server': 'review.example.org', 'user': 'zuul'})
++        self.assertEqual(
++            '<GerritSource connection: gerrit://review.example.org>',
++            repr(zuul.source.gerrit.GerritSource(connection=gerrit)))
+diff --git a/tests/test_trigger.py b/tests/test_trigger.py
+index 7eb1b69..1e22eea 100644
+--- a/tests/test_trigger.py
++++ b/tests/test_trigger.py
+@@ -15,7 +15,19 @@
+ import logging
+ import testtools
+ 
++import zuul.connection.gerrit
++import zuul.connection.smtp
++
+ import zuul.trigger
++import zuul.trigger.gerrit
++import zuul.trigger.timer
++import zuul.trigger.zuultrigger
++
++
++def gerrit_conn():
++    return zuul.connection.gerrit.GerritConnection(
++        'review.example.org',
++        {'server': 'review.example.org', 'user': 'zuul'})
+ 
+ 
+ class TestGerritTrigger(testtools.TestCase):
+@@ -28,6 +40,11 @@ class TestGerritTrigger(testtools.TestCase):
+     def test_trigger_name(self):
+         self.assertEqual('gerrit', zuul.trigger.gerrit.GerritTrigger.name)
+ 
++    def test_repr(self):
++        self.assertEqual(
++            '<GerritTrigger connection: gerrit://review.example.org>',
++            repr(zuul.trigger.gerrit.GerritTrigger(connection=gerrit_conn())))
++
+ 
+ class TestTimerTrigger(testtools.TestCase):
+     log = logging.getLogger("zuul.test_trigger")
+@@ -39,6 +56,11 @@ class TestTimerTrigger(testtools.TestCase):
+     def test_trigger_name(self):
+         self.assertEqual('timer', zuul.trigger.timer.TimerTrigger.name)
+ 
++    def test_repr(self):
++        self.assertEqual(
++            '<TimerTrigger connection: gerrit://review.example.org>',
++            repr(zuul.trigger.timer.TimerTrigger(connection=gerrit_conn())))
++
+ 
+ class TestZuulTrigger(testtools.TestCase):
+     log = logging.getLogger("zuul.test_trigger")
+@@ -49,3 +71,8 @@ class TestZuulTrigger(testtools.TestCase):
+ 
+     def test_trigger_name(self):
+         self.assertEqual('zuul', zuul.trigger.zuultrigger.ZuulTrigger.name)
++
++    def test_repr(self):
++        self.assertEqual(
++            '<ZuulTrigger connection: None>',
++            repr(zuul.trigger.zuultrigger.ZuulTrigger({})))
+diff --git a/zuul/connection/__init__.py b/zuul/connection/__init__.py
+index 066b4db..7285bc8 100644
+--- a/zuul/connection/__init__.py
++++ b/zuul/connection/__init__.py
+@@ -51,6 +51,15 @@ class BaseConnection(object):
+             'reporter': [],
+         }
+ 
++    def __repr__(self):
++        return "<%s name: %s>" % (
++            self.__class__.__name__,
++            self.connection_name
++        )
++
++    def __str__(self):
++        return "%s://%s" % (self.driver_name, self.connection_name)
++
+     def onLoad(self):
+         pass
+ 
+diff --git a/zuul/reporter/__init__.py b/zuul/reporter/__init__.py
+index 0c9a8d8..cd43f54 100644
+--- a/zuul/reporter/__init__.py
++++ b/zuul/reporter/__init__.py
+@@ -33,6 +33,12 @@ class BaseReporter(object):
+         self.connection = connection
+         self._action = None
+ 
++    def __repr__(self):
++        return "<%s connection: %s>" % (
++            self.__class__.__name__,
++            self.connection
++        )
++
+     def setAction(self, action):
+         self._action = action
+ 
+diff --git a/zuul/source/__init__.py b/zuul/source/__init__.py
+index cb4501a..7b16204 100644
+--- a/zuul/source/__init__.py
++++ b/zuul/source/__init__.py
+@@ -32,6 +32,12 @@ class BaseSource(object):
+         self.sched = sched
+         self.connection = connection
+ 
++    def __repr__(self):
++        return "<%s connection: %s>" % (
++            self.__class__.__name__,
++            self.connection
++        )
++
+     def stop(self):
+         """Stop the source."""
+ 
+diff --git a/zuul/trigger/__init__.py b/zuul/trigger/__init__.py
+index 16fb0b1..f0dbdf9 100644
+--- a/zuul/trigger/__init__.py
++++ b/zuul/trigger/__init__.py
+@@ -28,6 +28,12 @@ class BaseTrigger(object):
+         self.sched = sched
+         self.connection = connection
+ 
++    def __repr__(self):
++        return "<%s connection: %s>" % (
++            self.__class__.__name__,
++            self.connection
++        )
++
+     def stop(self):
+         """Stop the trigger."""
+ 
