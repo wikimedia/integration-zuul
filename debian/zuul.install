@@ -1,0 +1,2 @@
+#!/usr/bin/dh-exec
+tools/zuul-clear-refs.py => /usr/bin/zuul-clear-refs
