@@ -1,3 +1,19 @@
+zuul (2.5.0-8-gcbc7f62-wmf2precise1) precise-wikimedia; urgency=medium
+
+  * Package tools/zuul-clear-refs.py and install it as
+    /usr/bin/zuul-clear-refs . Will fix T103529 once ported to Jessie
+  * debian/source/options ignore .tox and .egg-info directories.
+  * Couple patches pending upstream review:
+
+    [f19bf8c] Add __repr__ to a few classes
+    https://review.openstack.org/#/c/361064/2
+    Fix T143966
+
+    [5871526] Don't merge queues if the common job is 'noop'
+    https://review.openstack.org/#/c/361505/2
+
+ -- Antoine Musso <hashar@free.fr>  Mon, 29 Aug 2016 12:04:01 +0200
+
 zuul (2.5.0-8-gcbc7f62-wmf1precise1) precise-wikimedia; urgency=medium
 
   * New upstream version 2.5.0 + tip of upstream branch. Notably get the
