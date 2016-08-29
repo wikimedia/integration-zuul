@@ -1,3 +1,11 @@
+zuul (2.5.0-8-gcbc7f62-wmf2precise1) precise-wikimedia; urgency=medium
+
+  * Package tools/zuul-clear-refs.py and install it as
+    /usr/bin/zuul-clear-refs . Fix T103529
+  * debian/source/options ignore .tox and .egg-info directories.
+
+ -- Antoine Musso <hashar@free.fr>  Mon, 29 Aug 2016 12:04:01 +0200
+
 zuul (2.5.0-8-gcbc7f62-wmf1precise1) precise-wikimedia; urgency=medium
 
   * New upstream version 2.5.0 + tip of upstream branch. Notably get the
