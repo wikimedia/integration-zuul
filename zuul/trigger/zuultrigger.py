@@ -14,41 +14,54 @@
 # under the License.
 
 import logging
-from zuul.model import TriggerEvent
+import voluptuous as v
+from zuul.model import EventFilter, TriggerEvent
+from zuul.trigger import BaseTrigger
 
 
-class ZuulTrigger(object):
+class ZuulTrigger(BaseTrigger):
     name = 'zuul'
     log = logging.getLogger("zuul.ZuulTrigger")
 
-    def __init__(self, config, sched):
-        self.sched = sched
-        self.config = config
+    def __init__(self, trigger_config={}, sched=None, connection=None):
+        super(ZuulTrigger, self).__init__(trigger_config, sched, connection)
         self._handle_parent_change_enqueued_events = False
         self._handle_project_change_merged_events = False
 
-    def stop(self):
-        pass
+    def getEventFilters(self, trigger_conf):
+        def toList(item):
+            if not item:
+                return []
+            if isinstance(item, list):
+                return item
+            return [item]
 
-    def isMerged(self, change, head=None):
-        raise Exception("Zuul trigger does not support checking if "
-                        "a change is merged.")
+        efilters = []
+        for trigger in toList(trigger_conf):
+            f = EventFilter(
+                trigger=self,
+                types=toList(trigger['event']),
+                pipelines=toList(trigger.get('pipeline')),
+                required_approvals=(
+                    toList(trigger.get('require-approval'))
+                ),
+                reject_approvals=toList(
+                    trigger.get('reject-approval')
+                ),
+            )
+            efilters.append(f)
 
-    def canMerge(self, change, allow_needs):
-        raise Exception("Zuul trigger does not support checking if "
-                        "a change can merge.")
+        return efilters
 
-    def maintainCache(self, relevant):
-        return
-
-    def onChangeMerged(self, change):
+    def onChangeMerged(self, change, source):
         # Called each time zuul merges a change
         if self._handle_project_change_merged_events:
             try:
-                self._createProjectChangeMergedEvents(change)
+                self._createProjectChangeMergedEvents(change, source)
             except Exception:
-                self.log.exception("Unable to create project-change-merged events for %s" %
-                                   (change,))
+                self.log.exception(
+                    "Unable to create project-change-merged events for "
+                    "%s" % (change,))
 
     def onChangeEnqueued(self, change, pipeline):
         # Called each time a change is enqueued in a pipeline
@@ -56,11 +69,13 @@ class ZuulTrigger(object):
             try:
                 self._createParentChangeEnqueuedEvents(change, pipeline)
             except Exception:
-                self.log.exception("Unable to create parent-change-enqueued events for %s in %s" %
-                                   (change, pipeline))
+                self.log.exception(
+                    "Unable to create parent-change-enqueued events for "
+                    "%s in %s" % (change, pipeline))
 
-    def _createProjectChangeMergedEvents(self, change):
-        changes = self.sched.triggers['gerrit'].getProjectOpenChanges(change.project)
+    def _createProjectChangeMergedEvents(self, change, source):
+        changes = source.getProjectOpenChanges(
+            change.project)
         for open_change in changes:
             self._createProjectChangeMergedEvent(open_change)
 
@@ -109,11 +124,25 @@ class ZuulTrigger(object):
                 elif 'project-change-merged' in ef._types:
                     self._handle_project_change_merged_events = True
 
-    def getChange(self, number, patchset, refresh=False):
-        raise Exception("Zuul trigger does not support changes.")
 
-    def getGitUrl(self, project):
-        raise Exception("Zuul trigger does not support changes.")
+def getSchema():
+    def toList(x):
+        return v.Any([x], x)
 
-    def getGitwebUrl(self, project, sha=None):
-        raise Exception("Zuul trigger does not support changes.")
+    approval = v.Schema({'username': str,
+                         'email-filter': str,
+                         'email': str,
+                         'older-than': str,
+                         'newer-than': str,
+                         }, extra=True)
+
+    zuul_trigger = {
+        v.Required('event'):
+        toList(v.Any('parent-change-enqueued',
+                     'project-change-merged')),
+        'pipeline': toList(str),
+        'require-approval': toList(approval),
+        'reject-approval': toList(approval),
+    }
+
+    return zuul_trigger

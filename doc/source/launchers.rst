@@ -6,7 +6,7 @@
    https://wiki.jenkins-ci.org/display/JENKINS/Gearman+Plugin
 
 .. _`Turbo-Hipster`:
-   http://git.openstack.org/cgit/stackforge/turbo-hipster/
+   https://git.openstack.org/cgit/openstack/turbo-hipster/
 
 .. _`Turbo-Hipster Documentation`:
    http://turbo-hipster.rtfd.org/
@@ -66,6 +66,11 @@ Common parameters
 **LOG_PATH**
   zuul also suggests a unique path for logs to the worker. This is
   "BASE_LOG_PATH/pipeline-name/job-name/uuid"
+**ZUUL_VOTING**
+  Whether Zuul considers this job voting or not.  Note that if Zuul is
+  reconfigured during the run, the voting status of a job may change
+  and this value will be out of date.  Values are '1' if voting, '0'
+  otherwise.
 
 Change related parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,6 +83,10 @@ comment-added events):
   The target branch for the change that triggered this build.
 **ZUUL_CHANGE**
   The Gerrit change ID for the change that triggered this build.
+**ZUUL_CHANGES**
+  A caret character separated list of the changes upon which this build
+  is dependent upon in the form of a colon character separated list
+  consisting of project name, target branch, and revision ref.
 **ZUUL_CHANGE_IDS**
   All of the Gerrit change IDs that are included in this build (useful
   when the DependentPipelineManager combines changes for testing).
@@ -230,7 +239,7 @@ the Git plugin to prepare them, or you may chose to use a shell script
 instead.  As an example, the OpenStack project uses the following
 script to prepare the workspace for its integration testing:
 
-  https://github.com/openstack-infra/devstack-gate/blob/master/devstack-vm-gate-wrap.sh
+  https://git.openstack.org/cgit/openstack-infra/devstack-gate/tree/devstack-vm-gate-wrap.sh
 
 Turbo Hipster Worker
 ~~~~~~~~~~~~~~~~~~~~

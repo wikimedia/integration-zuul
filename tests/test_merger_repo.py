@@ -22,11 +22,11 @@ import git
 
 from zuul.merger.merger import Repo
 from tests.base import ZuulTestCase
-from tests.base import FIXTURE_DIR
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-32s '
                     '%(levelname)-8s %(message)s')
+
 
 class TestMergerRepo(ZuulTestCase):
 
@@ -42,26 +42,30 @@ class TestMergerRepo(ZuulTestCase):
 
         # Forge a repo having a submodule
         parent_repo = git.Repo(parent_path)
-        parent_repo.git.submodule('add',
-            os.path.join(self.upstream_root, 'org/project2'), 'subdir')
+        parent_repo.git.submodule('add', os.path.join(
+            self.upstream_root, 'org/project2'), 'subdir')
         parent_repo.index.commit('Adding project2 as a submodule in subdir')
-        self.assertTrue(
-            os.path.isfile(os.path.join(parent_path, 'subdir', '.git')),
+        # git 1.7.8 changed .git from being a directory to a file pointing
+        # to the parent repository /.git/modules/*
+        self.assertTrue(os.path.exists(
+            os.path.join(parent_path, 'subdir', '.git')),
             msg='.git file in submodule should be a file')
 
-        work_repo = Repo(parent_path, self.workspace_root, 'none@example.org', 'User Name')
+        work_repo = Repo(parent_path, self.workspace_root,
+                         'none@example.org', 'User Name')
         self.assertTrue(
             os.path.isdir(os.path.join(self.workspace_root, 'subdir')),
             msg='Cloned repository has a submodule placeholder directory')
-        self.assertFalse(
-            os.path.exists(os.path.join(self.workspace_root, 'subdir', '.git')),
+        self.assertFalse(os.path.exists(
+            os.path.join(self.workspace_root, 'subdir', '.git')),
             msg='Submodule is not initialized')
 
-        sub_repo = Repo(os.path.join(self.upstream_root, 'org/project2'),
+        sub_repo = Repo(
+            os.path.join(self.upstream_root, 'org/project2'),
             os.path.join(self.workspace_root, 'subdir'),
             'none@example.org', 'User Name')
-        self.assertTrue(
-            os.path.exists(os.path.join(self.workspace_root, 'subdir', '.git')),
+        self.assertTrue(os.path.exists(
+            os.path.join(self.workspace_root, 'subdir', '.git')),
             msg='Cloned over the submodule placeholder')
 
         self.assertEquals(

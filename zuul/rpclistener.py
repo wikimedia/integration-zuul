@@ -21,7 +21,7 @@ import traceback
 import gear
 import six
 
-import model
+from zuul import model
 
 
 class RPCListener(object):
@@ -40,14 +40,15 @@ class RPCListener(object):
             port = 4730
         self.worker = gear.Worker('Zuul RPC Listener')
         self.worker.addServer(server, port)
+        self.worker.waitForServer()
+        self.register()
         self.thread = threading.Thread(target=self.run)
         self.thread.daemon = True
         self.thread.start()
-        self.worker.waitForServer()
-        self.register()
 
     def register(self):
         self.worker.registerFunction("zuul:enqueue")
+        self.worker.registerFunction("zuul:enqueue_ref")
         self.worker.registerFunction("zuul:promote")
         self.worker.registerFunction("zuul:get_running_jobs")
 
@@ -65,8 +66,8 @@ class RPCListener(object):
         while self._running:
             try:
                 job = self.worker.getJob()
-                z, jobname = job.name.split(':')
                 self.log.debug("Received job %s" % job.name)
+                z, jobname = job.name.split(':')
                 attrname = 'handle_' + jobname
                 if hasattr(self, attrname):
                     f = getattr(self, attrname)
@@ -83,7 +84,7 @@ class RPCListener(object):
             except Exception:
                 self.log.exception("Exception while getting job")
 
-    def handle_enqueue(self, job):
+    def _common_enqueue(self, job):
         args = json.loads(job.arguments)
         event = model.TriggerEvent()
         errors = ''
@@ -106,12 +107,31 @@ class RPCListener(object):
         else:
             errors += 'Invalid pipeline: %s\n' % (args['pipeline'],)
 
+        return (args, event, errors, pipeline, project)
+
+    def handle_enqueue(self, job):
+        (args, event, errors, pipeline, project) = self._common_enqueue(job)
+
         if not errors:
             event.change_number, event.patch_number = args['change'].split(',')
             try:
                 pipeline.source.getChange(event, project)
             except Exception:
                 errors += 'Invalid change: %s\n' % (args['change'],)
+
+        if errors:
+            job.sendWorkException(errors.encode('utf8'))
+        else:
+            self.sched.enqueue(event)
+            job.sendWorkComplete()
+
+    def handle_enqueue_ref(self, job):
+        (args, event, errors, pipeline, project) = self._common_enqueue(job)
+
+        if not errors:
+            event.ref = args['ref']
+            event.oldrev = args['oldrev']
+            event.newrev = args['newrev']
 
         if errors:
             job.sendWorkException(errors.encode('utf8'))
