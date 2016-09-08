@@ -1,3 +1,28 @@
+zuul (2.5.0-8-gcbc7f62-wmf2jessie1) jessie-wikimedia; urgency=medium
+
+  * sync with precise-wikimedia:
+
+  * New upstream version 2.5.0 + tip of upstream branch. Notably get the
+    commit: a8b90b3 - Always create foreign projects if needed
+    Should definitely fix T128569
+  * [debian/gbp.conf] rename section to avoid a warning:
+      gbp:warning: Old style config section [git-buildpackage] found please
+      rename to [buildpackage]
+
+  * Package tools/zuul-clear-refs.py and install it as
+    /usr/bin/zuul-clear-refs . Will fix T103529 once ported to Jessie
+  * debian/source/options ignore .tox and .egg-info directories.
+  * Couple patches pending upstream review:
+
+    [f19bf8c] Add __repr__ to a few classes
+    https://review.openstack.org/#/c/361064/2
+    Fix T143966
+
+    [5871526] Don't merge queues if the common job is 'noop'
+    https://review.openstack.org/#/c/361505/2
+
+ -- Antoine Musso <hashar@free.fr>  Thu, 08 Sep 2016 11:19:53 +0200
+
 zuul (2.1.0-391-gbc58ea3-wmf2jessie1) jessie-wikimedia; urgency=medium
 
   * sync with precise-wikimedia
