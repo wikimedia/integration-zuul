@@ -5,6 +5,7 @@ Section: python
 Priority: optional
 Build-Depends: debhelper (>= 9),
  python-virtualenv (>= 1.11),
+ dh-exec,
  dh-virtualenv (>= 0.9),
  virtualenv,
  openstack-pkg-tools,
