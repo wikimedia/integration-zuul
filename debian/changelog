@@ -1,3 +1,11 @@
+zuul (2.5.0-8-gcbc7f62-wmf3precise1) precise-wikimedia; urgency=medium
+
+  * Fix shebang of several scripts to point to the virtualenv.
+    Refresh 0002-Replace-python-shebang-with-python2.7.patch
+    Related to T103529
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 13 Sep 2016 13:09:23 +0200
+
 zuul (2.5.0-8-gcbc7f62-wmf2precise1) precise-wikimedia; urgency=medium
 
   * Package tools/zuul-clear-refs.py and install it as
