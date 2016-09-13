@@ -9,7 +9,10 @@ Change-Id: I68b805d0e1b49971063ed98ccc187f4456f9501d
 ---
  setup.py                      | 2 +-
  tests/base.py                 | 2 +-
+ tests/cmd/test_cloner.py      | 2 +-
  tests/test_cloner.py          | 2 +-
+ tests/test_daemon.py          | 2 +-
+ tests/test_gerrit.py          | 2 +-
  tests/test_layoutvalidator.py | 2 +-
  tests/test_merger_repo.py     | 2 +-
  tests/test_requirements.py    | 2 +-
@@ -18,12 +21,14 @@ Change-Id: I68b805d0e1b49971063ed98ccc187f4456f9501d
  tests/test_zuultrigger.py     | 2 +-
  tools/trigger-job.py          | 2 +-
  tools/zuul-changes.py         | 2 +-
+ tools/zuul-clear-refs.py      | 2 +-
  zuul/cmd/__init__.py          | 2 +-
  zuul/cmd/client.py            | 2 +-
  zuul/cmd/cloner.py            | 2 +-
+ zuul/cmd/launcher.py          | 2 +-
  zuul/cmd/merger.py            | 2 +-
  zuul/cmd/server.py            | 2 +-
- 16 files changed, 16 insertions(+), 16 deletions(-)
+ 21 files changed, 21 insertions(+), 21 deletions(-)
 
 diff --git a/setup.py b/setup.py
 index 70c2b3f..4ec20a6 100644
@@ -45,6 +50,16 @@ index 38d2817..6d4f017 100755
  
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  #
+diff --git a/tests/cmd/test_cloner.py b/tests/cmd/test_cloner.py
+index 9cbb5b8..d9fda11 100644
+--- a/tests/cmd/test_cloner.py
++++ b/tests/cmd/test_cloner.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python2.7
+ 
+ # Licensed under the Apache License, Version 2.0 (the "License"); you may
+ # not use this file except in compliance with the License. You may obtain
 diff --git a/tests/test_cloner.py b/tests/test_cloner.py
 index e3576bd..064a61c 100644
 --- a/tests/test_cloner.py
@@ -55,6 +70,26 @@ index e3576bd..064a61c 100644
  
  # Copyright 2012 Hewlett-Packard Development Company, L.P.
  # Copyright 2014 Wikimedia Foundation Inc.
+diff --git a/tests/test_daemon.py b/tests/test_daemon.py
+index 689d4f7..14d219c 100644
+--- a/tests/test_daemon.py
++++ b/tests/test_daemon.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python2.7
+ 
+ # Copyright 2014 Hewlett-Packard Development Company, L.P.
+ #
+diff --git a/tests/test_gerrit.py b/tests/test_gerrit.py
+index 93ce122..9291073 100644
+--- a/tests/test_gerrit.py
++++ b/tests/test_gerrit.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python2.7
+ 
+ # Copyright 2015 BMW Car IT GmbH
+ #
 diff --git a/tests/test_layoutvalidator.py b/tests/test_layoutvalidator.py
 index 46a8c7c..101e0d0 100644
 --- a/tests/test_layoutvalidator.py
@@ -86,7 +121,7 @@ index 3ae56ad..202010c 100644
  # Copyright 2012-2014 Hewlett-Packard Development Company, L.P.
  #
 diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
-index 628775d..ac70091 100755
+index 335f987..a4bca5c 100755
 --- a/tests/test_scheduler.py
 +++ b/tests/test_scheduler.py
 @@ -1,4 +1,4 @@
@@ -135,6 +170,16 @@ index 8b854c7..e156268 100755
  # Copyright 2013 OpenStack Foundation
  # Copyright 2015 Hewlett-Packard Development Company, L.P.
  #
+diff --git a/tools/zuul-clear-refs.py b/tools/zuul-clear-refs.py
+index 60ce744..3eb08c6 100755
+--- a/tools/zuul-clear-refs.py
++++ b/tools/zuul-clear-refs.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python2.7
+ # Copyright 2014-2015 Antoine "hashar" Musso
+ # Copyright 2014-2015 Wikimedia Foundation Inc.
+ #
 diff --git a/zuul/cmd/__init__.py b/zuul/cmd/__init__.py
 index 5ffd431..120c62c 100644
 --- a/zuul/cmd/__init__.py
@@ -165,6 +210,16 @@ index 4f8b9f4..dbbe396 100755
  #
  # Copyright 2014 Antoine "hashar" Musso
  # Copyright 2014 Wikimedia Foundation Inc.
+diff --git a/zuul/cmd/launcher.py b/zuul/cmd/launcher.py
+index 49643ae..9efa22f 100644
+--- a/zuul/cmd/launcher.py
++++ b/zuul/cmd/launcher.py
+@@ -1,4 +1,4 @@
+-#!/usr/bin/env python
++#!/usr/bin/env python2.7
+ # Copyright 2012 Hewlett-Packard Development Company, L.P.
+ # Copyright 2013-2014 OpenStack Foundation
+ #
 diff --git a/zuul/cmd/merger.py b/zuul/cmd/merger.py
 index 797a990..2807f9e 100644
 --- a/zuul/cmd/merger.py
