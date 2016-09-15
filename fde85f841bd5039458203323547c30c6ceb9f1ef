@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "0e82f318_1e51afdd",
+        "filename": "debian/gbp.conf",
+        "patchSetId": 1
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2016-09-15T21:11:38Z",
+      "side": 1,
+      "message": "The default is:\n\n  \u0027GIT_PBUILDER_AUTOCONF\u003dno git-pbuilder\u0027\n\nI would rather keep it as is and instead pass options:\n\n\n    --git-pbuilder-options\u003dPBUILDER_OPTIONS\n    Options to pass to pbuilder, default is \u0027\u0027\n\n\nEg maybe:\n\n  pbuilder-options \u003d -sa",
+      "revId": "fde85f841bd5039458203323547c30c6ceb9f1ef",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
