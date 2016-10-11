@@ -1,0 +1,4 @@
+Verified+2: jenkins-bot
+Reviewed-on: https://gerrit.wikimedia.org/r/315430
+Project: integration/zuul
+Branch: refs/heads/debian/jessie-wikimedia
