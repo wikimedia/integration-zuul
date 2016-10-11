@@ -1,1 +1,1 @@
-extend-diff-ignore = "(\.gitreview|\.tox|.+\.egg-info/)"
+extend-diff-ignore = "(\.gitreview|\.tox|.+\.egg-info/|.*pyc|((^|/)\.tox))"
