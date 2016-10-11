@@ -1,0 +1,4 @@
+Verified+2: jenkins-bot
+Reviewed-on: https://gerrit.wikimedia.org/r/315281
+Project: integration/zuul
+Branch: refs/heads/patch-queue/debian/precise-wikimedia
