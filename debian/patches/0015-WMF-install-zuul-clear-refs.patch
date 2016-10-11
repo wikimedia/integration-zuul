@@ -1,0 +1,32 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Tue, 11 Oct 2016 17:22:49 +0200
+Subject: WMF: install zuul-clear-refs
+
+pbr would not install tools/zuul-clear-refs.py since setup.cfg only
+defines console entry points. Add an entry for the script using
+distutils 'scripts'.
+
+I have confirmed the shebang is properly set when in a venv. The Debian
+packaging recipe will have to rename the file to drop the .py suffix.
+
+Bug: T103529
+Change-Id: I50f6e9a342bb36a203c6ea3c788e3e223e8c1854
+---
+ setup.cfg | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/setup.cfg b/setup.cfg
+index 7ddeb84..eb9f1df 100644
+--- a/setup.cfg
++++ b/setup.cfg
+@@ -16,6 +16,10 @@ classifier =
+     Programming Language :: Python :: 2.7
+     Programming Language :: Python :: 2.6
+ 
++[files]
++scripts =
++    tools/zuul-clear-refs.py
++
+ [pbr]
+ warnerrors = True
+ 
