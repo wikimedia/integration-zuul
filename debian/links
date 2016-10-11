@@ -8,5 +8,6 @@
 
 /usr/share/python/zuul/bin/zuul usr/bin/zuul
 /usr/share/python/zuul/bin/zuul-cloner usr/bin/zuul-cloner
+/usr/share/python/zuul/bin/zuul-launcher usr/bin/zuul-launcher
 /usr/share/python/zuul/bin/zuul-merger usr/bin/zuul-merger
 /usr/share/python/zuul/bin/zuul-server usr/bin/zuul-server

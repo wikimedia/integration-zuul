@@ -1,3 +1,9 @@
+zuul (2.5.0-8-gcbc7f62-wmf4precise1) UNRELEASED; urgency=medium
+
+  * Link zuul-launcher in /usr/bin
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 11 Oct 2016 17:53:38 +0200
+
 zuul (2.5.0-8-gcbc7f62-wmf3precise1) precise-wikimedia; urgency=medium
 
   * Fix shebang of several scripts to point to the virtualenv.
