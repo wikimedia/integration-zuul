@@ -1,4 +1,4 @@
-zuul (2.5.0-8-gcbc7f62-wmf4precise1) UNRELEASED; urgency=medium
+zuul (2.5.0-8-gcbc7f62-wmf4precise1) precise-wikimedia; urgency=medium
 
   * Link zuul-launcher in /usr/bin
   * Properly set zuul-clear-refs and shebang. Fix T103529
