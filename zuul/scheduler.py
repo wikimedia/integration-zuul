@@ -1830,6 +1830,7 @@ class BasePipelineManager(object):
 <p>
   Triggered by change:
     <a href="{change.url}">{change.number},{change.patchset}</a><br/>
+  Project: <b>{change.project}</b><br/>
   Branch: <b>{change.branch}</b><br/>
   Pipeline: <b>{self.pipeline.name}</b>
 </p>"""
@@ -1838,6 +1839,7 @@ class BasePipelineManager(object):
 <p>
   Triggered by reference:
     {change.ref}</a><br/>
+  Project: <b>{change.project}</b><br/>
   Old revision: <b>{change.oldrev}</b><br/>
   New revision: <b>{change.newrev}</b><br/>
   Pipeline: <b>{self.pipeline.name}</b>
