@@ -1,3 +1,9 @@
+zuul (2.5.0.8.gcbc7f62-wmf5jessie1) jessie-wikimedia; urgency=medium
+
+  * Fix zuul semver to be compatible with pbr 1.10.0
+
+ -- Paladox <thomasmulhall410@yahoo.com>  Wed, 21 Dec 2016 19:40:00 +0200
+
 zuul (2.5.0-8-gcbc7f62-wmf4jessie1) jessie-wikimedia; urgency=medium
 
   * sync with precise-wikimedia:
