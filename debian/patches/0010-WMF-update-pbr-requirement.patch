@@ -15,7 +15,7 @@ index 69484c7..c85f242 100644
 +++ b/requirements.txt
 @@ -1,4 +1,4 @@
 -pbr>=1.1.0
-+pbr>=0.5.21
++pbr>=1.10.0
  
  PyYAML>=3.1.0
  Paste
