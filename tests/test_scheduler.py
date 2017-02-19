@@ -2394,6 +2394,63 @@ jobs:
         self.assertEqual(B.reported, 1)
         self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
 
+    def test_mutex_abandon(self):
+        "Test abandon with job mutexes"
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-mutex.yaml')
+        self.sched.reconfigure(self.config)
+
+        self.worker.hold_jobs_in_build = True
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
+
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
+
+        self.fake_gerrit.addEvent(A.getChangeAbandonedEvent())
+        self.waitUntilSettled()
+
+        # The check pipeline should be empty
+        items = self.sched.layout.pipelines['check'].getAllItems()
+        self.assertEqual(len(items), 0)
+
+        # The mutex should be released
+        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
+
+    def test_mutex_reconfigure(self):
+        "Test reconfigure with job mutexes"
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-mutex.yaml')
+        self.sched.reconfigure(self.config)
+
+        self.worker.hold_jobs_in_build = True
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
+
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
+
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-mutex-reconfiguration.yaml')
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+
+        self.worker.release('project-test1')
+        self.waitUntilSettled()
+
+        # The check pipeline should be empty
+        items = self.sched.layout.pipelines['check'].getAllItems()
+        self.assertEqual(len(items), 0)
+
+        # The mutex should be released
+        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
+
     def test_node_label(self):
         "Test that a job runs on a specific node label"
         self.worker.registerFunction('build:node-project-test1:debian')
@@ -3009,6 +3066,49 @@ jobs:
                          self.smtp_messages[0]['to_email'])
         self.assertIn('Subject: Periodic check for org/project succeeded',
                       self.smtp_messages[0]['headers'])
+
+        # Stop queuing timer triggered jobs and let any that may have
+        # queued through so that end of test assertions pass.
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-no-timer.yaml')
+        self.sched.reconfigure(self.config)
+        self.registerJobs()
+        self.waitUntilSettled()
+        self.worker.release('.*')
+        self.waitUntilSettled()
+
+    def test_timer_sshkey(self):
+        "Test that a periodic job can setup SSH key authentication"
+        self.worker.hold_jobs_in_build = True
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-timer.yaml')
+        self.sched.reconfigure(self.config)
+        self.registerJobs()
+
+        # The pipeline triggers every second, so we should have seen
+        # several by now.
+        time.sleep(5)
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 2)
+
+        ssh_wrapper = os.path.join(self.git_root, ".ssh_wrapper_gerrit")
+        self.assertTrue(os.path.isfile(ssh_wrapper))
+        with open(ssh_wrapper) as f:
+            ssh_wrapper_content = f.read()
+        self.assertIn("fake_id_rsa", ssh_wrapper_content)
+        # In the unit tests Merger runs in the same process,
+        # so we see its' environment variables
+        self.assertEqual(os.environ['GIT_SSH'], ssh_wrapper)
+
+        self.worker.release('.*')
+        self.waitUntilSettled()
+        self.assertEqual(len(self.history), 2)
+
+        self.assertEqual(self.getJobFromHistory(
+            'project-bitrot-stable-old').result, 'SUCCESS')
+        self.assertEqual(self.getJobFromHistory(
+            'project-bitrot-stable-older').result, 'SUCCESS')
 
         # Stop queuing timer triggered jobs and let any that may have
         # queued through so that end of test assertions pass.
@@ -4481,3 +4581,36 @@ For CI problems and help debugging, contact ci@example.org"""
         self.assertIn(
             '- docs-draft-test2 https://server/job/docs-draft-test2/1/',
             body[3])
+
+    def test_rerun_on_abort(self):
+        "Test that if a worker fails to run a job, it is run again"
+
+        self.config.set('zuul', 'layout_config',
+                        'tests/fixtures/layout-abort-attempts.yaml')
+        self.sched.reconfigure(self.config)
+        self.worker.hold_jobs_in_build = True
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.worker.release('.*-merge')
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 2)
+        self.builds[0].requeue = True
+        self.worker.release('.*-test*')
+        self.waitUntilSettled()
+
+        for x in range(3):
+            self.assertEqual(len(self.builds), 1)
+            self.builds[0].requeue = True
+            self.worker.release('.*-test1')
+            self.waitUntilSettled()
+
+        self.worker.hold_jobs_in_build = False
+        self.worker.release()
+        self.waitUntilSettled()
+        self.assertEqual(len(self.history), 6)
+        self.assertEqual(self.countJobResults(self.history, 'SUCCESS'), 2)
+        self.assertEqual(A.reported, 1)
+        self.assertIn('RETRY_LIMIT', A.messages[0])
