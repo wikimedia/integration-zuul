@@ -46,6 +46,8 @@ class Cloner(object):
         self.zuul_branch = zuul_branch or ''
         self.zuul_ref = zuul_ref or ''
         self.zuul_url = zuul_url
+        self.zuul_project = zuul_project
+
         self.project_branches = project_branches or {}
         self.project_revisions = {}
 
@@ -77,22 +79,44 @@ class Cloner(object):
     def cloneUpstream(self, project, dest):
         # Check for a cached git repo first
         git_cache = '%s/%s' % (self.cache_dir, project)
-        git_upstream = '%s/%s' % (self.git_url, project)
-        repo_is_cloned = os.path.exists(os.path.join(dest, '.git'))
-        if (self.cache_dir and
-            os.path.exists(git_cache) and
-            not repo_is_cloned):
-            # file:// tells git not to hard-link across repos
-            git_cache = 'file://%s' % git_cache
-            self.log.info("Creating repo %s from cache %s",
-                          project, git_cache)
-            new_repo = git.Repo.clone_from(git_cache, dest)
-            self.log.info("Updating origin remote in repo %s to %s",
-                          project, git_upstream)
-            new_repo.remotes.origin.config_writer.set('url', git_upstream)
+        git_cache_bare = '%s.git' % (git_cache)
+
+        # Then, if we are cloning the repo for the zuul_project, then
+        # set its origin to be the zuul merger, as it is guaranteed to
+        # be correct and up to date even if mirrors haven't updated
+        # yet.  Otherwise, we can not be sure about the state of the
+        # project, so our best chance to get the most current state is
+        # by setting origin to the git_url.
+        if (self.zuul_url and project == self.zuul_project):
+            git_upstream = '%s/%s' % (self.zuul_url, project)
         else:
+            git_upstream = '%s/%s' % (self.git_url, project)
+
+        repo_is_cloned = os.path.exists(os.path.join(dest, '.git'))
+
+        repo_cache = None
+        if (self.cache_dir and not repo_is_cloned):
+            if os.path.exists(git_cache_bare):
+                repo_cache = git_cache_bare
+            elif os.path.exists(git_cache):
+                repo_cache = git_cache
+
+            if repo_cache:
+                if self.cache_no_hardlinks:
+                    # file:// tells git not to hard-link across repos
+                    repo_cache = 'file://%s' % repo_cache
+
+                self.log.info("Creating repo %s from cache %s",
+                              project, repo_cache)
+                new_repo = git.Repo.clone_from(repo_cache, dest)
+                self.log.info("Updating origin remote in repo %s to %s",
+                              project, git_upstream)
+                new_repo.remotes.origin.config_writer.set('url', git_upstream)
+
+        if not repo_cache:
             self.log.info("Creating repo %s from upstream %s",
                           project, git_upstream)
+
         repo = Repo(
             remote=git_upstream,
             local=dest,
@@ -104,23 +128,35 @@ class Cloner(object):
 
         return repo
 
-    def fetchFromZuul(self, repo, project, ref):
-        zuul_remote = '%s/%s' % (self.zuul_url, project)
+    def fetchRef(self, repo, project, ref):
+        # If we are fetching a zuul ref, the only place to get it is
+        # from the zuul merger (and it is guaranteed to be correct).
+        # Otherwise, the only way we can be certain that the ref
+        # (which, since it is not a zuul ref, is a branch or tag) is
+        # correct is in the case that it matches zuul_project.  If
+        # neither of those two conditions are met, we are most likely
+        # to get the correct state from the git_url.
+        if (ref.startswith('refs/zuul') or
+            project == self.zuul_project):
+
+            remote = '%s/%s' % (self.zuul_url, project)
+        else:
+            remote = '%s/%s' % (self.git_url, project)
 
         try:
-            repo.fetchFrom(zuul_remote, ref)
-            self.log.debug("Fetched ref %s from %s", ref, project)
+            repo.fetchFrom(remote, ref)
+            self.log.debug("Fetched ref %s from %s", ref, remote)
             return True
         except ValueError:
-            self.log.debug("Project %s in Zuul does not have ref %s",
-                           project, ref)
+            self.log.debug("Repo %s does not have ref %s",
+                           remote, ref)
             return False
         except GitCommandError as error:
             # Bail out if fetch fails due to infrastructure reasons
             if error.stderr.startswith('fatal: unable to access'):
                 raise
-            self.log.debug("Project %s in Zuul does not have ref %s",
-                           project, ref)
+            self.log.debug("Repo %s does not have ref %s",
+                           remote, ref)
             return False
 
     def prepareRepo(self, project, dest):
@@ -192,7 +228,7 @@ class Cloner(object):
             self.log.info("Attempting to check out revision %s for "
                           "project %s", indicated_revision, project)
             try:
-                self.fetchFromZuul(repo, project, self.zuul_ref)
+                self.fetchRef(repo, project, self.zuul_ref)
                 commit = repo.checkout(indicated_revision)
             except (ValueError, GitCommandError):
                 raise exceptions.RevNotFound(project, indicated_revision)
@@ -201,10 +237,10 @@ class Cloner(object):
         # If we have a non empty zuul_ref to use, use it. Otherwise we fall
         # back to checking out the branch.
         elif ((override_zuul_ref and
-              self.fetchFromZuul(repo, project, override_zuul_ref)) or
+              self.fetchRef(repo, project, override_zuul_ref)) or
               (fallback_zuul_ref and
                fallback_zuul_ref != override_zuul_ref and
-              self.fetchFromZuul(repo, project, fallback_zuul_ref))):
+              self.fetchRef(repo, project, fallback_zuul_ref))):
             # Work around a bug in GitPython which can not parse FETCH_HEAD
             gitcmd = git.Git(dest)
             fetch_head = gitcmd.rev_parse('FETCH_HEAD')
