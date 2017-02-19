@@ -27,7 +27,7 @@ diff --git a/zuul/merger/merger.py b/zuul/merger/merger.py
 index 0c9f168..139a60a 100644
 --- a/zuul/merger/merger.py
 +++ b/zuul/merger/merger.py
-@@ -70,7 +70,18 @@ class Repo(object):
+@@ -73,7 +73,18 @@ class Repo(object):
          if self.username:
              repo.config_writer().set_value('user', 'name',
                                             self.username)
