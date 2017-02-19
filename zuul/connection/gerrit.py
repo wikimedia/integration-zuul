@@ -63,7 +63,7 @@ class GerritEventConnector(threading.Thread):
         if change:
             event.project_name = change.get('project')
             event.branch = change.get('branch')
-            event.change_number = change.get('number')
+            event.change_number = str(change.get('number'))
             event.change_url = change.get('url')
             patchset = data.get('patchSet')
             if patchset:
@@ -135,13 +135,14 @@ class GerritWatcher(threading.Thread):
     poll_timeout = 500
 
     def __init__(self, gerrit_connection, username, hostname, port=29418,
-                 keyfile=None):
+                 keyfile=None, keepalive=60):
         threading.Thread.__init__(self)
         self.username = username
         self.keyfile = keyfile
         self.hostname = hostname
         self.port = port
         self.gerrit_connection = gerrit_connection
+        self.keepalive = keepalive
         self._stopped = False
 
     def _read(self, fd):
@@ -172,6 +173,8 @@ class GerritWatcher(threading.Thread):
                            username=self.username,
                            port=self.port,
                            key_filename=self.keyfile)
+            transport = client.get_transport()
+            transport.set_keepalive(self.keepalive)
 
             stdin, stdout, stderr = client.exec_command("gerrit stream-events")
 
@@ -208,7 +211,7 @@ class GerritWatcher(threading.Thread):
 
 class GerritConnection(BaseConnection):
     driver_name = 'gerrit'
-    log = logging.getLogger("connection.gerrit")
+    log = logging.getLogger("zuul.GerritConnection")
 
     def __init__(self, connection_name, connection_config):
         super(GerritConnection, self).__init__(connection_name,
@@ -224,6 +227,7 @@ class GerritConnection(BaseConnection):
         self.server = self.connection_config.get('server')
         self.port = int(self.connection_config.get('port', 29418))
         self.keyfile = self.connection_config.get('sshkey', None)
+        self.keepalive = int(self.connection_config.get('keepalive', 60))
         self.watcher_thread = None
         self.event_queue = None
         self.client = None
@@ -356,6 +360,8 @@ class GerritConnection(BaseConnection):
                        username=self.user,
                        port=self.port,
                        key_filename=self.keyfile)
+        transport = client.get_transport()
+        transport.set_keepalive(self.keepalive)
         self.client = client
 
     def _ssh(self, command, stdin_data=None):
@@ -461,7 +467,8 @@ class GerritConnection(BaseConnection):
             self.user,
             self.server,
             self.port,
-            keyfile=self.keyfile)
+            keyfile=self.keyfile,
+            keepalive=self.keepalive)
         self.watcher_thread.start()
 
     def _stop_event_connector(self):

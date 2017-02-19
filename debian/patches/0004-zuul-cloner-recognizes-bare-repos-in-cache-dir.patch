@@ -67,25 +67,26 @@ index 064a61c..1c7cdc1 100644
          self.worker.hold_jobs_in_build = True
  
 diff --git a/zuul/lib/cloner.py b/zuul/lib/cloner.py
-index 249fc30..fd4d0e8 100644
+index 6e50eda..806073f 100644
 --- a/zuul/lib/cloner.py
 +++ b/zuul/lib/cloner.py
-@@ -78,25 +78,34 @@ class Cloner(object):
+@@ -79,6 +79,7 @@ class Cloner(object):
      def cloneUpstream(self, project, dest):
          # Check for a cached git repo first
          git_cache = '%s/%s' % (self.cache_dir, project)
 +        git_cache_bare = '%s.git' % (git_cache)
-         git_upstream = '%s/%s' % (self.git_url, project)
-+
+
+         # Then, if we are cloning the repo for the zuul_project, then
+         # set its origin to be the zuul merger, as it is guaranteed to
+@@ -92,20 +93,30 @@ class Cloner(object):
+             git_upstream = '%s/%s' % (self.git_url, project)
+
          repo_is_cloned = os.path.exists(os.path.join(dest, '.git'))
 -        if (self.cache_dir and
 -            os.path.exists(git_cache) and
 -            not repo_is_cloned):
--
--            if self.cache_no_hardlinks:
--                # file:// tells git not to hard-link across repos
--                git_cache = 'file://%s' % git_cache
--
+-            # file:// tells git not to hard-link across repos
+-            git_cache = 'file://%s' % git_cache
 -            self.log.info("Creating repo %s from cache %s",
 -                          project, git_cache)
 -            new_repo = git.Repo.clone_from(git_cache, dest)
