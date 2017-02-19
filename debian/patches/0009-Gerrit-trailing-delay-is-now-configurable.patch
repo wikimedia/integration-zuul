@@ -32,7 +32,6 @@ Change-Id: I0179d5bac6e0b3313e44e850823385345d28cb9d
  doc/source/connections.rst | 12 ++++++++++++
  etc/zuul.conf-sample       |  1 +
  tests/base.py              |  2 +-
- zuul/connection/gerrit.py  | 12 ++++++++----
  4 files changed, 22 insertions(+), 5 deletions(-)
 
 diff --git a/doc/source/connections.rst b/doc/source/connections.rst
@@ -62,10 +61,11 @@ diff --git a/etc/zuul.conf-sample b/etc/zuul.conf-sample
 index d7b8eae..5cd9674 100644
 --- a/etc/zuul.conf-sample
 +++ b/etc/zuul.conf-sample
-@@ -36,6 +36,7 @@ server=review.example.com
+@@ -37,6 +37,7 @@ server=review.example.com
  ;baseurl=https://review.example.com/r
  user=jenkins
  sshkey=/home/jenkins/.ssh/id_rsa
+ ;keepalive=60
 +event_delay=10
  
  [connection smtp]
@@ -90,59 +90,3 @@ index 6d4f017..622de36 100755
                  self.connections[con_name] = FakeGerritConnection(
                      con_name, con_config,
                      changes_db=self.gerrit_changes_dbs[con_config['server']],
-diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
-index 62891cd..927aa11 100644
---- a/zuul/connection/gerrit.py
-+++ b/zuul/connection/gerrit.py
-@@ -32,13 +32,13 @@ class GerritEventConnector(threading.Thread):
-     """Move events from Gerrit to the scheduler."""
- 
-     log = logging.getLogger("zuul.GerritEventConnector")
--    delay = 10.0
- 
--    def __init__(self, connection):
-+    def __init__(self, connection, delay=10):
-         super(GerritEventConnector, self).__init__()
-         self.daemon = True
-         self.connection = connection
-         self._stopped = False
-+        self.delay = delay
- 
-     def stop(self):
-         self._stopped = True
-@@ -54,6 +54,8 @@ class GerritEventConnector(threading.Thread):
-         # that if we receive several events in succession, we will
-         # only need to delay for the first event.  In essence, Zuul
-         # should always be a constant number of seconds behind Gerrit.
-+        #
-+        # Can be configured via the Gerrit driver setting 'event_delay'.
-         now = time.time()
-         time.sleep(max((ts + self.delay) - now, 0.0))
-         event = TriggerEvent()
-@@ -226,6 +228,7 @@ class GerritConnection(BaseConnection):
-         self.keyfile = self.connection_config.get('sshkey', None)
-         self.watcher_thread = None
-         self.event_queue = None
-+        self.event_delay = int(self.connection_config.get('event_delay', 10))
-         self.client = None
- 
-         self.baseurl = self.connection_config.get('baseurl',
-@@ -440,7 +443,7 @@ class GerritConnection(BaseConnection):
-         return url
- 
-     def onLoad(self):
--        self.log.debug("Starting Gerrit Conncetion/Watchers")
-+        self.log.debug("Starting Gerrit Connection/Watchers")
-         self._start_watcher_thread()
-         self._start_event_connector()
- 
-@@ -470,7 +473,8 @@ class GerritConnection(BaseConnection):
-             self.gerrit_event_connector.join()
- 
-     def _start_event_connector(self):
--        self.gerrit_event_connector = GerritEventConnector(self)
-+        self.gerrit_event_connector = GerritEventConnector(
-+            self, delay=self.event_delay)
-         self.gerrit_event_connector.start()
- 
- 
