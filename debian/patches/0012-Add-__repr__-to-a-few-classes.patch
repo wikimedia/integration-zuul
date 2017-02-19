@@ -38,12 +38,12 @@ Change-Id: Ib7f1e1724e90160bbaefd581ed6b243728679892
  8 files changed, 100 insertions(+)
 
 diff --git a/tests/test_connection.py b/tests/test_connection.py
-index c3458ac..827f60c 100644
+index f9f54f3..5901ef1 100644
 --- a/tests/test_connection.py
 +++ b/tests/test_connection.py
-@@ -32,6 +32,22 @@ class TestConnections(ZuulTestCase):
-     def setup_config(self, config_file='zuul-connections-same-gerrit.conf'):
-         super(TestConnections, self).setup_config(config_file)
+@@ -237,6 +237,22 @@ class TestConnectionsBadSQL(ZuulDBTestCase):
+     def setup_config(self, config_file='zuul-connections-bad-sql.conf'):
+         super(TestConnectionsBadSQL, self).setup_config(config_file)
  
 +    def test_repr(self):
 +        self.assertEquals('<FakeGerritConnection name: review_gerrit>',
@@ -61,27 +61,31 @@ index c3458ac..827f60c 100644
 +        self.assertEquals('smtp://outgoing_smtp',
 +                          str(self.connections['outgoing_smtp']))
 +
-     def test_multiple_connections(self):
-         "Test multiple connections to the one gerrit"
+     def test_unable_to_connect(self):
+         "Test the SQL reporter fails gracefully when unable to connect"
+         self.config.set('zuul', 'layout_config',
  
 diff --git a/tests/test_reporter.py b/tests/test_reporter.py
-index 8d3090a..1a52aed 100644
+index 6a179d2..407958d 100644
 --- a/tests/test_reporter.py
 +++ b/tests/test_reporter.py
-@@ -15,7 +15,12 @@
+@@ -16,10 +16,15 @@ import fixtures
  import logging
  import testtools
  
 +import zuul.connection.gerrit
 +import zuul.connection.smtp
 +
- import zuul.reporter
+ import zuul.reporter.gerrit
+ import zuul.reporter.smtp
+ import zuul.reporter.sql
+ 
 +import zuul.reporter.gerrit
 +import zuul.reporter.smtp
  
- 
  class TestSMTPReporter(testtools.TestCase):
-@@ -31,6 +36,12 @@ class TestSMTPReporter(testtools.TestCase):
+     log = logging.getLogger("zuul.test_reporter")
+@@ -31,6 +36,11 @@ class TestSMTPReporter(testtools.TestCase):
      def test_reporter_name(self):
          self.assertEqual('smtp', zuul.reporter.smtp.SMTPReporter.name)
  
@@ -90,15 +94,13 @@ index 8d3090a..1a52aed 100644
 +        self.assertEqual(
 +            '<SMTPReporter connection: smtp://smtp.example.org>',
 +            repr(zuul.reporter.smtp.SMTPReporter(connection=smtp)))
-+
  
  class TestGerritReporter(testtools.TestCase):
      log = logging.getLogger("zuul.test_reporter")
-@@ -44,3 +55,11 @@ class TestGerritReporter(testtools.TestCase):
- 
+@@ -42,6 +52,13 @@ class TestGerritReporter(testtools.TestCase):
      def test_reporter_name(self):
          self.assertEqual('gerrit', zuul.reporter.gerrit.GerritReporter.name)
-+
+ 
 +    def test_repr(self):
 +        gerrit = zuul.connection.gerrit.GerritConnection(
 +            'review.example.org',
@@ -106,6 +108,10 @@ index 8d3090a..1a52aed 100644
 +        self.assertEqual(
 +            '<GerritReporter connection: gerrit://review.example.org>',
 +            repr(zuul.reporter.gerrit.GerritReporter(connection=gerrit)))
+ 
+ class TestSQLReporter(testtools.TestCase):
+     log = logging.getLogger("zuul.test_reporter")
+
 diff --git a/tests/test_source.py b/tests/test_source.py
 index 8a3e7d5..8470f07 100644
 --- a/tests/test_source.py
