@@ -12,13 +12,16 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import logging
 import re
 
 import zuul.connection.gerrit
 import zuul.connection.smtp
+import zuul.connection.sql
 
 
 def configure_connections(config):
+    log = logging.getLogger("configure_connections")
     # Register connections from the config
 
     # TODO(jhesketh): import connection modules dynamically
@@ -46,6 +49,9 @@ def configure_connections(config):
         elif con_driver == 'smtp':
             connections[con_name] = \
                 zuul.connection.smtp.SMTPConnection(con_name, con_config)
+        elif con_driver == 'sql':
+            connections[con_name] = \
+                zuul.connection.sql.SQLConnection(con_name, con_config)
         else:
             raise Exception("Unknown driver, %s, for connection %s"
                             % (con_config['driver'], con_name))
@@ -54,13 +60,21 @@ def configure_connections(config):
     # connection named 'gerrit' or 'smtp' respectfully
 
     if 'gerrit' in config.sections():
-        connections['gerrit'] = \
-            zuul.connection.gerrit.GerritConnection(
-                'gerrit', dict(config.items('gerrit')))
+        if 'gerrit' in connections:
+            log.warning("The legacy [gerrit] section will be ignored in favour"
+                        " of the [connection gerrit].")
+        else:
+            connections['gerrit'] = \
+                zuul.connection.gerrit.GerritConnection(
+                    'gerrit', dict(config.items('gerrit')))
 
     if 'smtp' in config.sections():
-        connections['smtp'] = \
-            zuul.connection.smtp.SMTPConnection(
-                'smtp', dict(config.items('smtp')))
+        if 'smtp' in connections:
+            log.warning("The legacy [smtp] section will be ignored in favour"
+                        " of the [connection smtp].")
+        else:
+            connections['smtp'] = \
+                zuul.connection.smtp.SMTPConnection(
+                    'smtp', dict(config.items('smtp')))
 
     return connections
