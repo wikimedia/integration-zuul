@@ -103,6 +103,7 @@ class LayoutSchema(object):
            'success-pattern': str,
            'hold-following-changes': bool,
            'voting': bool,
+           'attempts': int,
            'mutex': str,
            'tags': toList(str),
            'parameter-function': str,
@@ -166,6 +167,7 @@ class LayoutSchema(object):
             'reporter': {
                 'gerrit': 'zuul.reporter.gerrit',
                 'smtp': 'zuul.reporter.smtp',
+                'sql': 'zuul.reporter.sql',
             },
         }
         standard_drivers = {
