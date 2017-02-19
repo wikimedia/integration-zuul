@@ -1,0 +1,3850 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ zuul (2.5.0-8-gcbc7f62-wmf4jessie1) jessie-wikimedia; urgency=medium
+ .
+   * sync with precise-wikimedia:
+ .
+   * Link zuul-launcher in /usr/bin
+   * Properly set zuul-clear-refs and shebang. Fix T103529
+   * source ignore .pyc files and .tox directory
+Author: Antoine Musso <hashar@free.fr>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: https://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- zuul-2.5.0-8-gcbc7f62.orig/.testr.conf
++++ zuul-2.5.0-8-gcbc7f62/.testr.conf
+@@ -1,4 +1,4 @@
+ [DEFAULT]
+-test_command=OS_STDOUT_CAPTURE=${OS_STDOUT_CAPTURE:-1} OS_STDERR_CAPTURE=${OS_STDERR_CAPTURE:-1} OS_LOG_CAPTURE=${OS_LOG_CAPTURE:-1} OS_LOG_DEFAULTS=${OS_LOG_DEFAULTS:-""} ${PYTHON:-python} -m subunit.run discover -t ./ tests $LISTOPT $IDOPTION
++test_command=OS_LOG_LEVEL=${OS_LOG_LEVEL:-INFO} OS_STDOUT_CAPTURE=${OS_STDOUT_CAPTURE:-1} OS_STDERR_CAPTURE=${OS_STDERR_CAPTURE:-1} OS_LOG_CAPTURE=${OS_LOG_CAPTURE:-1} OS_LOG_DEFAULTS=${OS_LOG_DEFAULTS:-""} ${PYTHON:-python} -m subunit.run discover -t ./ tests $LISTOPT $IDOPTION
+ test_id_option=--load-list $IDFILE
+ test_list_option=--list
+--- zuul-2.5.0-8-gcbc7f62.orig/README.rst
++++ zuul-2.5.0-8-gcbc7f62/README.rst
+@@ -1,20 +1,26 @@
+ Zuul
+ ====
+ 
+-Zuul is a trunk gating system developed for the OpenStack Project.
++Zuul is a project gating system developed for the OpenStack Project.
+ 
+ Contributing
+ ------------
+ 
++We are currently engaged in a significant development effort in
++preparation for the third major version of Zuul.  We call this effort
++`Zuul v3`_ and it is described in this file in the `feature/zuulv3`
++branch of this repo.
++
+ To browse the latest code, see: https://git.openstack.org/cgit/openstack-infra/zuul/tree/
+ To clone the latest code, use `git clone git://git.openstack.org/openstack-infra/zuul`
+ 
+ Bugs are handled at: https://storyboard.openstack.org/#!/project/679
+ 
+-Code reviews are, as you might expect, handled by gerrit. The gerrit they
+-use is http://review.openstack.org
++Code reviews are, as you might expect, handled by gerrit at
++https://review.openstack.org
+ 
+-Use `git review` to submit patches (after creating a gerrit account that links to your launchpad account). Example::
++Use `git review` to submit patches (after creating a Gerrit account
++that links to your launchpad account). Example::
+ 
+     # Do your commits
+     $ git review
+--- zuul-2.5.0-8-gcbc7f62.orig/bindep.txt
++++ zuul-2.5.0-8-gcbc7f62/bindep.txt
+@@ -1,4 +1,6 @@
++# This is a cross-platform list tracking distribution packages needed by tests;
++# see http://docs.openstack.org/infra/bindep/ for additional information.
++
+ mysql-client [test]
+ mysql-server [test]
+-postgresql [test]
+-postgresql-client [test]
++libjpeg-dev [test]
+--- zuul-2.5.0-8-gcbc7f62.orig/doc/source/connections.rst
++++ zuul-2.5.0-8-gcbc7f62/doc/source/connections.rst
+@@ -38,6 +38,21 @@ Create a connection with gerrit.
+   Path to SSH key to use when logging into above server.
+   ``sshkey=/home/zuul/.ssh/id_rsa``
+ 
++**event_delay** (optional)
++
++  When querying a change immediately after a patchset upload, Gerrit may
++  return incorrect data about dependent changes. In order to avoid this,
++  the events are not delivered to Zuul until a constant number of
++  seconds has passed.
++
++  Note that if we receive several events in succession, we will only
++  need to delay for the first event.
++
++  Default: ``10`` (seconds)
++
++**keepalive**
++  Optional: Keepalive timeout, 0 means no keepalive.
++  ``keepalive=60``
+ 
+ Gerrit Configuration
+ ~~~~~~~~~~~~~~~~~~~~
+@@ -77,3 +92,15 @@ SMTP
+   Who the report should be emailed to by default.
+   This can be overridden by individual pipelines.
+   ``default_to=you@example.com``
++
++SQL
++----
++
++  Only one connection per a database is permitted.
++
++  **driver=sql**
++
++  **dburi**
++    Database connection information in the form of a URI understood by
++    sqlalchemy. eg http://docs.sqlalchemy.org/en/rel_1_0/core/engines.html#database-urls
++    ``dburi=mysql://user:pass@localhost/db``
+--- zuul-2.5.0-8-gcbc7f62.orig/doc/source/reporters.rst
++++ zuul-2.5.0-8-gcbc7f62/doc/source/reporters.rst
+@@ -34,7 +34,7 @@ SMTP
+ A simple email reporter is also available.
+ 
+ A :ref:`connection` that uses the smtp driver must be supplied to the
+-trigger.
++reporter.
+ 
+ SMTP Configuration
+ ~~~~~~~~~~~~~~~~~~
+@@ -60,3 +60,42 @@ providing alternatives as arguments to t
+           to: you@example.com
+           from: alternative@example.com
+           subject: Change {change} failed
++
++SQL
++---
++
++This reporter is used to store results in a database.
++
++A :ref:`connection` that uses the sql driver must be supplied to the
++reporter.
++
++SQL Configuration
++~~~~~~~~~~~~~~~~~
++
++zuul.conf contains the database connection and credentials. To store different
++reports in different databases you'll need to create a new connection per
++database.
++
++The sql reporter is used to store the results from individual builds rather
++than the change. As such the sql reporter does nothing on "start" or
++"merge-failure".
++
++**score**
++  A score to store for the result of the build. eg: -1 might indicate a failed
++  build similar to the vote posted back via the gerrit reporter.
++
++For example ::
++
++  pipelines:
++    - name: post-merge
++      manager: IndependentPipelineManager
++      source: my_gerrit
++      trigger:
++        my_gerrit:
++          - event: change-merged
++      success:
++        mydb_conn:
++            score: 1
++      failure:
++        mydb_conn:
++            score: -1
+--- zuul-2.5.0-8-gcbc7f62.orig/doc/source/zuul.rst
++++ zuul-2.5.0-8-gcbc7f62/doc/source/zuul.rst
+@@ -803,6 +803,11 @@ each job as it builds a list from the pr
+   Boolean value (``true`` or ``false``) that indicates whatever
+   a job is voting or not.  Default: ``true``.
+ 
++**attempts (optional)**
++  Number of attempts zuul will launch a job. Once reached, zuul will report
++  RETRY_LIMIT as the job result.
++  Defaults to 3.
++
+ **tags (optional)**
+   A list of arbitrary strings which will be associated with the job.
+   Can be used by the parameter-function to alter behavior based on
+--- zuul-2.5.0-8-gcbc7f62.orig/etc/status/public_html/jquery.zuul.js
++++ zuul-2.5.0-8-gcbc7f62/etc/status/public_html/jquery.zuul.js
+@@ -148,11 +148,9 @@
+                     case 'skipped':
+                         $status.addClass('label-info');
+                         break;
+-                    case 'in progress':
+-                    case 'queued':
+-                    case 'lost':
++                    // 'in progress' 'queued' 'lost' 'aborted' ...
++                    default:
+                         $status.addClass('label-default');
+-                        break;
+                 }
+                 $status.text(result);
+                 return $status;
+--- zuul-2.5.0-8-gcbc7f62.orig/etc/zuul.conf-sample
++++ zuul-2.5.0-8-gcbc7f62/etc/zuul.conf-sample
+@@ -36,6 +36,8 @@ server=review.example.com
+ ;baseurl=https://review.example.com/r
+ user=jenkins
+ sshkey=/home/jenkins/.ssh/id_rsa
++event_delay=10
++;keepalive=60
+ 
+ [connection smtp]
+ driver=smtp
+@@ -43,3 +45,7 @@ server=localhost
+ port=25
+ default_from=zuul@example.com
+ default_to=you@example.com
++
++[connection mydatabase]
++driver=sql
++dburi=mysql+pymysql://user@localhost/zuul
+--- zuul-2.5.0-8-gcbc7f62.orig/requirements.txt
++++ zuul-2.5.0-8-gcbc7f62/requirements.txt
+@@ -14,3 +14,5 @@ apscheduler>=3.0,<3.1.0
+ PrettyTable>=0.6,<0.8
+ babel>=1.0
+ six>=1.6.0
++sqlalchemy
++alembic
+--- zuul-2.5.0-8-gcbc7f62.orig/setup.cfg
++++ zuul-2.5.0-8-gcbc7f62/setup.cfg
+@@ -35,3 +35,7 @@ console_scripts =
+ source-dir = doc/source
+ build-dir = doc/build
+ all_files = 1
++
++[extras]
++mysql_reporter=
++    PyMySQL
+--- zuul-2.5.0-8-gcbc7f62.orig/test-requirements.txt
++++ zuul-2.5.0-8-gcbc7f62/test-requirements.txt
+@@ -3,7 +3,6 @@ hacking>=0.9.2,<0.10
+ coverage>=3.6
+ sphinx>=1.1.2,!=1.2.0,!=1.3b1,<1.3
+ sphinxcontrib-blockdiag>=1.1.0
+-discover
+ fixtures>=0.3.14
+ python-keystoneclient>=0.4.2
+ python-subunit
+@@ -12,3 +11,4 @@ testrepository>=0.0.17
+ testtools>=0.9.32
+ sphinxcontrib-programoutput
+ mock
++PyMySQL
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/base.py
++++ zuul-2.5.0-8-gcbc7f62/tests/base.py
+@@ -34,16 +34,20 @@ import subprocess
+ import swiftclient
+ import threading
+ import time
++import uuid
++
+ 
+ import git
+ import gear
+ import fixtures
++import pymysql
+ import statsd
+ import testtools
+ from git import GitCommandError
+ 
+ import zuul.connection.gerrit
+ import zuul.connection.smtp
++import zuul.connection.sql
+ import zuul.scheduler
+ import zuul.webapp
+ import zuul.rpclistener
+@@ -262,6 +266,25 @@ class FakeChange(object):
+                  "comment": "This is a comment"}
+         return event
+ 
++    def getRefUpdatedEvent(self):
++        path = os.path.join(self.upstream_root, self.project)
++        repo = git.Repo(path)
++        oldrev = repo.heads[self.branch].commit.hexsha
++
++        event = {
++            "type": "ref-updated",
++            "submitter": {
++                "name": "User Name",
++            },
++            "refUpdate": {
++                "oldRev": oldrev,
++                "newRev": self.patchsets[-1]['revision'],
++                "refName": self.branch,
++                "project": self.project,
++            }
++        }
++        return event
++
+     def addApproval(self, category, value, username='reviewer_john',
+                     granted_on=None, message=''):
+         if not granted_on:
+@@ -540,6 +563,7 @@ class FakeBuild(threading.Thread):
+         self.wait_condition = threading.Condition()
+         self.waiting = False
+         self.aborted = False
++        self.requeue = False
+         self.created = time.time()
+         self.description = ''
+         self.run_error = False
+@@ -602,6 +626,8 @@ class FakeBuild(threading.Thread):
+             result = 'FAILURE'
+         if self.aborted:
+             result = 'ABORTED'
++        if self.requeue:
++            result = None
+ 
+         if self.run_error:
+             work_fail = True
+@@ -833,6 +859,43 @@ class FakeSwiftClientConnection(swiftcli
+         return endpoint, ''
+ 
+ 
++class MySQLSchemaFixture(fixtures.Fixture):
++    def setUp(self):
++        super(MySQLSchemaFixture, self).setUp()
++
++        random_bits = ''.join(random.choice(string.ascii_lowercase +
++                                            string.ascii_uppercase)
++                              for x in range(8))
++        self.name = '%s_%s' % (random_bits, os.getpid())
++        self.passwd = uuid.uuid4().hex
++        db = pymysql.connect(host="localhost",
++                             user="openstack_citest",
++                             passwd="openstack_citest",
++                             db="openstack_citest")
++        cur = db.cursor()
++        cur.execute("create database %s" % self.name)
++        cur.execute(
++            "grant all on %s.* to '%s'@'localhost' identified by '%s'" %
++            (self.name, self.name, self.passwd))
++        cur.execute("flush privileges")
++
++        self.dburi = 'mysql+pymysql://%s:%s@localhost/%s' % (self.name,
++                                                             self.passwd,
++                                                             self.name)
++        self.addDetail('dburi', testtools.content.text_content(self.dburi))
++        self.addCleanup(self.cleanup)
++
++    def cleanup(self):
++        db = pymysql.connect(host="localhost",
++                             user="openstack_citest",
++                             passwd="openstack_citest",
++                             db="openstack_citest")
++        cur = db.cursor()
++        cur.execute("drop database %s" % self.name)
++        cur.execute("drop user '%s'@'localhost'" % self.name)
++        cur.execute("flush privileges")
++
++
+ class BaseTestCase(testtools.TestCase):
+     log = logging.getLogger("zuul.test")
+ 
+@@ -857,8 +920,19 @@ class BaseTestCase(testtools.TestCase):
+             self.useFixture(fixtures.MonkeyPatch('sys.stderr', stderr))
+         if (os.environ.get('OS_LOG_CAPTURE') == 'True' or
+             os.environ.get('OS_LOG_CAPTURE') == '1'):
++            log_level = logging.DEBUG
++            if os.environ.get('OS_LOG_LEVEL') == 'DEBUG':
++                log_level = logging.DEBUG
++            elif os.environ.get('OS_LOG_LEVEL') == 'INFO':
++                log_level = logging.INFO
++            elif os.environ.get('OS_LOG_LEVEL') == 'WARNING':
++                log_level = logging.WARNING
++            elif os.environ.get('OS_LOG_LEVEL') == 'ERROR':
++                log_level = logging.ERROR
++            elif os.environ.get('OS_LOG_LEVEL') == 'CRITICAL':
++                log_level = logging.CRITICAL
+             self.useFixture(fixtures.FakeLogger(
+-                level=logging.DEBUG,
++                level=log_level,
+                 format='%(asctime)s %(name)-32s '
+                 '%(levelname)-8s %(message)s'))
+ 
+@@ -1005,6 +1079,8 @@ class ZuulTestCase(BaseTestCase):
+         self.addCleanup(self.shutdown)
+ 
+     def configure_connections(self):
++        # TODO(jhesketh): This should come from lib.connections for better
++        # coverage
+         # Register connections from the config
+         self.smtp_messages = []
+ 
+@@ -1054,6 +1130,9 @@ class ZuulTestCase(BaseTestCase):
+             elif con_driver == 'smtp':
+                 self.connections[con_name] = \
+                     zuul.connection.smtp.SMTPConnection(con_name, con_config)
++            elif con_driver == 'sql':
++                self.connections[con_name] = \
++                    zuul.connection.sql.SQLConnection(con_name, con_config)
+             else:
+                 raise Exception("Unknown driver, %s, for connection %s"
+                                 % (con_config['driver'], con_name))
+@@ -1396,3 +1475,20 @@ class ZuulTestCase(BaseTestCase):
+ 
+         pprint.pprint(self.statsd.stats)
+         raise Exception("Key %s not found in reported stats" % key)
++
++
++class ZuulDBTestCase(ZuulTestCase):
++    def setup_config(self, config_file='zuul-connections-same-gerrit.conf'):
++        super(ZuulDBTestCase, self).setup_config(config_file)
++        for section_name in self.config.sections():
++            con_match = re.match(r'^connection ([\'\"]?)(.*)(\1)$',
++                                 section_name, re.I)
++            if not con_match:
++                continue
++
++            if self.config.get(section_name, 'driver') == 'sql':
++                f = MySQLSchemaFixture()
++                self.useFixture(f)
++                if (self.config.get(section_name, 'dburi') ==
++                    '$MYSQL_FIXTURE_DBURI$'):
++                    self.config.set(section_name, 'dburi', f.dburi)
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/tests/fixtures/layout-abort-attempts.yaml
+@@ -0,0 +1,30 @@
++pipelines:
++  - name: check
++    manager: IndependentPipelineManager
++    trigger:
++      gerrit:
++        - event: patchset-created
++    success:
++      gerrit:
++        verified: 1
++    failure:
++      gerrit:
++        verified: -1
++
++  - name: post
++    manager: IndependentPipelineManager
++    trigger:
++      gerrit:
++        - event: ref-updated
++          ref: ^(?!refs/).*$
++
++jobs:
++  - name: project-test1
++    attempts: 4
++
++projects:
++  - name: org/project
++    check:
++      - project-merge:
++        - project-test1
++        - project-test2
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/fixtures/layout-cloner.yaml
++++ zuul-2.5.0-8-gcbc7f62/tests/fixtures/layout-cloner.yaml
+@@ -1,4 +1,16 @@
+ pipelines:
++  - name: check
++    manager: IndependentPipelineManager
++    trigger:
++      gerrit:
++        - event: patchset-created
++    success:
++      gerrit:
++        verified: 1
++    failure:
++      gerrit:
++        verified: -1
++
+   - name: gate
+     manager: DependentPipelineManager
+     failure-message: Build failed.  For information on how to proceed, see http://wiki.example.org/Test_Failures
+@@ -18,28 +30,54 @@ pipelines:
+       gerrit:
+         verified: -2
+ 
++  - name: post
++    manager: IndependentPipelineManager
++    trigger:
++      gerrit:
++        - event: ref-updated
++          ref: ^(?!refs/).*$
++
+ projects:
++  - name: org/project
++    check:
++      - integration
++    gate:
++      - integration
+ 
+   - name: org/project1
++    check:
++      - integration
+     gate:
+-        - integration
++      - integration
++    post:
++      - postjob
+ 
+   - name: org/project2
++    check:
++      - integration
+     gate:
+-        - integration
++      - integration
+ 
+   - name: org/project3
++    check:
++      - integration
+     gate:
+-        - integration
++      - integration
+ 
+   - name: org/project4
++    check:
++      - integration
+     gate:
+-        - integration
++      - integration
+ 
+   - name: org/project5
++    check:
++      - integration
+     gate:
+-        - integration
++      - integration
+ 
+   - name: org/project6
++    check:
++      - integration
+     gate:
+-        - integration
++      - integration
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/tests/fixtures/layout-mutex-reconfiguration.yaml
+@@ -0,0 +1,23 @@
++pipelines:
++  - name: check
++    manager: IndependentPipelineManager
++    trigger:
++      gerrit:
++        - event: patchset-created
++    success:
++      gerrit:
++        verified: 1
++    failure:
++      gerrit:
++        verified: -1
++
++jobs:
++  - name: mutex-one
++    mutex: test-mutex
++  - name: mutex-two
++    mutex: test-mutex
++
++projects:
++  - name: org/project
++    check:
++      - project-test1
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/tests/fixtures/layout-sql-reporter.yaml
+@@ -0,0 +1,27 @@
++pipelines:
++  - name: check
++    manager: IndependentPipelineManager
++    source:
++        review_gerrit
++    trigger:
++      review_gerrit:
++        - event: patchset-created
++    success:
++      review_gerrit:
++        verified: 1
++      resultsdb:
++        score: 1
++    failure:
++      review_gerrit:
++        verified: -1
++      resultsdb:
++        score: -1
++      resultsdb_failures:
++        score: -1
++
++projects:
++  - name: org/project
++    check:
++      - project-merge:
++        - project-test1
++        - project-test2
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/tests/fixtures/zuul-connections-bad-sql.conf
+@@ -0,0 +1,50 @@
++[gearman]
++server=127.0.0.1
++
++[zuul]
++layout_config=layout-connections-multiple-voters.yaml
++url_pattern=http://logs.example.com/{change.number}/{change.patchset}/{pipeline.name}/{job.name}/{build.number}
++job_name_in_report=true
++
++[merger]
++git_dir=/tmp/zuul-test/git
++git_user_email=zuul@example.com
++git_user_name=zuul
++zuul_url=http://zuul.example.com/p
++
++[swift]
++authurl=https://identity.api.example.org/v2.0/
++user=username
++key=password
++tenant_name=" "
++
++default_container=logs
++region_name=EXP
++logserver_prefix=http://logs.example.org/server.app/
++
++[connection review_gerrit]
++driver=gerrit
++server=review.example.com
++user=jenkins
++sshkey=none
++
++[connection alt_voting_gerrit]
++driver=gerrit
++server=alt_review.example.com
++user=civoter
++sshkey=none
++
++[connection outgoing_smtp]
++driver=smtp
++server=localhost
++port=25
++default_from=zuul@example.com
++default_to=you@example.com
++
++[connection resultsdb]
++driver=sql
++dburi=mysql+pymysql://bad:creds@host/db
++
++[connection resultsdb_failures]
++driver=sql
++dburi=mysql+pymysql://bad:creds@host/db
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/fixtures/zuul-connections-same-gerrit.conf
++++ zuul-2.5.0-8-gcbc7f62/tests/fixtures/zuul-connections-same-gerrit.conf
+@@ -26,13 +26,13 @@ logserver_prefix=http://logs.example.org
+ driver=gerrit
+ server=review.example.com
+ user=jenkins
+-sshkey=none
++sshkey=fake_id_rsa1
+ 
+ [connection alt_voting_gerrit]
+ driver=gerrit
+ server=review.example.com
+ user=civoter
+-sshkey=none
++sshkey=fake_id_rsa2
+ 
+ [connection outgoing_smtp]
+ driver=smtp
+@@ -40,3 +40,11 @@ server=localhost
+ port=25
+ default_from=zuul@example.com
+ default_to=you@example.com
++
++[connection resultsdb]
++driver=sql
++dburi=$MYSQL_FIXTURE_DBURI$
++
++[connection resultsdb_failures]
++driver=sql
++dburi=$MYSQL_FIXTURE_DBURI$
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/fixtures/zuul.conf
++++ zuul-2.5.0-8-gcbc7f62/tests/fixtures/zuul.conf
+@@ -26,7 +26,7 @@ logserver_prefix=http://logs.example.org
+ driver=gerrit
+ server=review.example.com
+ user=jenkins
+-sshkey=none
++sshkey=fake_id_rsa_path
+ 
+ [connection smtp]
+ driver=smtp
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/test_cloner.py
++++ zuul-2.5.0-8-gcbc7f62/tests/test_cloner.py
+@@ -92,6 +92,7 @@ class TestCloner(ZuulTestCase):
+                 git_base_url=self.upstream_root,
+                 projects=projects,
+                 workspace=self.workspace_root,
++                zuul_project=build.parameters.get('ZUUL_PROJECT', None),
+                 zuul_branch=build.parameters['ZUUL_BRANCH'],
+                 zuul_ref=build.parameters['ZUUL_REF'],
+                 zuul_url=self.git_root,
+@@ -108,11 +109,34 @@ class TestCloner(ZuulTestCase):
+                                   'be correct' % (project, number))
+ 
+         work = self.getWorkspaceRepos(projects)
+-        upstream_repo_path = os.path.join(self.upstream_root, 'org/project1')
+-        self.assertEquals(
++        # project1 is the zuul_project so the origin should be set to the
++        # zuul_url since that is the most up to date.
++        cache_repo_path = os.path.join(cache_root, 'org/project1')
++        self.assertNotEqual(
++            work['org/project1'].remotes.origin.url,
++            cache_repo_path,
++            'workspace repo origin should not be the cache'
++        )
++        zuul_url_repo_path = os.path.join(self.git_root, 'org/project1')
++        self.assertEqual(
+             work['org/project1'].remotes.origin.url,
++            zuul_url_repo_path,
++            'workspace repo origin should be the zuul url'
++        )
++
++        # project2 is not the zuul_project so the origin should be set
++        # to upstream since that is the best we can do
++        cache_repo_path = os.path.join(cache_root, 'org/project2')
++        self.assertNotEqual(
++            work['org/project2'].remotes.origin.url,
++            cache_repo_path,
++            'workspace repo origin should not be the cache'
++        )
++        upstream_repo_path = os.path.join(self.upstream_root, 'org/project2')
++        self.assertEqual(
++            work['org/project2'].remotes.origin.url,
+             upstream_repo_path,
+-            'workspace repo origin should be upstream, not cache'
++            'workspace repo origin should be the upstream url'
+         )
+ 
+         self.worker.hold_jobs_in_build = False
+@@ -172,6 +196,7 @@ class TestCloner(ZuulTestCase):
+                 git_base_url=self.upstream_root,
+                 projects=projects,
+                 workspace=self.workspace_root,
++                zuul_project=build.parameters.get('ZUUL_PROJECT', None),
+                 zuul_branch=build.parameters['ZUUL_BRANCH'],
+                 zuul_ref=build.parameters['ZUUL_REF'],
+                 zuul_url=self.git_root,
+@@ -242,6 +267,7 @@ class TestCloner(ZuulTestCase):
+                 git_base_url=self.upstream_root,
+                 projects=projects,
+                 workspace=self.workspace_root,
++                zuul_project=build.parameters.get('ZUUL_PROJECT', None),
+                 zuul_branch=build.parameters['ZUUL_BRANCH'],
+                 zuul_ref=build.parameters['ZUUL_REF'],
+                 zuul_url=self.git_root,
+@@ -356,6 +382,7 @@ class TestCloner(ZuulTestCase):
+                 git_base_url=self.upstream_root,
+                 projects=projects,
+                 workspace=self.workspace_root,
++                zuul_project=build.parameters.get('ZUUL_PROJECT', None),
+                 zuul_branch=build.parameters['ZUUL_BRANCH'],
+                 zuul_ref=build.parameters['ZUUL_REF'],
+                 zuul_url=self.git_root,
+@@ -418,6 +445,7 @@ class TestCloner(ZuulTestCase):
+                 git_base_url=self.upstream_root,
+                 projects=projects,
+                 workspace=self.workspace_root,
++                zuul_project=build.parameters.get('ZUUL_PROJECT', None),
+                 zuul_branch=build.parameters['ZUUL_BRANCH'],
+                 zuul_ref=build.parameters['ZUUL_REF'],
+                 zuul_url=self.git_root,
+@@ -504,6 +532,7 @@ class TestCloner(ZuulTestCase):
+                 git_base_url=self.upstream_root,
+                 projects=projects,
+                 workspace=self.workspace_root,
++                zuul_project=build.parameters.get('ZUUL_PROJECT', None),
+                 zuul_branch=build.parameters['ZUUL_BRANCH'],
+                 zuul_ref=build.parameters['ZUUL_REF'],
+                 zuul_url=self.git_root,
+@@ -569,6 +598,7 @@ class TestCloner(ZuulTestCase):
+                 git_base_url=self.upstream_root,
+                 projects=projects,
+                 workspace=self.workspace_root,
++                zuul_project=build.parameters.get('ZUUL_PROJECT', None),
+                 zuul_branch=build.parameters.get('ZUUL_BRANCH', None),
+                 zuul_ref=build.parameters.get('ZUUL_REF', None),
+                 zuul_url=self.git_root,
+@@ -590,56 +620,158 @@ class TestCloner(ZuulTestCase):
+         self.worker.release()
+         self.waitUntilSettled()
+ 
++    def test_periodic_update(self):
++        # Test that the merger correctly updates its local repository
++        # before running a periodic job.
++
++        # Prime the merger with the current state
++        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        # Merge a different change
++        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
++        B.setMerged()
++
++        # Start a periodic job
++        self.worker.hold_jobs_in_build = True
++        self.launcher.negative_function_cache_ttl = 0
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-timer.yaml')
++        self.sched.reconfigure(self.config)
++        self.registerJobs()
++
++        # The pipeline triggers every second, so we should have seen
++        # several by now.
++        time.sleep(5)
++        self.waitUntilSettled()
++
++        builds = self.builds[:]
++
++        self.worker.hold_jobs_in_build = False
++        # Stop queuing timer triggered jobs so that the assertions
++        # below don't race against more jobs being queued.
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-no-timer.yaml')
++        self.sched.reconfigure(self.config)
++        self.registerJobs()
++        self.worker.release()
++        self.waitUntilSettled()
++
++        projects = ['org/project']
++
++        self.assertEquals(2, len(builds), "Two builds are running")
++
++        upstream = self.getUpstreamRepos(projects)
++        self.assertEqual(upstream['org/project'].commit('master').hexsha,
++                         B.patchsets[0]['revision'])
++        states = [
++            {'org/project':
++                str(upstream['org/project'].commit('master')),
++             },
++            {'org/project':
++                str(upstream['org/project'].commit('master')),
++             },
++        ]
++
++        for number, build in enumerate(builds):
++            self.log.debug("Build parameters: %s", build.parameters)
++            cloner = zuul.lib.cloner.Cloner(
++                git_base_url=self.upstream_root,
++                projects=projects,
++                workspace=self.workspace_root,
++                zuul_project=build.parameters.get('ZUUL_PROJECT', None),
++                zuul_branch=build.parameters.get('ZUUL_BRANCH', None),
++                zuul_ref=build.parameters.get('ZUUL_REF', None),
++                zuul_url=self.git_root,
++            )
++            cloner.execute()
++            work = self.getWorkspaceRepos(projects)
++            state = states[number]
++
++            for project in projects:
++                self.assertEquals(state[project],
++                                  str(work[project].commit('HEAD')),
++                                  'Project %s commit for build %s should '
++                                  'be correct' % (project, number))
++
++            shutil.rmtree(self.workspace_root)
++
++        self.worker.hold_jobs_in_build = False
++        self.worker.release()
++        self.waitUntilSettled()
++
+     def test_post_checkout(self):
+-        project = "org/project"
+-        path = os.path.join(self.upstream_root, project)
+-        repo = git.Repo(path)
+-        repo.head.reference = repo.heads['master']
+-        commits = []
+-        for i in range(0, 3):
+-            commits.append(self.create_commit(project))
+-        newRev = commits[1]
++        self.worker.hold_jobs_in_build = True
++        project = "org/project1"
++
++        A = self.fake_gerrit.addFakeChange(project, 'master', 'A')
++        event = A.getRefUpdatedEvent()
++        A.setMerged()
++        self.fake_gerrit.addEvent(event)
++        self.waitUntilSettled()
++
++        build = self.builds[0]
++        state = {'org/project1': build.parameters['ZUUL_COMMIT']}
++
++        build.release()
++        self.waitUntilSettled()
+ 
+         cloner = zuul.lib.cloner.Cloner(
+             git_base_url=self.upstream_root,
+             projects=[project],
+             workspace=self.workspace_root,
+-            zuul_branch=None,
+-            zuul_ref='master',
++            zuul_project=build.parameters.get('ZUUL_PROJECT', None),
++            zuul_branch=build.parameters.get('ZUUL_BRANCH', None),
++            zuul_ref=build.parameters.get('ZUUL_REF', None),
++            zuul_newrev=build.parameters.get('ZUUL_NEWREV', None),
+             zuul_url=self.git_root,
+-            zuul_project=project,
+-            zuul_newrev=newRev,
+         )
+         cloner.execute()
+-        repos = self.getWorkspaceRepos([project])
+-        cloned_sha = repos[project].rev_parse('HEAD').hexsha
+-        self.assertEqual(newRev, cloned_sha)
++        work = self.getWorkspaceRepos([project])
++        self.assertEquals(state[project],
++                          str(work[project].commit('HEAD')),
++                          'Project %s commit for build %s should '
++                          'be correct' % (project, 0))
++        shutil.rmtree(self.workspace_root)
+ 
+     def test_post_and_master_checkout(self):
+-        project = "org/project1"
+-        master_project = "org/project2"
+-        path = os.path.join(self.upstream_root, project)
+-        repo = git.Repo(path)
+-        repo.head.reference = repo.heads['master']
+-        commits = []
+-        for i in range(0, 3):
+-            commits.append(self.create_commit(project))
+-        newRev = commits[1]
++        self.worker.hold_jobs_in_build = True
++        projects = ["org/project1", "org/project2"]
++
++        A = self.fake_gerrit.addFakeChange(projects[0], 'master', 'A')
++        event = A.getRefUpdatedEvent()
++        A.setMerged()
++        self.fake_gerrit.addEvent(event)
++        self.waitUntilSettled()
++
++        build = self.builds[0]
++        upstream = self.getUpstreamRepos(projects)
++        state = {'org/project1':
++                 build.parameters['ZUUL_COMMIT'],
++                 'org/project2':
++                 str(upstream['org/project2'].commit('master')),
++                 }
++
++        build.release()
++        self.waitUntilSettled()
+ 
+         cloner = zuul.lib.cloner.Cloner(
+             git_base_url=self.upstream_root,
+-            projects=[project, master_project],
++            projects=projects,
+             workspace=self.workspace_root,
+-            zuul_branch=None,
+-            zuul_ref='master',
++            zuul_project=build.parameters.get('ZUUL_PROJECT', None),
++            zuul_branch=build.parameters.get('ZUUL_BRANCH', None),
++            zuul_ref=build.parameters.get('ZUUL_REF', None),
++            zuul_newrev=build.parameters.get('ZUUL_NEWREV', None),
+             zuul_url=self.git_root,
+-            zuul_project=project,
+-            zuul_newrev=newRev
+         )
+         cloner.execute()
+-        repos = self.getWorkspaceRepos([project, master_project])
+-        cloned_sha = repos[project].rev_parse('HEAD').hexsha
+-        self.assertEqual(newRev, cloned_sha)
+-        self.assertEqual(
+-            repos[master_project].rev_parse('HEAD').hexsha,
+-            repos[master_project].rev_parse('master').hexsha)
++        work = self.getWorkspaceRepos(projects)
++
++        for project in projects:
++            self.assertEquals(state[project],
++                              str(work[project].commit('HEAD')),
++                              'Project %s commit for build %s should '
++                              'be correct' % (project, 0))
++        shutil.rmtree(self.workspace_root)
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/test_connection.py
++++ zuul-2.5.0-8-gcbc7f62/tests/test_connection.py
+@@ -15,9 +15,21 @@
+ import logging
+ import testtools
+ 
++import sqlalchemy as sa
++
+ import zuul.connection.gerrit
++import zuul.connection.sql
++
++from tests.base import ZuulTestCase, ZuulDBTestCase
+ 
+-from tests.base import ZuulTestCase
++
++def _get_reporter_from_connection_name(reporters, connection_name):
++    # Reporters are placed into lists for each action they may exist in.
++    # Search through the given list for the correct reporter by its conncetion
++    # name
++    for r in reporters:
++        if r.connection.connection_name == connection_name:
++            return r
+ 
+ 
+ class TestGerritConnection(testtools.TestCase):
+@@ -28,11 +40,34 @@ class TestGerritConnection(testtools.Tes
+                          zuul.connection.gerrit.GerritConnection.driver_name)
+ 
+ 
+-class TestConnections(ZuulTestCase):
+-    def setup_config(self, config_file='zuul-connections-same-gerrit.conf'):
+-        super(TestConnections, self).setup_config(config_file)
++class TestSQLConnection(testtools.TestCase):
++    log = logging.getLogger("zuul.test_connection")
++
++    def test_driver_name(self):
++        self.assertEqual(
++            'sql',
++            zuul.connection.sql.SQLConnection.driver_name
++        )
++
++
++class TestConnections(ZuulDBTestCase):
++    def test_repr(self):
++        self.assertEquals('<FakeGerritConnection name: review_gerrit>',
++                          repr(self.connections['review_gerrit']))
++        self.assertEquals('<FakeGerritConnection name: alt_voting_gerrit>',
++                          repr(self.connections['alt_voting_gerrit']))
++        self.assertEquals('<SMTPConnection name: outgoing_smtp>',
++                          repr(self.connections['outgoing_smtp']))
++
++    def test_str(self):
++        self.assertEquals('gerrit://review_gerrit',
++                          str(self.connections['review_gerrit']))
++        self.assertEquals('gerrit://alt_voting_gerrit',
++                          str(self.connections['alt_voting_gerrit']))
++        self.assertEquals('smtp://outgoing_smtp',
++                          str(self.connections['outgoing_smtp']))
+ 
+-    def test_multiple_connections(self):
++    def test_multiple_gerrit_connections(self):
+         "Test multiple connections to the one gerrit"
+ 
+         A = self.fake_review_gerrit.addFakeChange('org/project', 'master', 'A')
+@@ -58,6 +93,178 @@ class TestConnections(ZuulTestCase):
+         self.assertEqual(B.patchsets[-1]['approvals'][0]['by']['username'],
+                          'civoter')
+ 
++    def _test_sql_tables_created(self, metadata_table=None):
++        "Test the tables for storing results are created properly"
++        buildset_table = 'zuul_buildset'
++        build_table = 'zuul_build'
++
++        insp = sa.engine.reflection.Inspector(
++            self.connections['resultsdb'].engine)
++
++        self.assertEqual(9, len(insp.get_columns(buildset_table)))
++        self.assertEqual(10, len(insp.get_columns(build_table)))
++
++    def test_sql_tables_created(self):
++        "Test the default table is created"
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-sql-reporter.yaml')
++        self.sched.reconfigure(self.config)
++        self._test_sql_tables_created()
++
++    def _test_sql_results(self):
++        "Test results are entered into an sql table"
++        # Grab the sa tables
++        reporter = _get_reporter_from_connection_name(
++            self.sched.layout.pipelines['check'].success_actions,
++            'resultsdb'
++        )
++
++        # Add a success result
++        A = self.fake_review_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.fake_review_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        # Add a failed result for a negative score
++        B = self.fake_review_gerrit.addFakeChange('org/project', 'master', 'B')
++        self.worker.addFailTest('project-test1', B)
++        self.fake_review_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        conn = self.connections['resultsdb'].engine.connect()
++        result = conn.execute(
++            sa.sql.select([reporter.connection.zuul_buildset_table]))
++
++        buildsets = result.fetchall()
++        self.assertEqual(2, len(buildsets))
++        buildset0 = buildsets[0]
++        buildset1 = buildsets[1]
++
++        self.assertEqual('check', buildset0['pipeline'])
++        self.assertEqual('org/project', buildset0['project'])
++        self.assertEqual(1, buildset0['change'])
++        self.assertEqual(1, buildset0['patchset'])
++        self.assertEqual(1, buildset0['score'])
++        self.assertEqual('Build succeeded.', buildset0['message'])
++
++        buildset0_builds = conn.execute(
++            sa.sql.select([reporter.connection.zuul_build_table]).
++            where(
++                reporter.connection.zuul_build_table.c.buildset_id ==
++                buildset0['id']
++            )
++        ).fetchall()
++
++        # Check the first result, which should be the project-merge job
++        self.assertEqual('project-merge', buildset0_builds[0]['job_name'])
++        self.assertEqual("SUCCESS", buildset0_builds[0]['result'])
++        self.assertEqual('http://logs.example.com/1/1/check/project-merge/0',
++                         buildset0_builds[0]['log_url'])
++
++        self.assertEqual('check', buildset1['pipeline'])
++        self.assertEqual('org/project', buildset1['project'])
++        self.assertEqual(2, buildset1['change'])
++        self.assertEqual(1, buildset1['patchset'])
++        self.assertEqual(-1, buildset1['score'])
++        self.assertEqual('Build failed.', buildset1['message'])
++
++        buildset1_builds = conn.execute(
++            sa.sql.select([reporter.connection.zuul_build_table]).
++            where(
++                reporter.connection.zuul_build_table.c.buildset_id ==
++                buildset1['id']
++            )
++        ).fetchall()
++
++        # Check the second last result, which should be the project-test1 job
++        # which failed
++        self.assertEqual('project-test1', buildset1_builds[-2]['job_name'])
++        self.assertEqual("FAILURE", buildset1_builds[-2]['result'])
++        self.assertEqual('http://logs.example.com/2/1/check/project-test1/4',
++                         buildset1_builds[-2]['log_url'])
++
++    def test_sql_results(self):
++        "Test results are entered into the default sql table"
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-sql-reporter.yaml')
++        self.sched.reconfigure(self.config)
++        self._test_sql_results()
++
++    def test_multiple_sql_connections(self):
++        "Test putting results in different databases"
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-sql-reporter.yaml')
++        self.sched.reconfigure(self.config)
++
++        # Add a successful result
++        A = self.fake_review_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.fake_review_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        # Add a failed result
++        B = self.fake_review_gerrit.addFakeChange('org/project', 'master', 'B')
++        self.worker.addFailTest('project-test1', B)
++        self.fake_review_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        # Grab the sa tables for resultsdb
++        reporter1 = _get_reporter_from_connection_name(
++            self.sched.layout.pipelines['check'].success_actions,
++            'resultsdb'
++        )
++
++        conn = self.connections['resultsdb'].engine.connect()
++        buildsets_resultsdb = conn.execute(sa.sql.select(
++            [reporter1.connection.zuul_buildset_table])).fetchall()
++        # Should have been 2 buildset reported to the resultsdb (both success
++        # and failure report)
++        self.assertEqual(2, len(buildsets_resultsdb))
++
++        # The first one should have passed
++        self.assertEqual('check', buildsets_resultsdb[0]['pipeline'])
++        self.assertEqual('org/project', buildsets_resultsdb[0]['project'])
++        self.assertEqual(1, buildsets_resultsdb[0]['change'])
++        self.assertEqual(1, buildsets_resultsdb[0]['patchset'])
++        self.assertEqual(1, buildsets_resultsdb[0]['score'])
++        self.assertEqual('Build succeeded.', buildsets_resultsdb[0]['message'])
++
++        # Grab the sa tables for resultsdb_failures
++        reporter2 = _get_reporter_from_connection_name(
++            self.sched.layout.pipelines['check'].failure_actions,
++            'resultsdb_failures'
++        )
++
++        conn = self.connections['resultsdb_failures'].engine.connect()
++        buildsets_resultsdb_failures = conn.execute(sa.sql.select(
++            [reporter2.connection.zuul_buildset_table])).fetchall()
++        # The failure db should only have 1 buildset failed
++        self.assertEqual(1, len(buildsets_resultsdb_failures))
++
++        self.assertEqual('check', buildsets_resultsdb_failures[0]['pipeline'])
++        self.assertEqual(
++            'org/project', buildsets_resultsdb_failures[0]['project'])
++        self.assertEqual(2, buildsets_resultsdb_failures[0]['change'])
++        self.assertEqual(1, buildsets_resultsdb_failures[0]['patchset'])
++        self.assertEqual(-1, buildsets_resultsdb_failures[0]['score'])
++        self.assertEqual(
++            'Build failed.', buildsets_resultsdb_failures[0]['message'])
++
++
++class TestConnectionsBadSQL(ZuulDBTestCase):
++    def setup_config(self, config_file='zuul-connections-bad-sql.conf'):
++        super(TestConnectionsBadSQL, self).setup_config(config_file)
++
++    def test_unable_to_connect(self):
++        "Test the SQL reporter fails gracefully when unable to connect"
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-sql-reporter.yaml')
++        self.sched.reconfigure(self.config)
++
++        # Trigger a reporter. If no errors are raised, the reporter has been
++        # disabled correctly
++        A = self.fake_review_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.fake_review_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
+ 
+ class TestMultipleGerrits(ZuulTestCase):
+     def setup_config(self,
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/test_reporter.py
++++ zuul-2.5.0-8-gcbc7f62/tests/test_reporter.py
+@@ -12,18 +12,21 @@
+ # License for the specific language governing permissions and limitations
+ # under the License.
+ 
++import fixtures
+ import logging
+ import testtools
+ 
+-import zuul.reporter
++import zuul.connection.gerrit
++import zuul.connection.smtp
++
++import zuul.reporter.gerrit
++import zuul.reporter.smtp
++import zuul.reporter.sql
+ 
+ 
+ class TestSMTPReporter(testtools.TestCase):
+     log = logging.getLogger("zuul.test_reporter")
+ 
+-    def setUp(self):
+-        super(TestSMTPReporter, self).setUp()
+-
+     def test_reporter_abc(self):
+         # We only need to instantiate a class for this
+         reporter = zuul.reporter.smtp.SMTPReporter({})  # noqa
+@@ -31,16 +34,46 @@ class TestSMTPReporter(testtools.TestCas
+     def test_reporter_name(self):
+         self.assertEqual('smtp', zuul.reporter.smtp.SMTPReporter.name)
+ 
++    def test_repr(self):
++        smtp = zuul.connection.smtp.SMTPConnection('smtp.example.org', {})
++        self.assertEqual(
++            '<SMTPReporter connection: smtp://smtp.example.org>',
++            repr(zuul.reporter.smtp.SMTPReporter(connection=smtp)))
+ 
+ class TestGerritReporter(testtools.TestCase):
+     log = logging.getLogger("zuul.test_reporter")
+ 
+-    def setUp(self):
+-        super(TestGerritReporter, self).setUp()
+-
+     def test_reporter_abc(self):
+         # We only need to instantiate a class for this
+         reporter = zuul.reporter.gerrit.GerritReporter(None)  # noqa
+ 
+     def test_reporter_name(self):
+         self.assertEqual('gerrit', zuul.reporter.gerrit.GerritReporter.name)
++
++    def test_repr(self):
++        gerrit = zuul.connection.gerrit.GerritConnection(
++            'review.example.org',
++            {'server': 'review.example.org', 'user': 'zuul'})
++        self.assertEqual(
++            '<GerritReporter connection: gerrit://review.example.org>',
++            repr(zuul.reporter.gerrit.GerritReporter(connection=gerrit)))
++
++class TestSQLReporter(testtools.TestCase):
++    log = logging.getLogger("zuul.test_reporter")
++
++    def test_reporter_abc(self):
++        # We only need to instantiate a class for this
++        # First mock out _setup_tables
++        def _fake_setup_tables(self):
++            pass
++
++        self.useFixture(fixtures.MonkeyPatch(
++            'zuul.reporter.sql.SQLReporter._setup_tables',
++            _fake_setup_tables
++        ))
++
++        reporter = zuul.reporter.sql.SQLReporter()  # noqa
++
++    def test_reporter_name(self):
++        self.assertEqual(
++            'sql', zuul.reporter.sql.SQLReporter.name)
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/test_requirements.py
++++ zuul-2.5.0-8-gcbc7f62/tests/test_requirements.py
+@@ -245,7 +245,7 @@ class TestRequirements(ZuulTestCase):
+         self.assertEqual(len(self.history), 1)
+         self.assertEqual(self.history[0].name, job)
+ 
+-        # A +2 should allow it to be enqueued
++        # A +2 from nobody should not cause it to be enqueued
+         B = self.fake_gerrit.addFakeChange(project, 'master', 'B')
+         # A comment event that we will keep submitting to trigger
+         comment = B.addApproval('CRVW', 2, username='nobody')
+@@ -253,6 +253,7 @@ class TestRequirements(ZuulTestCase):
+         self.waitUntilSettled()
+         self.assertEqual(len(self.history), 1)
+ 
++        # A +2 from jenkins should allow it to be enqueued
+         B.addApproval('VRFY', 2, username='jenkins')
+         self.fake_gerrit.addEvent(comment)
+         self.waitUntilSettled()
+--- zuul-2.5.0-8-gcbc7f62.orig/tests/test_scheduler.py
++++ zuul-2.5.0-8-gcbc7f62/tests/test_scheduler.py
+@@ -2400,6 +2400,63 @@ jobs:
+         self.assertEqual(B.reported, 1)
+         self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
+ 
++    def test_mutex_abandon(self):
++        "Test abandon with job mutexes"
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-mutex.yaml')
++        self.sched.reconfigure(self.config)
++
++        self.worker.hold_jobs_in_build = True
++
++        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
++
++        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
++
++        self.fake_gerrit.addEvent(A.getChangeAbandonedEvent())
++        self.waitUntilSettled()
++
++        # The check pipeline should be empty
++        items = self.sched.layout.pipelines['check'].getAllItems()
++        self.assertEqual(len(items), 0)
++
++        # The mutex should be released
++        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
++
++    def test_mutex_reconfigure(self):
++        "Test reconfigure with job mutexes"
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-mutex.yaml')
++        self.sched.reconfigure(self.config)
++
++        self.worker.hold_jobs_in_build = True
++
++        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
++
++        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
++
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-mutex-reconfiguration.yaml')
++        self.sched.reconfigure(self.config)
++        self.waitUntilSettled()
++
++        self.worker.release('project-test1')
++        self.waitUntilSettled()
++
++        # The check pipeline should be empty
++        items = self.sched.layout.pipelines['check'].getAllItems()
++        self.assertEqual(len(items), 0)
++
++        # The mutex should be released
++        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
++
+     def test_node_label(self):
+         "Test that a job runs on a specific node label"
+         self.worker.registerFunction('build:node-project-test1:debian')
+@@ -3026,6 +3083,49 @@ jobs:
+         self.worker.release('.*')
+         self.waitUntilSettled()
+ 
++    def test_timer_sshkey(self):
++        "Test that a periodic job can setup SSH key authentication"
++        self.worker.hold_jobs_in_build = True
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-timer.yaml')
++        self.sched.reconfigure(self.config)
++        self.registerJobs()
++
++        # The pipeline triggers every second, so we should have seen
++        # several by now.
++        time.sleep(5)
++        self.waitUntilSettled()
++
++        self.assertEqual(len(self.builds), 2)
++
++        ssh_wrapper = os.path.join(self.git_root, ".ssh_wrapper_gerrit")
++        self.assertTrue(os.path.isfile(ssh_wrapper))
++        with open(ssh_wrapper) as f:
++            ssh_wrapper_content = f.read()
++        self.assertIn("fake_id_rsa", ssh_wrapper_content)
++        # In the unit tests Merger runs in the same process,
++        # so we see its' environment variables
++        self.assertEqual(os.environ['GIT_SSH'], ssh_wrapper)
++
++        self.worker.release('.*')
++        self.waitUntilSettled()
++        self.assertEqual(len(self.history), 2)
++
++        self.assertEqual(self.getJobFromHistory(
++            'project-bitrot-stable-old').result, 'SUCCESS')
++        self.assertEqual(self.getJobFromHistory(
++            'project-bitrot-stable-older').result, 'SUCCESS')
++
++        # Stop queuing timer triggered jobs and let any that may have
++        # queued through so that end of test assertions pass.
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-no-timer.yaml')
++        self.sched.reconfigure(self.config)
++        self.registerJobs()
++        self.waitUntilSettled()
++        self.worker.release('.*')
++        self.waitUntilSettled()
++
+     def test_client_enqueue_change(self):
+         "Test that the RPC client can enqueue a change"
+         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+@@ -4487,3 +4587,36 @@ For CI problems and help debugging, cont
+         self.assertIn(
+             '- docs-draft-test2 https://server/job/docs-draft-test2/1/',
+             body[3])
++
++    def test_rerun_on_abort(self):
++        "Test that if a worker fails to run a job, it is run again"
++
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-abort-attempts.yaml')
++        self.sched.reconfigure(self.config)
++        self.worker.hold_jobs_in_build = True
++        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        self.worker.release('.*-merge')
++        self.waitUntilSettled()
++
++        self.assertEqual(len(self.builds), 2)
++        self.builds[0].requeue = True
++        self.worker.release('.*-test*')
++        self.waitUntilSettled()
++
++        for x in range(3):
++            self.assertEqual(len(self.builds), 1)
++            self.builds[0].requeue = True
++            self.worker.release('.*-test1')
++            self.waitUntilSettled()
++
++        self.worker.hold_jobs_in_build = False
++        self.worker.release()
++        self.waitUntilSettled()
++        self.assertEqual(len(self.history), 6)
++        self.assertEqual(self.countJobResults(self.history, 'SUCCESS'), 2)
++        self.assertEqual(A.reported, 1)
++        self.assertIn('RETRY_LIMIT', A.messages[0])
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/tools/test-setup.sh
+@@ -0,0 +1,33 @@
++#!/bin/bash -xe
++
++# This script will be run by OpenStack CI before unit tests are run,
++# it sets up the test system as needed.
++# Developers should setup their test systems in a similar way.
++
++# This setup needs to be run as a user that can run sudo.
++
++# The root password for the MySQL database; pass it in via
++# MYSQL_ROOT_PW.
++DB_ROOT_PW=${MYSQL_ROOT_PW:-insecure_slave}
++
++# This user and its password are used by the tests, if you change it,
++# your tests might fail.
++DB_USER=openstack_citest
++DB_PW=openstack_citest
++
++sudo -H mysqladmin -u root password $DB_ROOT_PW
++
++# It's best practice to remove anonymous users from the database.  If
++# a anonymous user exists, then it matches first for connections and
++# other connections from that host will not work.
++sudo -H mysql -u root -p$DB_ROOT_PW -h localhost -e "
++    DELETE FROM mysql.user WHERE User='';
++    FLUSH PRIVILEGES;
++    GRANT ALL PRIVILEGES ON *.*
++        TO '$DB_USER'@'%' identified by '$DB_PW' WITH GRANT OPTION;"
++
++# Now create our database.
++mysql -u $DB_USER -p$DB_PW -h 127.0.0.1 -e "
++    SET default_storage_engine=MYISAM;
++    DROP DATABASE IF EXISTS openstack_citest;
++    CREATE DATABASE openstack_citest CHARACTER SET utf8;"
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/alembic/sql_reporter/README
+@@ -0,0 +1 @@
++Generic single-database configuration.
+\ No newline at end of file
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/alembic/sql_reporter/env.py
+@@ -0,0 +1,70 @@
++from __future__ import with_statement
++from alembic import context
++from sqlalchemy import engine_from_config, pool
++# from logging.config import fileConfig
++
++# this is the Alembic Config object, which provides
++# access to the values within the .ini file in use.
++config = context.config
++
++# Interpret the config file for Python logging.
++# This line sets up loggers basically.
++# fileConfig(config.config_file_name)
++
++# add your model's MetaData object here
++# for 'autogenerate' support
++# from myapp import mymodel
++# target_metadata = mymodel.Base.metadata
++target_metadata = None
++
++# other values from the config, defined by the needs of env.py,
++# can be acquired:
++# my_important_option = config.get_main_option("my_important_option")
++# ... etc.
++
++
++def run_migrations_offline():
++    """Run migrations in 'offline' mode.
++
++    This configures the context with just a URL
++    and not an Engine, though an Engine is acceptable
++    here as well.  By skipping the Engine creation
++    we don't even need a DBAPI to be available.
++
++    Calls to context.execute() here emit the given string to the
++    script output.
++
++    """
++    url = config.get_main_option("sqlalchemy.url")
++    context.configure(
++        url=url, target_metadata=target_metadata, literal_binds=True)
++
++    with context.begin_transaction():
++        context.run_migrations()
++
++
++def run_migrations_online():
++    """Run migrations in 'online' mode.
++
++    In this scenario we need to create an Engine
++    and associate a connection with the context.
++
++    """
++    connectable = engine_from_config(
++        config.get_section(config.config_ini_section),
++        prefix='sqlalchemy.',
++        poolclass=pool.NullPool)
++
++    with connectable.connect() as connection:
++        context.configure(
++            connection=connection,
++            target_metadata=target_metadata
++        )
++
++        with context.begin_transaction():
++            context.run_migrations()
++
++if context.is_offline_mode():
++    run_migrations_offline()
++else:
++    run_migrations_online()
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/alembic/sql_reporter/script.py.mako
+@@ -0,0 +1,24 @@
++"""${message}
++
++Revision ID: ${up_revision}
++Revises: ${down_revision | comma,n}
++Create Date: ${create_date}
++
++"""
++
++# revision identifiers, used by Alembic.
++revision = ${repr(up_revision)}
++down_revision = ${repr(down_revision)}
++branch_labels = ${repr(branch_labels)}
++depends_on = ${repr(depends_on)}
++
++from alembic import op
++import sqlalchemy as sa
++${imports if imports else ""}
++
++def upgrade():
++    ${upgrades if upgrades else "pass"}
++
++
++def downgrade():
++    ${downgrades if downgrades else "pass"}
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/alembic/sql_reporter/versions/4d3ebd7f06b9_set_up_initial_reporter_tables.py
+@@ -0,0 +1,53 @@
++"""Set up initial reporter tables
++
++Revision ID: 4d3ebd7f06b9
++Revises:
++Create Date: 2015-12-06 15:27:38.080020
++
++"""
++
++# revision identifiers, used by Alembic.
++revision = '4d3ebd7f06b9'
++down_revision = None
++branch_labels = None
++depends_on = None
++
++from alembic import op
++import sqlalchemy as sa
++
++BUILDSET_TABLE = 'zuul_buildset'
++BUILD_TABLE = 'zuul_build'
++
++
++def upgrade():
++    op.create_table(
++        BUILDSET_TABLE,
++        sa.Column('id', sa.Integer, primary_key=True),
++        sa.Column('zuul_ref', sa.String(255)),
++        sa.Column('pipeline', sa.String(255)),
++        sa.Column('project', sa.String(255)),
++        sa.Column('change', sa.Integer, nullable=True),
++        sa.Column('patchset', sa.Integer, nullable=True),
++        sa.Column('ref', sa.String(255)),
++        sa.Column('score', sa.Integer),
++        sa.Column('message', sa.TEXT()),
++    )
++
++    op.create_table(
++        BUILD_TABLE,
++        sa.Column('id', sa.Integer, primary_key=True),
++        sa.Column('buildset_id', sa.Integer,
++                  sa.ForeignKey(BUILDSET_TABLE + ".id")),
++        sa.Column('uuid', sa.String(36)),
++        sa.Column('job_name', sa.String(255)),
++        sa.Column('result', sa.String(255)),
++        sa.Column('start_time', sa.DateTime()),
++        sa.Column('end_time', sa.DateTime()),
++        sa.Column('voting', sa.Boolean),
++        sa.Column('log_url', sa.String(255)),
++        sa.Column('node_name', sa.String(255)),
++    )
++
++
++def downgrade():
++    raise Exception("Downgrades not supported")
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/alembic_reporter.ini
+@@ -0,0 +1,69 @@
++# A generic, single database configuration.
++
++[alembic]
++# path to migration scripts
++# NOTE(jhesketh): We may use alembic for other db components of zuul in the
++# future. Use a sub-folder for the reporters own versions.
++script_location = alembic/sql_reporter
++
++# template used to generate migration files
++# file_template = %%(rev)s_%%(slug)s
++
++# max length of characters to apply to the
++# "slug" field
++#truncate_slug_length = 40
++
++# set to 'true' to run the environment during
++# the 'revision' command, regardless of autogenerate
++# revision_environment = false
++
++# set to 'true' to allow .pyc and .pyo files without
++# a source .py file to be detected as revisions in the
++# versions/ directory
++# sourceless = false
++
++# version location specification; this defaults
++# to alembic/versions.  When using multiple version
++# directories, initial revisions must be specified with --version-path
++# version_locations = %(here)s/bar %(here)s/bat alembic/versions
++
++# the output encoding used when revision files
++# are written from script.py.mako
++# output_encoding = utf-8
++
++sqlalchemy.url = mysql+pymysql://user@localhost/database
++
++# Logging configuration
++[loggers]
++keys = root,sqlalchemy,alembic
++
++[handlers]
++keys = console
++
++[formatters]
++keys = generic
++
++[logger_root]
++level = WARN
++handlers = console
++qualname =
++
++[logger_sqlalchemy]
++level = WARN
++handlers =
++qualname = sqlalchemy.engine
++
++[logger_alembic]
++level = INFO
++handlers =
++qualname = alembic
++
++[handler_console]
++class = StreamHandler
++args = (sys.stderr,)
++level = NOTSET
++formatter = generic
++
++[formatter_generic]
++format = %(levelname)-5.5s [%(name)s] %(message)s
++datefmt = %H:%M:%S
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/ansible/library/command.py
+@@ -0,0 +1,469 @@
++#!/usr/bin/python
++# -*- coding: utf-8 -*-
++
++# Copyright (c) 2016 Red Hat, Inc.
++# Copyright (c) 2016 IBM Corp.
++# (c) 2012, Michael DeHaan <michael.dehaan@gmail.com>, and others
++# (c) 2016, Toshio Kuratomi <tkuratomi@ansible.com>
++#
++# This module is free software: you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation, either version 3 of the License, or
++# (at your option) any later version.
++#
++# This software is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this software.  If not, see <http://www.gnu.org/licenses/>.
++
++# flake8: noqa
++# This file shares a significant chunk of code with an upstream ansible
++# function, run_command. The goal is to not have to fork quite so much
++# of that function, and discussing that design with upstream means we
++# should keep the changes to substantive ones only. For that reason, this
++# file is purposely not enforcing pep8, as making the function pep8 clean
++# would remove our ability to easily have a discussion with our friends
++# upstream
++
++DOCUMENTATION = '''
++---
++module: command
++short_description: Executes a command on a remote node
++version_added: historical
++description:
++     - The M(command) module takes the command name followed by a list of space-delimited arguments.
++     - The given command will be executed on all selected nodes. It will not be
++       processed through the shell, so variables like C($HOME) and operations
++       like C("<"), C(">"), C("|"), C(";") and C("&") will not work (use the M(shell)
++       module if you need these features).
++options:
++  free_form:
++    description:
++      - the command module takes a free form command to run.  There is no parameter actually named 'free form'.
++        See the examples!
++    required: true
++    default: null
++  creates:
++    description:
++      - a filename or (since 2.0) glob pattern, when it already exists, this step will B(not) be run.
++    required: no
++    default: null
++  removes:
++    description:
++      - a filename or (since 2.0) glob pattern, when it does not exist, this step will B(not) be run.
++    version_added: "0.8"
++    required: no
++    default: null
++  chdir:
++    description:
++      - cd into this directory before running the command
++    version_added: "0.6"
++    required: false
++    default: null
++  executable:
++    description:
++      - change the shell used to execute the command. Should be an absolute path to the executable.
++    required: false
++    default: null
++    version_added: "0.9"
++  warn:
++    version_added: "1.8"
++    default: yes
++    description:
++      - if command warnings are on in ansible.cfg, do not warn about this particular line if set to no/false.
++    required: false
++notes:
++    -  If you want to run a command through the shell (say you are using C(<),
++       C(>), C(|), etc), you actually want the M(shell) module instead. The
++       M(command) module is much more secure as it's not affected by the user's
++       environment.
++    -  " C(creates), C(removes), and C(chdir) can be specified after the command. For instance, if you only want to run a command if a certain file does not exist, use this."
++author:
++    - Ansible Core Team
++    - Michael DeHaan
++'''
++
++EXAMPLES = '''
++# Example from Ansible Playbooks.
++- command: /sbin/shutdown -t now
++
++# Run the command if the specified file does not exist.
++- command: /usr/bin/make_database.sh arg1 arg2 creates=/path/to/database
++
++# You can also use the 'args' form to provide the options. This command
++# will change the working directory to somedir/ and will only run when
++# /path/to/database doesn't exist.
++- command: /usr/bin/make_database.sh arg1 arg2
++  args:
++    chdir: somedir/
++    creates: /path/to/database
++'''
++
++import datetime
++import glob
++import pipes
++import re
++import shlex
++import os
++
++import getpass
++import select
++import subprocess
++import traceback
++import threading
++
++from ansible.module_utils.basic import AnsibleModule, heuristic_log_sanitize
++from ansible.module_utils.basic import get_exception
++# ZUUL: Hardcode python2 until we're on ansible 2.2
++from ast import literal_eval
++
++
++PASSWD_ARG_RE = re.compile(r'^[-]{0,2}pass[-]?(word|wd)?')
++
++
++class Console(object):
++    def __enter__(self):
++        self.logfile = open('/tmp/console.html', 'a', 0)
++        return self
++
++    def __exit__(self, etype, value, tb):
++        self.logfile.close()
++
++    def addLine(self, ln):
++        # Note this format with deliminator is "inspired" by the old
++        # Jenkins format but with microsecond resolution instead of
++        # millisecond.  It is kept so log parsing/formatting remains
++        # consistent.
++        ts = datetime.datetime.now()
++        outln = '%s | %s' % (ts, ln)
++        self.logfile.write(outln)
++
++
++def follow(fd):
++    newline_warning = False
++    with Console() as console:
++        while True:
++            line = fd.readline()
++            if not line:
++                break
++            if not line.endswith('\n'):
++                line += '\n'
++                newline_warning = True
++            console.addLine(line)
++        if newline_warning:
++            console.addLine('[Zuul] No trailing newline\n')
++
++
++# Taken from ansible/module_utils/basic.py ... forking the method for now
++# so that we can dive in and figure out how to make appropriate hook points
++def zuul_run_command(self, args, check_rc=False, close_fds=True, executable=None, data=None, binary_data=False, path_prefix=None, cwd=None, use_unsafe_shell=False, prompt_regex=None, environ_update=None):
++    '''
++    Execute a command, returns rc, stdout, and stderr.
++
++    :arg args: is the command to run
++        * If args is a list, the command will be run with shell=False.
++        * If args is a string and use_unsafe_shell=False it will split args to a list and run with shell=False
++        * If args is a string and use_unsafe_shell=True it runs with shell=True.
++    :kw check_rc: Whether to call fail_json in case of non zero RC.
++        Default False
++    :kw close_fds: See documentation for subprocess.Popen(). Default True
++    :kw executable: See documentation for subprocess.Popen(). Default None
++    :kw data: If given, information to write to the stdin of the command
++    :kw binary_data: If False, append a newline to the data.  Default False
++    :kw path_prefix: If given, additional path to find the command in.
++        This adds to the PATH environment vairable so helper commands in
++        the same directory can also be found
++    :kw cwd: If given, working directory to run the command inside
++    :kw use_unsafe_shell: See `args` parameter.  Default False
++    :kw prompt_regex: Regex string (not a compiled regex) which can be
++        used to detect prompts in the stdout which would otherwise cause
++        the execution to hang (especially if no input data is specified)
++    :kwarg environ_update: dictionary to *update* os.environ with
++    '''
++
++    shell = False
++    if isinstance(args, list):
++        if use_unsafe_shell:
++            args = " ".join([pipes.quote(x) for x in args])
++            shell = True
++    elif isinstance(args, (str, unicode)) and use_unsafe_shell:
++        shell = True
++    elif isinstance(args, (str, unicode)):
++        # On python2.6 and below, shlex has problems with text type
++        # ZUUL: Hardcode python2 until we're on ansible 2.2
++        if isinstance(args, unicode):
++            args = args.encode('utf-8')
++        args = shlex.split(args)
++    else:
++        msg = "Argument 'args' to run_command must be list or string"
++        self.fail_json(rc=257, cmd=args, msg=msg)
++
++    prompt_re = None
++    if prompt_regex:
++        try:
++            prompt_re = re.compile(prompt_regex, re.MULTILINE)
++        except re.error:
++            self.fail_json(msg="invalid prompt regular expression given to run_command")
++
++    # expand things like $HOME and ~
++    if not shell:
++        args = [ os.path.expanduser(os.path.expandvars(x)) for x in args if x is not None ]
++
++    rc = 0
++    msg = None
++    st_in = None
++
++    # Manipulate the environ we'll send to the new process
++    old_env_vals = {}
++    # We can set this from both an attribute and per call
++    for key, val in self.run_command_environ_update.items():
++        old_env_vals[key] = os.environ.get(key, None)
++        os.environ[key] = val
++    if environ_update:
++        for key, val in environ_update.items():
++            old_env_vals[key] = os.environ.get(key, None)
++            os.environ[key] = val
++    if path_prefix:
++        old_env_vals['PATH'] = os.environ['PATH']
++        os.environ['PATH'] = "%s:%s" % (path_prefix, os.environ['PATH'])
++
++    # If using test-module and explode, the remote lib path will resemble ...
++    #   /tmp/test_module_scratch/debug_dir/ansible/module_utils/basic.py
++    # If using ansible or ansible-playbook with a remote system ...
++    #   /tmp/ansible_vmweLQ/ansible_modlib.zip/ansible/module_utils/basic.py
++
++    # Clean out python paths set by ansiballz
++    if 'PYTHONPATH' in os.environ:
++        pypaths = os.environ['PYTHONPATH'].split(':')
++        pypaths = [x for x in pypaths \
++                    if not x.endswith('/ansible_modlib.zip') \
++                    and not x.endswith('/debug_dir')]
++        os.environ['PYTHONPATH'] = ':'.join(pypaths)
++        if not os.environ['PYTHONPATH']:
++            del os.environ['PYTHONPATH']
++
++    # create a printable version of the command for use
++    # in reporting later, which strips out things like
++    # passwords from the args list
++    to_clean_args = args
++    # ZUUL: Hardcode python2 until we're on ansible 2.2
++    if isinstance(args, (unicode, str)):
++        to_clean_args = shlex.split(to_clean_args)
++
++    clean_args = []
++    is_passwd = False
++    for arg in to_clean_args:
++        if is_passwd:
++            is_passwd = False
++            clean_args.append('********')
++            continue
++        if PASSWD_ARG_RE.match(arg):
++            sep_idx = arg.find('=')
++            if sep_idx > -1:
++                clean_args.append('%s=********' % arg[:sep_idx])
++                continue
++            else:
++                is_passwd = True
++        arg = heuristic_log_sanitize(arg, self.no_log_values)
++        clean_args.append(arg)
++    clean_args = ' '.join(pipes.quote(arg) for arg in clean_args)
++
++    if data:
++        st_in = subprocess.PIPE
++
++    # ZUUL: changed stderr to follow stdout
++    kwargs = dict(
++        executable=executable,
++        shell=shell,
++        close_fds=close_fds,
++        stdin=st_in,
++        stdout=subprocess.PIPE,
++        stderr=subprocess.STDOUT,
++    )
++
++    if cwd and os.path.isdir(cwd):
++        kwargs['cwd'] = cwd
++
++    # store the pwd
++    prev_dir = os.getcwd()
++
++    # make sure we're in the right working directory
++    if cwd and os.path.isdir(cwd):
++        try:
++            os.chdir(cwd)
++        except (OSError, IOError):
++            e = get_exception()
++            self.fail_json(rc=e.errno, msg="Could not open %s, %s" % (cwd, str(e)))
++
++    try:
++
++        if self._debug:
++            if isinstance(args, list):
++                running = ' '.join(args)
++            else:
++                running = args
++            self.log('Executing: ' + running)
++        # ZUUL: Replaced the excution loop with the zuul_runner run function
++        cmd = subprocess.Popen(args, **kwargs)
++        t = threading.Thread(target=follow, args=(cmd.stdout,))
++        t.daemon = True
++        t.start()
++        ret = cmd.wait()
++        # Give the thread that is writing the console log up to 10 seconds
++        # to catch up and exit.  If it hasn't done so by then, it is very
++        # likely stuck in readline() because it spawed a child that is
++        # holding stdout or stderr open.
++        t.join(10)
++        with Console() as console:
++            if t.isAlive():
++                console.addLine("[Zuul] standard output/error still open "
++                                "after child exited")
++            console.addLine("[Zuul] Task exit code: %s\n" % ret)
++
++        # ZUUL: If the console log follow thread *is* stuck in readline,
++        # we can't close stdout (attempting to do so raises an
++        # exception) , so this is disabled.
++        # cmd.stdout.close()
++
++        # ZUUL: stdout and stderr are in the console log file
++        stdout = ''
++        stderr = ''
++
++        rc = cmd.returncode
++    except (OSError, IOError):
++        e = get_exception()
++        self.fail_json(rc=e.errno, msg=str(e), cmd=clean_args)
++    except Exception:
++        e = get_exception()
++        self.fail_json(rc=257, msg=str(e), exception=traceback.format_exc(), cmd=clean_args)
++
++    # Restore env settings
++    for key, val in old_env_vals.items():
++        if val is None:
++            del os.environ[key]
++        else:
++            os.environ[key] = val
++
++    if rc != 0 and check_rc:
++        msg = heuristic_log_sanitize(stderr.rstrip(), self.no_log_values)
++        self.fail_json(cmd=clean_args, rc=rc, stdout=stdout, stderr=stderr, msg=msg)
++
++    # reset the pwd
++    os.chdir(prev_dir)
++
++    return (rc, stdout, stderr)
++
++
++def check_command(commandline):
++    arguments = { 'chown': 'owner', 'chmod': 'mode', 'chgrp': 'group',
++                  'ln': 'state=link', 'mkdir': 'state=directory',
++                  'rmdir': 'state=absent', 'rm': 'state=absent', 'touch': 'state=touch' }
++    commands  = { 'hg': 'hg', 'curl': 'get_url or uri', 'wget': 'get_url or uri',
++                  'svn': 'subversion', 'service': 'service',
++                  'mount': 'mount', 'rpm': 'yum, dnf or zypper', 'yum': 'yum', 'apt-get': 'apt',
++                  'tar': 'unarchive', 'unzip': 'unarchive', 'sed': 'template or lineinfile',
++                  'dnf': 'dnf', 'zypper': 'zypper' }
++    become   = [ 'sudo', 'su', 'pbrun', 'pfexec', 'runas' ]
++    warnings = list()
++    command = os.path.basename(commandline.split()[0])
++    if command in arguments:
++        warnings.append("Consider using file module with %s rather than running %s" % (arguments[command], command))
++    if command in commands:
++        warnings.append("Consider using %s module rather than running %s" % (commands[command], command))
++    if command in become:
++        warnings.append("Consider using 'become', 'become_method', and 'become_user' rather than running %s" % (command,))
++    return warnings
++
++
++def main():
++
++    # the command module is the one ansible module that does not take key=value args
++    # hence don't copy this one if you are looking to build others!
++    module = AnsibleModule(
++        argument_spec=dict(
++          _raw_params = dict(),
++          _uses_shell = dict(type='bool', default=False),
++          chdir = dict(type='path'),
++          executable = dict(),
++          creates = dict(type='path'),
++          removes = dict(type='path'),
++          warn = dict(type='bool', default=True),
++          environ = dict(type='dict', default=None),
++        )
++    )
++
++    shell = module.params['_uses_shell']
++    chdir = module.params['chdir']
++    executable = module.params['executable']
++    args  = module.params['_raw_params']
++    creates  = module.params['creates']
++    removes  = module.params['removes']
++    warn = module.params['warn']
++    environ = module.params['environ']
++
++    if args.strip() == '':
++        module.fail_json(rc=256, msg="no command given")
++
++    if chdir:
++        chdir = os.path.abspath(chdir)
++        os.chdir(chdir)
++
++    if creates:
++        # do not run the command if the line contains creates=filename
++        # and the filename already exists.  This allows idempotence
++        # of command executions.
++        if glob.glob(creates):
++            module.exit_json(
++                cmd=args,
++                stdout="skipped, since %s exists" % creates,
++                changed=False,
++                rc=0
++            )
++
++    if removes:
++    # do not run the command if the line contains removes=filename
++    # and the filename does not exist.  This allows idempotence
++    # of command executions.
++        if not glob.glob(removes):
++            module.exit_json(
++                cmd=args,
++                stdout="skipped, since %s does not exist" % removes,
++                changed=False,
++                rc=0
++            )
++
++    warnings = list()
++    if warn:
++        warnings = check_command(args)
++
++    if not shell:
++        args = shlex.split(args)
++    startd = datetime.datetime.now()
++
++    rc, out, err = zuul_run_command(module, args, executable=executable, use_unsafe_shell=shell, environ_update=environ)
++
++    endd = datetime.datetime.now()
++    delta = endd - startd
++
++    if out is None:
++        out = ''
++    if err is None:
++        err = ''
++
++    module.exit_json(
++        cmd      = args,
++        stdout   = out.rstrip("\r\n"),
++        stderr   = err.rstrip("\r\n"),
++        rc       = rc,
++        start    = str(startd),
++        end      = str(endd),
++        delta    = str(delta),
++        changed  = True,
++        warnings = warnings
++    )
++
++if __name__ == '__main__':
++    main()
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/ansible/library/zuul_afs.py
+@@ -0,0 +1,121 @@
++#!/usr/bin/python
++
++# Copyright (c) 2016 Red Hat
++#
++# This module is free software: you can redistribute it and/or modify
++# it under the terms of the GNU General Public License as published by
++# the Free Software Foundation, either version 3 of the License, or
++# (at your option) any later version.
++#
++# This software is distributed in the hope that it will be useful,
++# but WITHOUT ANY WARRANTY; without even the implied warranty of
++# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++# GNU General Public License for more details.
++#
++# You should have received a copy of the GNU General Public License
++# along with this software.  If not, see <http://www.gnu.org/licenses/>.
++
++import os
++import subprocess
++
++
++def afs_sync(afsuser, afskeytab, afsroot, afssource, afstarget):
++    # Find the list of root markers in the just-completed build
++    # (usually there will only be one, but some builds produce content
++    # at the root *and* at a tag location, or possibly at multiple
++    # translation roots).
++    src_root_markers = []
++    for root, dirnames, filenames in os.walk(afssource):
++        if '.root-marker' in filenames:
++            src_root_markers.append(root)
++
++    output_blocks = []
++    # Synchronize the content at each root marker.
++    for root_count, src_root in enumerate(src_root_markers):
++        # The component of the path between the source root and the
++        # current source root marker.  May be '.' if there is a marker
++        # at the root.
++        subpath = os.path.relpath(src_root, afssource)
++
++        # Add to our debugging output
++        output = dict(subpath=subpath)
++        output_blocks.append(output)
++
++        # The absolute path to the source (in staging) and destination
++        # (in afs) of the build root for the current root marker.
++        subsource = os.path.abspath(os.path.join(afssource, subpath))
++        subtarget = os.path.abspath(os.path.join(afstarget, subpath))
++
++        # Create a filter list for rsync so that we copy exactly the
++        # directories we want to without deleting any existing
++        # directories in the published site that were placed there by
++        # previous builds.
++
++        # Exclude any directories under this subpath which have root
++        # markers.
++        excludes = []
++        for root, dirnames, filenames in os.walk(subtarget):
++            if '.root-marker' in filenames:
++                exclude_subpath = os.path.relpath(root, subtarget)
++                if exclude_subpath == '.':
++                    continue
++                excludes.append(os.path.join('/', exclude_subpath))
++        output['excludes'] = excludes
++
++        filter_file = os.path.join(afsroot, 'filter_%i' % root_count)
++
++        with open(filter_file, 'w') as f:
++            for exclude in excludes:
++                f.write('- %s\n' % exclude)
++
++        # Perform the rsync with the filter list.
++        rsync_cmd = ' '.join([
++            '/usr/bin/rsync', '-rtp', '--safe-links', '--delete-after',
++            "--out-format='<<CHANGED>>%i %n%L'",
++            "--filter='merge {filter}'", '{src}/', '{dst}/',
++        ])
++        mkdir_cmd = ' '.join(['mkdir', '-p', '{dst}/'])
++        bash_cmd = ' '.join([
++            '/bin/bash', '-c', '"{mkdir_cmd} && {rsync_cmd}"'
++        ]).format(
++            mkdir_cmd=mkdir_cmd,
++            rsync_cmd=rsync_cmd)
++
++        k5start_cmd = ' '.join([
++            '/usr/bin/k5start', '-t', '-f', '{keytab}', '{user}', '--',
++            bash_cmd,
++        ])
++
++        shell_cmd = k5start_cmd.format(
++            src=subsource,
++            dst=subtarget,
++            filter=filter_file,
++            user=afsuser,
++            keytab=afskeytab),
++        output['source'] = subsource
++        output['destination'] = subtarget
++        output['output'] = subprocess.check_output(shell_cmd, shell=True)
++
++    return output_blocks
++
++
++def main():
++    module = AnsibleModule(
++        argument_spec=dict(
++            user=dict(required=True, type='raw'),
++            keytab=dict(required=True, type='raw'),
++            root=dict(required=True, type='raw'),
++            source=dict(required=True, type='raw'),
++            target=dict(required=True, type='raw'),
++        )
++    )
++
++    p = module.params
++    output = afs_sync(p['user'], p['keytab'], p['root'],
++                      p['source'], p['target'])
++    module.exit_json(changed=True, build_roots=output)
++
++from ansible.module_utils.basic import *  # noqa
++
++if __name__ == '__main__':
++    main()
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/connection/gerrit.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/connection/gerrit.py
+@@ -32,13 +32,13 @@ class GerritEventConnector(threading.Thr
+     """Move events from Gerrit to the scheduler."""
+ 
+     log = logging.getLogger("zuul.GerritEventConnector")
+-    delay = 10.0
+ 
+-    def __init__(self, connection):
++    def __init__(self, connection, delay=10):
+         super(GerritEventConnector, self).__init__()
+         self.daemon = True
+         self.connection = connection
+         self._stopped = False
++        self.delay = delay
+ 
+     def stop(self):
+         self._stopped = True
+@@ -54,6 +54,8 @@ class GerritEventConnector(threading.Thr
+         # that if we receive several events in succession, we will
+         # only need to delay for the first event.  In essence, Zuul
+         # should always be a constant number of seconds behind Gerrit.
++        #
++        # Can be configured via the Gerrit driver setting 'event_delay'.
+         now = time.time()
+         time.sleep(max((ts + self.delay) - now, 0.0))
+         event = TriggerEvent()
+@@ -63,7 +65,7 @@ class GerritEventConnector(threading.Thr
+         if change:
+             event.project_name = change.get('project')
+             event.branch = change.get('branch')
+-            event.change_number = change.get('number')
++            event.change_number = str(change.get('number'))
+             event.change_url = change.get('url')
+             patchset = data.get('patchSet')
+             if patchset:
+@@ -135,13 +137,14 @@ class GerritWatcher(threading.Thread):
+     poll_timeout = 500
+ 
+     def __init__(self, gerrit_connection, username, hostname, port=29418,
+-                 keyfile=None):
++                 keyfile=None, keepalive=60):
+         threading.Thread.__init__(self)
+         self.username = username
+         self.keyfile = keyfile
+         self.hostname = hostname
+         self.port = port
+         self.gerrit_connection = gerrit_connection
++        self.keepalive = keepalive
+         self._stopped = False
+ 
+     def _read(self, fd):
+@@ -172,6 +175,8 @@ class GerritWatcher(threading.Thread):
+                            username=self.username,
+                            port=self.port,
+                            key_filename=self.keyfile)
++            transport = client.get_transport()
++            transport.set_keepalive(self.keepalive)
+ 
+             stdin, stdout, stderr = client.exec_command("gerrit stream-events")
+ 
+@@ -208,7 +213,7 @@ class GerritWatcher(threading.Thread):
+ 
+ class GerritConnection(BaseConnection):
+     driver_name = 'gerrit'
+-    log = logging.getLogger("connection.gerrit")
++    log = logging.getLogger("zuul.GerritConnection")
+ 
+     def __init__(self, connection_name, connection_config):
+         super(GerritConnection, self).__init__(connection_name,
+@@ -224,8 +229,10 @@ class GerritConnection(BaseConnection):
+         self.server = self.connection_config.get('server')
+         self.port = int(self.connection_config.get('port', 29418))
+         self.keyfile = self.connection_config.get('sshkey', None)
++        self.keepalive = int(self.connection_config.get('keepalive', 60))
+         self.watcher_thread = None
+         self.event_queue = None
++        self.event_delay = int(self.connection_config.get('event_delay', 10))
+         self.client = None
+ 
+         self.baseurl = self.connection_config.get('baseurl',
+@@ -356,6 +363,8 @@ class GerritConnection(BaseConnection):
+                        username=self.user,
+                        port=self.port,
+                        key_filename=self.keyfile)
++        transport = client.get_transport()
++        transport.set_keepalive(self.keepalive)
+         self.client = client
+ 
+     def _ssh(self, command, stdin_data=None):
+@@ -440,7 +449,7 @@ class GerritConnection(BaseConnection):
+         return url
+ 
+     def onLoad(self):
+-        self.log.debug("Starting Gerrit Conncetion/Watchers")
++        self.log.debug("Starting Gerrit Connection/Watchers")
+         self._start_watcher_thread()
+         self._start_event_connector()
+ 
+@@ -461,7 +470,8 @@ class GerritConnection(BaseConnection):
+             self.user,
+             self.server,
+             self.port,
+-            keyfile=self.keyfile)
++            keyfile=self.keyfile,
++            keepalive=self.keepalive)
+         self.watcher_thread.start()
+ 
+     def _stop_event_connector(self):
+@@ -470,7 +480,8 @@ class GerritConnection(BaseConnection):
+             self.gerrit_event_connector.join()
+ 
+     def _start_event_connector(self):
+-        self.gerrit_event_connector = GerritEventConnector(self)
++        self.gerrit_event_connector = GerritEventConnector(
++            self, delay=self.event_delay)
+         self.gerrit_event_connector.start()
+ 
+ 
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/connection/smtp.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/connection/smtp.py
+@@ -23,7 +23,7 @@ from zuul.connection import BaseConnecti
+ 
+ class SMTPConnection(BaseConnection):
+     driver_name = 'smtp'
+-    log = logging.getLogger("connection.smtp")
++    log = logging.getLogger("zuul.SMTPConnection")
+ 
+     def __init__(self, connection_name, connection_config):
+ 
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/connection/sql.py
+@@ -0,0 +1,104 @@
++# Copyright 2014 Rackspace Australia
++#
++# Licensed under the Apache License, Version 2.0 (the "License"); you may
++# not use this file except in compliance with the License. You may obtain
++# a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++# License for the specific language governing permissions and limitations
++# under the License.
++
++import logging
++
++import alembic
++import alembic.config
++import sqlalchemy as sa
++import voluptuous as v
++
++from zuul.connection import BaseConnection
++
++BUILDSET_TABLE = 'zuul_buildset'
++BUILD_TABLE = 'zuul_build'
++
++
++class SQLConnection(BaseConnection):
++    driver_name = 'sql'
++    log = logging.getLogger("connection.sql")
++
++    def __init__(self, connection_name, connection_config):
++
++        super(SQLConnection, self).__init__(connection_name, connection_config)
++
++        self.dburi = None
++        self.engine = None
++        self.connection = None
++        self.tables_established = False
++        try:
++            self.dburi = self.connection_config.get('dburi')
++            self.engine = sa.create_engine(self.dburi)
++            self._migrate()
++            self._setup_tables()
++            self.tables_established = True
++        except sa.exc.NoSuchModuleError:
++            self.log.exception(
++                "The required module for the dburi dialect isn't available. "
++                "SQL connection %s will be unavailable." % connection_name)
++        except sa.exc.OperationalError:
++            self.log.exception(
++                "Unable to connect to the database or establish the required "
++                "tables. Reporter %s is disabled" % self)
++
++    def _migrate(self):
++        """Perform the alembic migrations for this connection"""
++        with self.engine.begin() as conn:
++            context = alembic.migration.MigrationContext.configure(conn)
++            current_rev = context.get_current_revision()
++            self.log.debug('Current migration revision: %s' % current_rev)
++
++            config = alembic.config.Config()
++            config.set_main_option("script_location",
++                                   "zuul:alembic/sql_reporter")
++            config.set_main_option("sqlalchemy.url",
++                                   self.connection_config.get('dburi'))
++
++            alembic.command.upgrade(config, 'head')
++
++    def _setup_tables(self):
++        metadata = sa.MetaData()
++
++        self.zuul_buildset_table = sa.Table(
++            BUILDSET_TABLE, metadata,
++            sa.Column('id', sa.Integer, primary_key=True),
++            sa.Column('zuul_ref', sa.String(255)),
++            sa.Column('pipeline', sa.String(255)),
++            sa.Column('project', sa.String(255)),
++            sa.Column('change', sa.Integer, nullable=True),
++            sa.Column('patchset', sa.Integer, nullable=True),
++            sa.Column('ref', sa.String(255)),
++            sa.Column('score', sa.Integer),
++            sa.Column('message', sa.TEXT()),
++        )
++
++        self.zuul_build_table = sa.Table(
++            BUILD_TABLE, metadata,
++            sa.Column('id', sa.Integer, primary_key=True),
++            sa.Column('buildset_id', sa.Integer,
++                      sa.ForeignKey(BUILDSET_TABLE + ".id")),
++            sa.Column('uuid', sa.String(36)),
++            sa.Column('job_name', sa.String(255)),
++            sa.Column('result', sa.String(255)),
++            sa.Column('start_time', sa.DateTime()),
++            sa.Column('end_time', sa.DateTime()),
++            sa.Column('voting', sa.Boolean),
++            sa.Column('log_url', sa.String(255)),
++            sa.Column('node_name', sa.String(255)),
++        )
++
++
++def getSchema():
++    sql_connection = v.Any(str, v.Schema({}, extra=True))
++    return sql_connection
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/launcher/ansiblelaunchserver.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/launcher/ansiblelaunchserver.py
+@@ -24,8 +24,8 @@ import tempfile
+ import threading
+ import time
+ import traceback
+-import Queue
+ import uuid
++import Queue
+ 
+ import gear
+ import yaml
+@@ -34,12 +34,12 @@ import jenkins_jobs.formatter
+ import zmq
+ 
+ import zuul.ansible.library
+-import zuul.ansible.plugins.callback_plugins
+ from zuul.lib import commandsocket
+ 
+ ANSIBLE_WATCHDOG_GRACE = 5 * 60
+ ANSIBLE_DEFAULT_TIMEOUT = 2 * 60 * 60
+-ANSIBLE_DEFAULT_POST_TIMEOUT = 10 * 60
++ANSIBLE_DEFAULT_PRE_TIMEOUT = 10 * 60
++ANSIBLE_DEFAULT_POST_TIMEOUT = 30 * 60
+ 
+ 
+ COMMANDS = ['reconfigure', 'stop', 'pause', 'unpause', 'release', 'graceful',
+@@ -68,11 +68,16 @@ class NodeGearWorker(gear.Worker):
+     MASS_DO = 101
+ 
+     def sendMassDo(self, functions):
+-        data = b'\x00'.join([gear.convert_to_bytes(x) for x in functions])
++        names = [gear.convert_to_bytes(x) for x in functions]
++        data = b'\x00'.join(names)
++        new_function_dict = {}
++        for name in names:
++            new_function_dict[name] = gear.FunctionRecord(name)
+         self.broadcast_lock.acquire()
+         try:
+             p = gear.Packet(gear.constants.REQ, self.MASS_DO, data)
+             self.broadcast(p)
++            self.functions = new_function_dict
+         finally:
+             self.broadcast_lock.release()
+ 
+@@ -108,9 +113,13 @@ class JobDir(object):
+         os.makedirs(self.ansible_root)
+         self.known_hosts = os.path.join(self.ansible_root, 'known_hosts')
+         self.inventory = os.path.join(self.ansible_root, 'inventory')
++        self.vars = os.path.join(self.ansible_root, 'vars.yaml')
++        self.pre_playbook = os.path.join(self.ansible_root, 'pre_playbook')
+         self.playbook = os.path.join(self.ansible_root, 'playbook')
+         self.post_playbook = os.path.join(self.ansible_root, 'post_playbook')
+         self.config = os.path.join(self.ansible_root, 'ansible.cfg')
++        self.pre_post_config = os.path.join(self.ansible_root,
++                                            'ansible_pre_post.cfg')
+         self.script_root = os.path.join(self.ansible_root, 'scripts')
+         self.ansible_log = os.path.join(self.ansible_root, 'ansible_log.txt')
+         os.makedirs(self.script_root)
+@@ -171,39 +180,44 @@ class LaunchServer(object):
+         path = os.path.join(state_dir, 'launcher.socket')
+         self.command_socket = commandsocket.CommandSocket(path)
+         ansible_dir = os.path.join(state_dir, 'ansible')
+-        plugins_dir = os.path.join(ansible_dir, 'plugins')
+-        self.callback_dir = os.path.join(plugins_dir, 'callback_plugins')
+-        if not os.path.exists(self.callback_dir):
+-            os.makedirs(self.callback_dir)
+         self.library_dir = os.path.join(ansible_dir, 'library')
+         if not os.path.exists(self.library_dir):
+             os.makedirs(self.library_dir)
+-
+-        callback_path = os.path.dirname(os.path.abspath(
+-            zuul.ansible.plugins.callback_plugins.__file__))
+-        for fn in os.listdir(callback_path):
+-            shutil.copy(os.path.join(callback_path, fn), self.callback_dir)
++        self.pre_post_library_dir = os.path.join(ansible_dir,
++                                                 'pre_post_library')
++        if not os.path.exists(self.pre_post_library_dir):
++            os.makedirs(self.pre_post_library_dir)
+ 
+         library_path = os.path.dirname(os.path.abspath(
+             zuul.ansible.library.__file__))
+-        for fn in os.listdir(library_path):
++        # Ansible library modules that should be available to all
++        # playbooks:
++        all_libs = ['zuul_log.py', 'zuul_console.py', 'zuul_afs.py']
++        # Modules that should only be used by job playbooks:
++        job_libs = ['command.py']
++
++        for fn in all_libs:
++            shutil.copy(os.path.join(library_path, fn), self.library_dir)
++            shutil.copy(os.path.join(library_path, fn),
++                        self.pre_post_library_dir)
++        for fn in job_libs:
+             shutil.copy(os.path.join(library_path, fn), self.library_dir)
+ 
++        def get_config_default(section, option, default):
++            if config.has_option(section, option):
++                return config.get(section, option)
++            return default
++
+         for section in config.sections():
+             m = self.site_section_re.match(section)
+             if m:
+                 sitename = m.group(1)
+                 d = {}
+-                d['host'] = config.get(section, 'host')
+-                d['user'] = config.get(section, 'user')
+-                if config.has_option(section, 'pass'):
+-                    d['pass'] = config.get(section, 'pass')
+-                else:
+-                    d['pass'] = ''
+-                if config.has_option(section, 'root'):
+-                    d['root'] = config.get(section, 'root')
+-                else:
+-                    d['root'] = '/'
++                d['host'] = get_config_default(section, 'host', None)
++                d['user'] = get_config_default(section, 'user', '')
++                d['pass'] = get_config_default(section, 'pass', '')
++                d['root'] = get_config_default(section, 'root', '/')
++                d['keytab'] = get_config_default(section, 'keytab', None)
+                 self.sites[sitename] = d
+                 continue
+             m = self.node_section_re.match(section)
+@@ -212,10 +226,8 @@ class LaunchServer(object):
+                 d = {}
+                 d['name'] = nodename
+                 d['host'] = config.get(section, 'host')
+-                if config.has_option(section, 'description'):
+-                    d['description'] = config.get(section, 'description')
+-                else:
+-                    d['description'] = ''
++                d['description'] = get_config_default(section,
++                                                      'description', '')
+                 if config.has_option(section, 'labels'):
+                     d['labels'] = config.get(section, 'labels').split(',')
+                 else:
+@@ -473,7 +485,7 @@ class LaunchServer(object):
+                             args['description'], args['labels'],
+                             self.hostname, self.zmq_send_queue,
+                             self.termination_queue, self.keep_jobdir,
+-                            self.callback_dir, self.library_dir,
++                            self.library_dir, self.pre_post_library_dir,
+                             self.options)
+         self.node_workers[worker.name] = worker
+ 
+@@ -554,8 +566,8 @@ class NodeWorker(object):
+ 
+     def __init__(self, config, jobs, builds, sites, name, host,
+                  description, labels, manager_name, zmq_send_queue,
+-                 termination_queue, keep_jobdir, callback_dir,
+-                 library_dir, options):
++                 termination_queue, keep_jobdir, library_dir,
++                 pre_post_library_dir, options):
+         self.log = logging.getLogger("zuul.NodeWorker.%s" % (name,))
+         self.log.debug("Creating node worker %s" % (name,))
+         self.config = config
+@@ -590,6 +602,7 @@ class NodeWorker(object):
+         self._aborted_job = False
+         self._watchdog_timeout = False
+         self._sent_complete_event = False
++        self.ansible_pre_proc = None
+         self.ansible_job_proc = None
+         self.ansible_post_proc = None
+         self.workspace_root = config.get('launcher', 'workspace_root')
+@@ -601,13 +614,8 @@ class NodeWorker(object):
+             self.username = config.get('launcher', 'username')
+         else:
+             self.username = 'zuul'
+-        if self.config.has_option('launcher', 'register_labels'):
+-            self.register_labels = config.getboolean('launcher',
+-                                                     'register_labels')
+-        else:
+-            self.register_labels = True
+-        self.callback_dir = callback_dir
+         self.library_dir = library_dir
++        self.pre_post_library_dir = pre_post_library_dir
+         self.options = options
+ 
+     def isAlive(self):
+@@ -745,9 +753,8 @@ class NodeWorker(object):
+             if not matching_labels:
+                 return ret
+         ret.add('build:%s' % (job['name'],))
+-        if self.register_labels:
+-            for label in matching_labels:
+-                ret.add('build:%s:%s' % (job['name'], label))
++        for label in matching_labels:
++            ret.add('build:%s:%s' % (job['name'], label))
+         return ret
+ 
+     def register(self):
+@@ -808,7 +815,7 @@ class NodeWorker(object):
+         result = None
+         self._sent_complete_event = False
+         self._aborted_job = False
+-        self._watchog_timeout = False
++        self._watchdog_timeout = False
+ 
+         try:
+             self.sendStartEvent(job_name, args)
+@@ -875,6 +882,7 @@ class NodeWorker(object):
+                                'SUCCESS', {})
+ 
+     def runJob(self, job, args):
++        self.ansible_pre_proc = None
+         self.ansible_job_proc = None
+         self.ansible_post_proc = None
+         result = None
+@@ -894,11 +902,21 @@ class NodeWorker(object):
+             data = {
+                 'manager': self.manager_name,
+                 'number': job.unique,
+-                'url': 'telnet://%s:19885' % self.host,
+             }
++            if ':' in self.host:
++                data['url'] = 'telnet://[%s]:19885' % self.host
++            else:
++                data['url'] = 'telnet://%s:19885' % self.host
++
+             job.sendWorkData(json.dumps(data))
+             job.sendWorkStatus(0, 100)
+ 
++            pre_status = self.runAnsiblePrePlaybook(jobdir)
++            if pre_status is None:
++                # These should really never fail, so return None and have
++                # zuul try again
++                return result
++
+             job_status = self.runAnsiblePlaybook(jobdir, timeout)
+             if job_status is None:
+                 # The result of the job is indeterminate.  Zuul will
+@@ -964,7 +982,8 @@ class NodeWorker(object):
+                 # upload.  This uploads the playbook and ansible logs.
+                 copyargs = dict(src=jobdir.ansible_root + '/',
+                                 dest=os.path.join(scproot, '_zuul_ansible'))
+-                task = dict(copy=copyargs,
++                task = dict(name='copy console log',
++                            copy=copyargs,
+                             delegate_to='127.0.0.1')
+                 # This is a local copy and should not fail, so does
+                 # not need a retry stanza.
+@@ -986,10 +1005,15 @@ class NodeWorker(object):
+                             mode='pull')
+             if rsync_opts:
+                 syncargs['rsync_opts'] = rsync_opts
+-            task = dict(synchronize=syncargs)
++            task = dict(name='copy files from node',
++                        synchronize=syncargs)
+             if not scpfile.get('copy-after-failure'):
+-                task['when'] = 'success'
+-            task.update(self.retry_args)
++                task['when'] = 'success|bool'
++            # We don't use retry_args here because there is a bug in
++            # the synchronize module that breaks subsequent attempts at
++            # retrying. Better to try once and get an accurate error
++            # message if it fails.
++            # https://github.com/ansible/ansible/issues/18281
+             tasks.append(task)
+ 
+             task = self._makeSCPTaskLocalAction(
+@@ -1029,10 +1053,11 @@ class NodeWorker(object):
+             private_key_file=self.private_key_file,
+             host=site['host'],
+             user=site['user'])
+-        task = dict(shell=shellargs,
++        task = dict(name='rsync logs to server',
++                    shell=shellargs,
+                     delegate_to='127.0.0.1')
+         if not scpfile.get('copy-after-failure'):
+-            task['when'] = 'success'
++            task['when'] = 'success|bool'
+ 
+         return task
+ 
+@@ -1060,12 +1085,17 @@ class NodeWorker(object):
+                         mode='pull')
+         if rsync_opts:
+             syncargs['rsync_opts'] = rsync_opts
+-        task = dict(synchronize=syncargs,
+-                    when='success')
+-        task.update(self.retry_args)
++        task = dict(name='copy files from node',
++                    synchronize=syncargs,
++                    when='success|bool')
++        # We don't use retry_args here because there is a bug in the
++        # synchronize module that breaks subsequent attempts at retrying.
++        # Better to try once and get an accurate error message if it fails.
++        # https://github.com/ansible/ansible/issues/18281
+         tasks.append(task)
+-        task = dict(shell='lftp -f %s' % ftpscript,
+-                    when='success',
++        task = dict(name='FTP files to server',
++                    shell='lftp -f %s' % ftpscript,
++                    when='success|bool',
+                     delegate_to='127.0.0.1')
+         ftpsource = ftpcontent
+         if ftp.get('remove-prefix'):
+@@ -1089,9 +1119,67 @@ class NodeWorker(object):
+         tasks.append(task)
+         return tasks
+ 
+-    def _makeBuilderTask(self, jobdir, builder, parameters):
++    def _makeAFSTask(self, jobdir, publisher, parameters):
+         tasks = []
+-        script_fn = '%s.sh' % str(uuid.uuid4().hex)
++        afs = publisher['afs']
++        site = afs['site']
++        if site not in self.sites:
++            raise Exception("Undefined AFS site: %s" % site)
++        site = self.sites[site]
++
++        afsroot = tempfile.mkdtemp(dir=jobdir.staging_root)
++        afscontent = os.path.join(afsroot, 'content')
++        afssource = afscontent
++        if afs.get('remove-prefix'):
++            afssource = os.path.join(afscontent, afs['remove-prefix'])
++        while afssource[-1] == '/':
++            afssource = afssource[:-1]
++
++        src = parameters['WORKSPACE']
++        if not src.endswith('/'):
++            src = src + '/'
++        rsync_opts = self._getRsyncOptions(afs['source'],
++                                           parameters)
++        syncargs = dict(src=src,
++                        dest=afscontent,
++                        copy_links='yes',
++                        mode='pull')
++        if rsync_opts:
++            syncargs['rsync_opts'] = rsync_opts
++        task = dict(name='copy files from node',
++                    synchronize=syncargs,
++                    when='success|bool')
++        # We don't use retry_args here because there is a bug in the
++        # synchronize module that breaks subsequent attempts at retrying.
++        # Better to try once and get an accurate error message if it fails.
++        # https://github.com/ansible/ansible/issues/18281
++        tasks.append(task)
++
++        afstarget = afs['target'].lstrip('/')
++        afstarget = self._substituteVariables(afstarget, parameters)
++        afstarget = os.path.join(site['root'], afstarget)
++        afstarget = os.path.normpath(afstarget)
++        if not afstarget.startswith(site['root']):
++            raise Exception("Target path %s is not below site root" %
++                            (afstarget,))
++
++        afsargs = dict(user=site['user'],
++                       keytab=site['keytab'],
++                       root=afsroot,
++                       source=afssource,
++                       target=afstarget)
++
++        task = dict(name='Synchronize files to AFS',
++                    zuul_afs=afsargs,
++                    when='success|bool',
++                    delegate_to='127.0.0.1')
++        tasks.append(task)
++
++        return tasks
++
++    def _makeBuilderTask(self, jobdir, builder, parameters, sequence):
++        tasks = []
++        script_fn = '%02d-%s.sh' % (sequence, str(uuid.uuid4().hex))
+         script_path = os.path.join(jobdir.script_root, script_fn)
+         with open(script_path, 'w') as script:
+             data = builder['shell']
+@@ -1106,15 +1194,10 @@ class NodeWorker(object):
+         task = dict(copy=copy)
+         tasks.append(task)
+ 
+-        runner = dict(command=remote_path,
+-                      cwd=parameters['WORKSPACE'],
+-                      parameters=parameters)
+-        task = dict(zuul_runner=runner)
+-        task['name'] = ('zuul_runner with {{ timeout | int - elapsed_time }} '
+-                        'second timeout')
+-        task['when'] = '{{ elapsed_time < timeout | int }}'
+-        task['async'] = '{{ timeout | int - elapsed_time }}'
+-        task['poll'] = 5
++        task = dict(command=remote_path)
++        task['name'] = 'command generated from JJB'
++        task['environment'] = "{{ zuul.environment }}"
++        task['args'] = dict(chdir=parameters['WORKSPACE'])
+         tasks.append(task)
+ 
+         filetask = dict(path=remote_path,
+@@ -1181,53 +1264,56 @@ class NodeWorker(object):
+         if timeout_var:
+             parameters[timeout_var] = str(timeout * 1000)
+ 
+-        with open(jobdir.playbook, 'w') as playbook:
+-            pre_tasks = []
+-            tasks = []
+-            main_block = []
+-            error_block = []
+-            variables = []
+-
+-            shellargs = "ssh-keyscan %s > %s" % (
+-                self.host, jobdir.known_hosts)
+-            pre_tasks.append(dict(shell=shellargs,
+-                             delegate_to='127.0.0.1'))
++        with open(jobdir.vars, 'w') as vars_yaml:
++            variables = dict(
++                timeout=timeout,
++                environment=parameters,
++            )
++            zuul_vars = dict(zuul=variables)
++            vars_yaml.write(
++                yaml.safe_dump(zuul_vars, default_flow_style=False))
+ 
+-            tasks.append(dict(block=main_block,
+-                              rescue=error_block))
++        with open(jobdir.pre_playbook, 'w') as pre_playbook:
++
++            shellargs = "ssh-keyscan {{ ansible_host }} > %s" % (
++                jobdir.known_hosts)
++            tasks = []
++            tasks.append(dict(shell=shellargs, delegate_to='127.0.0.1'))
+ 
+             task = dict(file=dict(path='/tmp/console.html', state='absent'))
+-            main_block.append(task)
++            tasks.append(task)
+ 
+             task = dict(zuul_console=dict(path='/tmp/console.html',
+                                           port=19885))
+-            main_block.append(task)
++            tasks.append(task)
+ 
+             task = dict(file=dict(path=parameters['WORKSPACE'],
+                                   state='directory'))
+-            main_block.append(task)
++            tasks.append(task)
+ 
+             msg = [
+                 "Launched by %s" % self.manager_name,
+                 "Building remotely on %s in workspace %s" % (
+                     self.name, parameters['WORKSPACE'])]
+             task = dict(zuul_log=dict(msg=msg))
+-            main_block.append(task)
++            tasks.append(task)
++
++            play = dict(hosts='node', name='Job setup', tasks=tasks)
++            pre_playbook.write(
++                yaml.safe_dump([play], default_flow_style=False))
+ 
++        with open(jobdir.playbook, 'w') as playbook:
++            tasks = []
++
++            sequence = 0
+             for builder in jjb_job.get('builders', []):
+                 if 'shell' in builder:
+-                    main_block.extend(
+-                        self._makeBuilderTask(jobdir, builder, parameters))
+-            task = dict(zuul_log=dict(msg="Job complete, result: SUCCESS"))
+-            main_block.append(task)
+-
+-            task = dict(zuul_log=dict(msg="Job complete, result: FAILURE"))
+-            error_block.append(task)
+-            error_block.append(dict(fail=dict(msg='FAILURE')))
+-
+-            variables.append(dict(timeout=timeout))
+-            play = dict(hosts='node', name='Job body', vars=variables,
+-                        pre_tasks=pre_tasks, tasks=tasks)
++                    sequence += 1
++                    tasks.extend(
++                        self._makeBuilderTask(jobdir, builder, parameters,
++                                              sequence))
++
++            play = dict(hosts='node', name='Job body', tasks=tasks)
+             playbook.write(yaml.safe_dump([play], default_flow_style=False))
+ 
+         early_publishers, late_publishers = self._transformPublishers(jjb_job)
+@@ -1243,6 +1329,9 @@ class NodeWorker(object):
+                     if 'ftp' in publisher:
+                         block.extend(self._makeFTPTask(jobdir, publisher,
+                                                        parameters))
++                    if 'afs' in publisher:
++                        block.extend(self._makeAFSTask(jobdir, publisher,
++                                                       parameters))
+                 blocks.append(block)
+ 
+             # The 'always' section contains the log publishing tasks,
+@@ -1250,6 +1339,17 @@ class NodeWorker(object):
+             # we run the log publisher regardless of whether the rest
+             # of the publishers succeed.
+             tasks = []
++
++            task = dict(zuul_log=dict(msg="Job complete, result: SUCCESS"),
++                        when='success|bool')
++            blocks[0].insert(0, task)
++            task = dict(zuul_log=dict(msg="Job complete, result: FAILURE"),
++                        when='not success|bool and not timedout|bool')
++            blocks[0].insert(0, task)
++            task = dict(zuul_log=dict(msg="Job timed out, result: FAILURE"),
++                        when='not success|bool and timedout|bool')
++            blocks[0].insert(0, task)
++
+             tasks.append(dict(block=blocks[0],
+                               always=blocks[1]))
+ 
+@@ -1257,43 +1357,104 @@ class NodeWorker(object):
+                         tasks=tasks)
+             playbook.write(yaml.safe_dump([play], default_flow_style=False))
+ 
+-        with open(jobdir.config, 'w') as config:
++        self._writeAnsibleConfig(jobdir, jobdir.config,
++                                 library=self.library_dir)
++        self._writeAnsibleConfig(jobdir, jobdir.pre_post_config,
++                                 library=self.pre_post_library_dir)
++
++        return timeout
++
++    def _writeAnsibleConfig(self, jobdir, fn, library):
++        with open(fn, 'w') as config:
+             config.write('[defaults]\n')
+             config.write('hostfile = %s\n' % jobdir.inventory)
+-            config.write('keep_remote_files = True\n')
+             config.write('local_tmp = %s/.ansible/local_tmp\n' % jobdir.root)
+             config.write('remote_tmp = %s/.ansible/remote_tmp\n' % jobdir.root)
+             config.write('private_key_file = %s\n' % self.private_key_file)
+             config.write('retry_files_enabled = False\n')
+             config.write('log_path = %s\n' % jobdir.ansible_log)
+             config.write('gathering = explicit\n')
+-            config.write('callback_plugins = %s\n' % self.callback_dir)
+-            config.write('library = %s\n' % self.library_dir)
++            config.write('library = %s\n' % library)
++            # TODO(mordred) This can be removed once we're using ansible 2.2
++            config.write('module_set_locale = False\n')
++            # bump the timeout because busy nodes may take more than
++            # 10s to respond
++            config.write('timeout = 30\n')
+ 
+             config.write('[ssh_connection]\n')
++            # NB: when setting pipelining = True, keep_remote_files
++            # must be False (the default).  Otherwise it apparently
++            # will override the pipelining option and effectively
++            # disable it.  Pipelining has a side effect of running the
++            # command without a tty (ie, without the -tt argument to
++            # ssh).  We require this behavior so that if a job runs a
++            # command which expects interactive input on a tty (such
++            # as sudo) it does not hang.
++            config.write('pipelining = True\n')
+             ssh_args = "-o ControlMaster=auto -o ControlPersist=60s " \
+                 "-o UserKnownHostsFile=%s" % jobdir.known_hosts
+             config.write('ssh_args = %s\n' % ssh_args)
+ 
+-        return timeout
+-
+     def _ansibleTimeout(self, proc, msg):
+         self._watchdog_timeout = True
+         self.log.warning(msg)
+         self.abortRunningProc(proc)
+ 
++    def runAnsiblePrePlaybook(self, jobdir):
++        # Set LOGNAME env variable so Ansible log_path log reports
++        # the correct user.
++        env_copy = os.environ.copy()
++        env_copy['LOGNAME'] = 'zuul'
++        env_copy['ANSIBLE_CONFIG'] = jobdir.pre_post_config
++
++        if self.options['verbose']:
++            verbose = '-vvv'
++        else:
++            verbose = '-v'
++
++        cmd = ['ansible-playbook', jobdir.pre_playbook,
++               '-e@%s' % jobdir.vars, verbose]
++        self.log.debug("Ansible pre command: %s" % (cmd,))
++
++        self.ansible_pre_proc = subprocess.Popen(
++            cmd,
++            cwd=jobdir.ansible_root,
++            stdout=subprocess.PIPE,
++            stderr=subprocess.STDOUT,
++            preexec_fn=os.setsid,
++            env=env_copy,
++        )
++        ret = None
++        watchdog = Watchdog(ANSIBLE_DEFAULT_PRE_TIMEOUT,
++                            self._ansibleTimeout,
++                            (self.ansible_pre_proc,
++                             "Ansible pre timeout exceeded"))
++        watchdog.start()
++        try:
++            for line in iter(self.ansible_pre_proc.stdout.readline, b''):
++                line = line[:1024].rstrip()
++                self.log.debug("Ansible pre output: %s" % (line,))
++            ret = self.ansible_pre_proc.wait()
++        finally:
++            watchdog.stop()
++        self.log.debug("Ansible pre exit code: %s" % (ret,))
++        self.ansible_pre_proc = None
++        return ret == 0
++
+     def runAnsiblePlaybook(self, jobdir, timeout):
+         # Set LOGNAME env variable so Ansible log_path log reports
+         # the correct user.
+         env_copy = os.environ.copy()
+         env_copy['LOGNAME'] = 'zuul'
++        env_copy['ANSIBLE_CONFIG'] = jobdir.config
+ 
+         if self.options['verbose']:
+             verbose = '-vvv'
+         else:
+             verbose = '-v'
+ 
+-        cmd = ['ansible-playbook', jobdir.playbook, verbose]
++        cmd = ['ansible-playbook', jobdir.playbook, verbose,
++               '-e@%s' % jobdir.vars]
+         self.log.debug("Ansible command: %s" % (cmd,))
+ 
+         self.ansible_job_proc = subprocess.Popen(
+@@ -1335,6 +1496,7 @@ class NodeWorker(object):
+         # the correct user.
+         env_copy = os.environ.copy()
+         env_copy['LOGNAME'] = 'zuul'
++        env_copy['ANSIBLE_CONFIG'] = jobdir.pre_post_config
+ 
+         if self.options['verbose']:
+             verbose = '-vvv'
+@@ -1342,7 +1504,10 @@ class NodeWorker(object):
+             verbose = '-v'
+ 
+         cmd = ['ansible-playbook', jobdir.post_playbook,
+-               '-e', 'success=%s' % success, verbose]
++               '-e', 'success=%s' % success,
++               '-e', 'timedout=%s' % self._watchdog_timeout,
++               '-e@%s' % jobdir.vars,
++               verbose]
+         self.log.debug("Ansible post command: %s" % (cmd,))
+ 
+         self.ansible_post_proc = subprocess.Popen(
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/launcher/gearman.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/launcher/gearman.py
+@@ -367,6 +367,12 @@ class Gearman(object):
+             self.onBuildCompleted(gearman_job, 'NOT_REGISTERED')
+             return build
+ 
++        # NOTE(pabelanger): Rather then looping forever, check to see if job
++        # has passed attempts limit.
++        if item.current_build_set.getTries(job.name) > job.attempts:
++            self.onBuildCompleted(gearman_job, 'RETRY_LIMIT')
++            return build
++
+         if pipeline.precedence == zuul.model.PRECEDENCE_NORMAL:
+             precedence = gear.PRECEDENCE_NORMAL
+         elif pipeline.precedence == zuul.model.PRECEDENCE_HIGH:
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/layoutvalidator.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/layoutvalidator.py
+@@ -103,6 +103,7 @@ class LayoutSchema(object):
+            'success-pattern': str,
+            'hold-following-changes': bool,
+            'voting': bool,
++           'attempts': int,
+            'mutex': str,
+            'tags': toList(str),
+            'parameter-function': str,
+@@ -166,6 +167,7 @@ class LayoutSchema(object):
+             'reporter': {
+                 'gerrit': 'zuul.reporter.gerrit',
+                 'smtp': 'zuul.reporter.smtp',
++                'sql': 'zuul.reporter.sql',
+             },
+         }
+         standard_drivers = {
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/lib/cloner.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/lib/cloner.py
+@@ -33,7 +33,7 @@ class Cloner(object):
+     def __init__(self, git_base_url, projects, workspace, zuul_branch,
+                  zuul_ref, zuul_url, branch=None, clone_map_file=None,
+                  project_branches=None, cache_dir=None, zuul_newrev=None,
+-                 zuul_project=None):
++                 zuul_project=None, cache_no_hardlinks=None):
+ 
+         self.clone_map = []
+         self.dests = None
+@@ -41,11 +41,14 @@ class Cloner(object):
+         self.branch = branch
+         self.git_url = git_base_url
+         self.cache_dir = cache_dir
++        self.cache_no_hardlinks = cache_no_hardlinks
+         self.projects = projects
+         self.workspace = workspace
+         self.zuul_branch = zuul_branch or ''
+         self.zuul_ref = zuul_ref or ''
+         self.zuul_url = zuul_url
++        self.zuul_project = zuul_project
++
+         self.project_branches = project_branches or {}
+         self.project_revisions = {}
+ 
+@@ -77,22 +80,44 @@ class Cloner(object):
+     def cloneUpstream(self, project, dest):
+         # Check for a cached git repo first
+         git_cache = '%s/%s' % (self.cache_dir, project)
+-        git_upstream = '%s/%s' % (self.git_url, project)
+-        repo_is_cloned = os.path.exists(os.path.join(dest, '.git'))
+-        if (self.cache_dir and
+-            os.path.exists(git_cache) and
+-            not repo_is_cloned):
+-            # file:// tells git not to hard-link across repos
+-            git_cache = 'file://%s' % git_cache
+-            self.log.info("Creating repo %s from cache %s",
+-                          project, git_cache)
+-            new_repo = git.Repo.clone_from(git_cache, dest)
+-            self.log.info("Updating origin remote in repo %s to %s",
+-                          project, git_upstream)
+-            new_repo.remotes.origin.config_writer.set('url', git_upstream)
++        git_cache_bare = '%s.git' % (git_cache)
++
++        # Then, if we are cloning the repo for the zuul_project, then
++        # set its origin to be the zuul merger, as it is guaranteed to
++        # be correct and up to date even if mirrors haven't updated
++        # yet.  Otherwise, we can not be sure about the state of the
++        # project, so our best chance to get the most current state is
++        # by setting origin to the git_url.
++        if (self.zuul_url and project == self.zuul_project):
++            git_upstream = '%s/%s' % (self.zuul_url, project)
+         else:
++            git_upstream = '%s/%s' % (self.git_url, project)
++
++        repo_is_cloned = os.path.exists(os.path.join(dest, '.git'))
++
++        repo_cache = None
++        if (self.cache_dir and not repo_is_cloned):
++            if os.path.exists(git_cache_bare):
++                repo_cache = git_cache_bare
++            elif os.path.exists(git_cache):
++                repo_cache = git_cache
++
++            if repo_cache:
++                if self.cache_no_hardlinks:
++                    # file:// tells git not to hard-link across repos
++                    repo_cache = 'file://%s' % repo_cache
++
++                self.log.info("Creating repo %s from cache %s",
++                              project, repo_cache)
++                new_repo = git.Repo.clone_from(repo_cache, dest)
++                self.log.info("Updating origin remote in repo %s to %s",
++                              project, git_upstream)
++                new_repo.remotes.origin.config_writer.set('url', git_upstream)
++
++        if not repo_cache:
+             self.log.info("Creating repo %s from upstream %s",
+                           project, git_upstream)
++
+         repo = Repo(
+             remote=git_upstream,
+             local=dest,
+@@ -104,23 +129,35 @@ class Cloner(object):
+ 
+         return repo
+ 
+-    def fetchFromZuul(self, repo, project, ref):
+-        zuul_remote = '%s/%s' % (self.zuul_url, project)
++    def fetchRef(self, repo, project, ref):
++        # If we are fetching a zuul ref, the only place to get it is
++        # from the zuul merger (and it is guaranteed to be correct).
++        # Otherwise, the only way we can be certain that the ref
++        # (which, since it is not a zuul ref, is a branch or tag) is
++        # correct is in the case that it matches zuul_project.  If
++        # neither of those two conditions are met, we are most likely
++        # to get the correct state from the git_url.
++        if (ref.startswith('refs/zuul') or
++            project == self.zuul_project):
++
++            remote = '%s/%s' % (self.zuul_url, project)
++        else:
++            remote = '%s/%s' % (self.git_url, project)
+ 
+         try:
+-            repo.fetchFrom(zuul_remote, ref)
+-            self.log.debug("Fetched ref %s from %s", ref, project)
++            repo.fetchFrom(remote, ref)
++            self.log.debug("Fetched ref %s from %s", ref, remote)
+             return True
+         except ValueError:
+-            self.log.debug("Project %s in Zuul does not have ref %s",
+-                           project, ref)
++            self.log.debug("Repo %s does not have ref %s",
++                           remote, ref)
+             return False
+         except GitCommandError as error:
+             # Bail out if fetch fails due to infrastructure reasons
+             if error.stderr.startswith('fatal: unable to access'):
+                 raise
+-            self.log.debug("Project %s in Zuul does not have ref %s",
+-                           project, ref)
++            self.log.debug("Repo %s does not have ref %s",
++                           remote, ref)
+             return False
+ 
+     def prepareRepo(self, project, dest):
+@@ -192,7 +229,7 @@ class Cloner(object):
+             self.log.info("Attempting to check out revision %s for "
+                           "project %s", indicated_revision, project)
+             try:
+-                self.fetchFromZuul(repo, project, self.zuul_ref)
++                self.fetchRef(repo, project, self.zuul_ref)
+                 commit = repo.checkout(indicated_revision)
+             except (ValueError, GitCommandError):
+                 raise exceptions.RevNotFound(project, indicated_revision)
+@@ -201,10 +238,10 @@ class Cloner(object):
+         # If we have a non empty zuul_ref to use, use it. Otherwise we fall
+         # back to checking out the branch.
+         elif ((override_zuul_ref and
+-              self.fetchFromZuul(repo, project, override_zuul_ref)) or
++              self.fetchRef(repo, project, override_zuul_ref)) or
+               (fallback_zuul_ref and
+                fallback_zuul_ref != override_zuul_ref and
+-              self.fetchFromZuul(repo, project, fallback_zuul_ref))):
++              self.fetchRef(repo, project, fallback_zuul_ref))):
+             # Work around a bug in GitPython which can not parse FETCH_HEAD
+             gitcmd = git.Git(dest)
+             fetch_head = gitcmd.rev_parse('FETCH_HEAD')
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/lib/connections.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/lib/connections.py
+@@ -12,13 +12,16 @@
+ # License for the specific language governing permissions and limitations
+ # under the License.
+ 
++import logging
+ import re
+ 
+ import zuul.connection.gerrit
+ import zuul.connection.smtp
++import zuul.connection.sql
+ 
+ 
+ def configure_connections(config):
++    log = logging.getLogger("configure_connections")
+     # Register connections from the config
+ 
+     # TODO(jhesketh): import connection modules dynamically
+@@ -46,6 +49,9 @@ def configure_connections(config):
+         elif con_driver == 'smtp':
+             connections[con_name] = \
+                 zuul.connection.smtp.SMTPConnection(con_name, con_config)
++        elif con_driver == 'sql':
++            connections[con_name] = \
++                zuul.connection.sql.SQLConnection(con_name, con_config)
+         else:
+             raise Exception("Unknown driver, %s, for connection %s"
+                             % (con_config['driver'], con_name))
+@@ -54,13 +60,21 @@ def configure_connections(config):
+     # connection named 'gerrit' or 'smtp' respectfully
+ 
+     if 'gerrit' in config.sections():
+-        connections['gerrit'] = \
+-            zuul.connection.gerrit.GerritConnection(
+-                'gerrit', dict(config.items('gerrit')))
++        if 'gerrit' in connections:
++            log.warning("The legacy [gerrit] section will be ignored in favour"
++                        " of the [connection gerrit].")
++        else:
++            connections['gerrit'] = \
++                zuul.connection.gerrit.GerritConnection(
++                    'gerrit', dict(config.items('gerrit')))
+ 
+     if 'smtp' in config.sections():
+-        connections['smtp'] = \
+-            zuul.connection.smtp.SMTPConnection(
+-                'smtp', dict(config.items('smtp')))
++        if 'smtp' in connections:
++            log.warning("The legacy [smtp] section will be ignored in favour"
++                        " of the [connection smtp].")
++        else:
++            connections['smtp'] = \
++                zuul.connection.smtp.SMTPConnection(
++                    'smtp', dict(config.items('smtp')))
+ 
+     return connections
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/lib/swift.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/lib/swift.py
+@@ -24,7 +24,7 @@ import string
+ 
+ 
+ class Swift(object):
+-    log = logging.getLogger("zuul.lib.swift")
++    log = logging.getLogger("zuul.Swift")
+ 
+     def __init__(self, config):
+         self.config = config
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/merger/client.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/merger/client.py
+@@ -97,9 +97,10 @@ class MergeClient(object):
+         data = dict(items=items)
+         self.submitJob('merger:merge', data, build_set, precedence)
+ 
+-    def updateRepo(self, project, url, build_set,
++    def updateRepo(self, project, connection_name, url, build_set,
+                    precedence=zuul.model.PRECEDENCE_NORMAL):
+         data = dict(project=project,
++                    connection_name=connection_name,
+                     url=url)
+         self.submitJob('merger:update', data, build_set, precedence)
+ 
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/merger/merger.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/merger/merger.py
+@@ -106,8 +106,12 @@ class Repo(object):
+                 continue
+             repo.create_head(ref.remote_head, ref, force=True)
+ 
+-        # Reset to remote HEAD (usually origin/master)
+-        repo.head.reference = origin.refs['HEAD']
++        # try reset to remote HEAD (usually origin/master)
++        # If it fails, pick the first reference
++        try:
++            repo.head.reference = origin.refs['HEAD']
++        except IndexError:
++            repo.head.reference = origin.refs[0]
+         reset_repo_to_head(repo)
+         repo.git.clean('-x', '-f', '-d')
+ 
+@@ -230,6 +234,14 @@ class Merger(object):
+         fd.close()
+         os.chmod(name, 0o755)
+ 
++    def _setGitSsh(self, connection_name):
++        wrapper_name = '.ssh_wrapper_%s' % connection_name
++        name = os.path.join(self.working_root, wrapper_name)
++        if os.path.isfile(name):
++            os.environ['GIT_SSH'] = name
++        elif 'GIT_SSH' in os.environ:
++            del os.environ['GIT_SSH']
++
+     def addProject(self, project, url):
+         repo = None
+         try:
+@@ -249,11 +261,12 @@ class Merger(object):
+                             " without a url" % (project,))
+         return self.addProject(project, url)
+ 
+-    def updateRepo(self, project, url):
++    def updateRepo(self, project, connection_name, url):
++        self._setGitSsh(connection_name)
+         repo = self.getRepo(project, url)
+         try:
+             self.log.info("Updating local repository %s", project)
+-            repo.update()
++            repo.reset()
+         except Exception:
+             self.log.exception("Unable to update %s", project)
+ 
+@@ -286,14 +299,6 @@ class Merger(object):
+ 
+         return commit
+ 
+-    def _setGitSsh(self, connection_name):
+-        wrapper_name = '.ssh_wrapper_%s' % connection_name
+-        name = os.path.join(self.working_root, wrapper_name)
+-        if os.path.isfile(name):
+-            os.environ['GIT_SSH'] = name
+-        elif 'GIT_SSH' in os.environ:
+-            del os.environ['GIT_SSH']
+-
+     def _mergeItem(self, item, recent):
+         self.log.debug("Processing refspec %s for project %s / %s ref %s" %
+                        (item['refspec'], item['project'], item['branch'],
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/merger/server.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/merger/server.py
+@@ -109,7 +109,9 @@ class MergeServer(object):
+ 
+     def update(self, job):
+         args = json.loads(job.arguments)
+-        self.merger.updateRepo(args['project'], args['url'])
++        self.merger.updateRepo(args['project'],
++                               args['connection_name'],
++                               args['url'])
+         result = dict(updated=True,
+                       zuul_url=self.zuul_url)
+         job.sendWorkComplete(json.dumps(result))
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/model.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/model.py
+@@ -466,6 +466,8 @@ class Job(object):
+         self._files = []
+         self.skip_if_matcher = None
+         self.swift = {}
++        # Number of attempts to launch a job before giving up.
++        self.attempts = 3
+ 
+     def __str__(self):
+         return self.name
+@@ -646,6 +648,7 @@ class BuildSet(object):
+         self.unable_to_merge = False
+         self.failing_reasons = []
+         self.merge_state = self.NEW
++        self.tries = {}
+ 
+     def __repr__(self):
+         return '<BuildSet item: %s #builds: %s merge state: %s>' % (
+@@ -671,9 +674,12 @@ class BuildSet(object):
+ 
+     def addBuild(self, build):
+         self.builds[build.job.name] = build
++        if build.job.name not in self.tries:
++            self.tries[build.job.name] = 1
+         build.build_set = self
+ 
+     def removeBuild(self, build):
++        self.tries[build.job.name] += 1
+         del self.builds[build.job.name]
+ 
+     def getBuild(self, job_name):
+@@ -684,6 +690,9 @@ class BuildSet(object):
+         keys.sort()
+         return [self.builds.get(x) for x in keys]
+ 
++    def getTries(self, job_name):
++        return self.tries.get(job_name)
++
+ 
+ class QueueItem(object):
+     """A changish inside of a Pipeline queue"""
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/reporter/__init__.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/reporter/__init__.py
+@@ -70,40 +70,43 @@ class BaseReporter(object):
+         }
+         return format_methods[self._action]
+ 
+-    def _formatItemReport(self, pipeline, item):
++    def _formatItemReport(self, pipeline, item, with_jobs=True):
+         """Format a report from the given items. Usually to provide results to
+         a reporter taking free-form text."""
+-        ret = self._getFormatter()(pipeline, item)
++        ret = self._getFormatter()(pipeline, item, with_jobs)
+ 
+         if pipeline.footer_message:
+             ret += '\n' + pipeline.footer_message
+ 
+         return ret
+ 
+-    def _formatItemReportStart(self, pipeline, item):
++    def _formatItemReportStart(self, pipeline, item, with_jobs=True):
+         msg = "Starting %s jobs." % pipeline.name
+         if self.sched.config.has_option('zuul', 'status_url'):
+             msg += "\n" + self.sched.config.get('zuul', 'status_url')
+         return msg
+ 
+-    def _formatItemReportSuccess(self, pipeline, item):
+-        return (pipeline.success_message + '\n\n' +
+-                self._formatItemReportJobs(pipeline, item))
++    def _formatItemReportSuccess(self, pipeline, item, with_jobs=True):
++        msg = pipeline.success_message
++        if with_jobs:
++            msg += '\n\n' + self._formatItemReportJobs(pipeline, item)
++        return msg
+ 
+-    def _formatItemReportFailure(self, pipeline, item):
++    def _formatItemReportFailure(self, pipeline, item, with_jobs=True):
+         if item.dequeued_needing_change:
+             msg = 'This change depends on a change that failed to merge.\n'
+         elif not pipeline.didMergerSucceed(item):
+             msg = pipeline.merge_failure_message
+         else:
+-            msg = (pipeline.failure_message + '\n\n' +
+-                   self._formatItemReportJobs(pipeline, item))
++            msg = pipeline.failure_message
++            if with_jobs:
++                msg += '\n\n' + self._formatItemReportJobs(pipeline, item)
+         return msg
+ 
+-    def _formatItemReportMergeFailure(self, pipeline, item):
++    def _formatItemReportMergeFailure(self, pipeline, item, with_jobs=True):
+         return pipeline.merge_failure_message
+ 
+-    def _formatItemReportDisabled(self, pipeline, item):
++    def _formatItemReportDisabled(self, pipeline, item, with_jobs=True):
+         if item.current_build_set.result == 'SUCCESS':
+             return self._formatItemReportSuccess(pipeline, item)
+         elif item.current_build_set.result == 'FAILURE':
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/reporter/gerrit.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/reporter/gerrit.py
+@@ -23,7 +23,7 @@ class GerritReporter(BaseReporter):
+     """Sends off reports to Gerrit."""
+ 
+     name = 'gerrit'
+-    log = logging.getLogger("zuul.reporter.gerrit.Reporter")
++    log = logging.getLogger("zuul.GerritReporter")
+ 
+     def report(self, source, pipeline, item):
+         """Send a message to gerrit."""
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/reporter/smtp.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/reporter/smtp.py
+@@ -22,7 +22,7 @@ class SMTPReporter(BaseReporter):
+     """Sends off reports to emails via SMTP."""
+ 
+     name = 'smtp'
+-    log = logging.getLogger("zuul.reporter.smtp.Reporter")
++    log = logging.getLogger("zuul.SMTPReporter")
+ 
+     def report(self, source, pipeline, item):
+         """Send the compiled report message via smtp."""
+--- /dev/null
++++ zuul-2.5.0-8-gcbc7f62/zuul/reporter/sql.py
+@@ -0,0 +1,94 @@
++# Copyright 2015 Rackspace Australia
++#
++# Licensed under the Apache License, Version 2.0 (the "License"); you may
++# not use this file except in compliance with the License. You may obtain
++# a copy of the License at
++#
++#      http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
++# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
++# License for the specific language governing permissions and limitations
++# under the License.
++
++import datetime
++import logging
++import voluptuous as v
++
++from zuul.reporter import BaseReporter
++
++
++class SQLReporter(BaseReporter):
++    """Sends off reports to a database."""
++
++    name = 'sql'
++    log = logging.getLogger("zuul.reporter.mysql.SQLReporter")
++
++    def __init__(self, reporter_config={}, sched=None, connection=None):
++        super(SQLReporter, self).__init__(
++            reporter_config, sched, connection)
++        self.result_score = reporter_config.get('score', None)
++
++    def report(self, source, pipeline, item):
++        """Create an entry into a database."""
++
++        if not self.connection.tables_established:
++            self.log.warn("SQL reporter (%s) is disabled " % self)
++            return
++
++        if self.sched.config.has_option('zuul', 'url_pattern'):
++            url_pattern = self.sched.config.get('zuul', 'url_pattern')
++        else:
++            url_pattern = None
++
++        score = self.reporter_config['score']\
++            if 'score' in self.reporter_config else 0
++
++        with self.connection.engine.begin() as conn:
++            buildset_ins = self.connection.zuul_buildset_table.insert().values(
++                zuul_ref=item.current_build_set.ref,
++                pipeline=item.pipeline.name,
++                project=item.change.project.name,
++                change=item.change.number,
++                patchset=item.change.patchset,
++                ref=item.change.refspec,
++                score=score,
++                message=self._formatItemReport(
++                    pipeline, item, with_jobs=False),
++            )
++            buildset_ins_result = conn.execute(buildset_ins)
++            build_inserts = []
++
++            for job in pipeline.getJobs(item):
++                build = item.current_build_set.getBuild(job.name)
++                if not build:
++                    # build hasn't began. The sql reporter can only send back
++                    # stats about builds. It doesn't understand how to store
++                    # information about the change.
++                    continue
++
++                (result, url) = item.formatJobResult(job, url_pattern)
++
++                build_inserts.append({
++                    'buildset_id': buildset_ins_result.inserted_primary_key,
++                    'uuid': build.uuid,
++                    'job_name': build.job.name,
++                    'result': result,
++                    'start_time': datetime.datetime.fromtimestamp(
++                        build.start_time),
++                    'end_time': datetime.datetime.fromtimestamp(
++                        build.end_time),
++                    'voting': build.job.voting,
++                    'log_url': url,
++                    'node_name': build.node_name,
++                })
++            conn.execute(self.connection.zuul_build_table.insert(),
++                         build_inserts)
++
++
++def getSchema():
++    sql_reporter = v.Schema({
++        'score': int,
++    })
++    return sql_reporter
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/scheduler.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/scheduler.py
+@@ -359,6 +359,7 @@ class Scheduler(threading.Thread):
+             'reporter': {
+                 'gerrit': 'zuul.reporter.gerrit:GerritReporter',
+                 'smtp': 'zuul.reporter.smtp:SMTPReporter',
++                'sql': 'zuul.reporter.sql:SQLReporter',
+             },
+         }
+ 
+@@ -529,6 +530,7 @@ class Scheduler(threading.Thread):
+             m = config_job.get('hold-following-changes', False)
+             if m:
+                 job.hold_following_changes = True
++            job.attempts = config_job.get('attempts', 3)
+             m = config_job.get('voting', None)
+             if m is not None:
+                 job.voting = m
+@@ -866,6 +868,8 @@ class Scheduler(threading.Thread):
+                         self.log.exception(
+                             "Exception while canceling build %s "
+                             "for change %s" % (build, item.change))
++                    finally:
++                        self.mutex.release(build.build_set.item, build.job)
+             self.layout = layout
+             self.maintainConnectionCache()
+             for trigger in self.triggers.values():
+@@ -1500,8 +1504,9 @@ class BasePipelineManager(object):
+         else:
+             self.log.debug("Preparing update repo for: %s" % item.change)
+             url = self.pipeline.source.getGitUrl(item.change.project)
++            connection_name = self.pipeline.source.connection.connection_name
+             self.sched.merger.updateRepo(item.change.project.name,
+-                                         url, build_set,
++                                         connection_name, url, build_set,
+                                          self.pipeline.precedence)
+         # merge:merge has been emitted properly:
+         build_set.merge_state = build_set.PENDING
+@@ -1540,6 +1545,8 @@ class BasePipelineManager(object):
+             except:
+                 self.log.exception("Exception while canceling build %s "
+                                    "for change %s" % (build, item.change))
++            finally:
++                self.sched.mutex.release(build.build_set.item, build.job)
+             build.result = 'CANCELED'
+             canceled = True
+         self.updateBuildDescriptions(old_build_set)
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/source/gerrit.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/source/gerrit.py
+@@ -36,8 +36,8 @@ def detect_cycle(change, history=None):
+ 
+ class GerritSource(BaseSource):
+     name = 'gerrit'
+-    log = logging.getLogger("zuul.source.Gerrit")
+-    replication_timeout = 300
++    log = logging.getLogger("zuul.GerritSource")
++    replication_timeout = 15
+     replication_retry_interval = 5
+ 
+     depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$",
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/trigger/gerrit.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/trigger/gerrit.py
+@@ -20,7 +20,7 @@ from zuul.trigger import BaseTrigger
+ 
+ class GerritTrigger(BaseTrigger):
+     name = 'gerrit'
+-    log = logging.getLogger("zuul.trigger.Gerrit")
++    log = logging.getLogger("zuul.GerritTrigger")
+ 
+     def getEventFilters(self, trigger_conf):
+         def toList(item):
+--- zuul-2.5.0-8-gcbc7f62.orig/zuul/trigger/timer.py
++++ zuul-2.5.0-8-gcbc7f62/zuul/trigger/timer.py
+@@ -23,7 +23,7 @@ from zuul.trigger import BaseTrigger
+ 
+ class TimerTrigger(BaseTrigger):
+     name = 'timer'
+-    log = logging.getLogger("zuul.Timer")
++    log = logging.getLogger("zuul.TimerTrigger")
+ 
+     def __init__(self, trigger_config={}, sched=None, connection=None):
+         super(TimerTrigger, self).__init__(trigger_config, sched, connection)
