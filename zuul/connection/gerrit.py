@@ -32,13 +32,13 @@ class GerritEventConnector(threading.Thread):
     """Move events from Gerrit to the scheduler."""
 
     log = logging.getLogger("zuul.GerritEventConnector")
-    delay = 10.0
 
-    def __init__(self, connection):
+    def __init__(self, connection, delay=10):
         super(GerritEventConnector, self).__init__()
         self.daemon = True
         self.connection = connection
         self._stopped = False
+        self.delay = delay
 
     def stop(self):
         self._stopped = True
@@ -54,6 +54,8 @@ class GerritEventConnector(threading.Thread):
         # that if we receive several events in succession, we will
         # only need to delay for the first event.  In essence, Zuul
         # should always be a constant number of seconds behind Gerrit.
+        #
+        # Can be configured via the Gerrit driver setting 'event_delay'.
         now = time.time()
         time.sleep(max((ts + self.delay) - now, 0.0))
         event = TriggerEvent()
@@ -63,7 +65,7 @@ class GerritEventConnector(threading.Thread):
         if change:
             event.project_name = change.get('project')
             event.branch = change.get('branch')
-            event.change_number = change.get('number')
+            event.change_number = str(change.get('number'))
             event.change_url = change.get('url')
             patchset = data.get('patchSet')
             if patchset:
@@ -135,13 +137,14 @@ class GerritWatcher(threading.Thread):
     poll_timeout = 500
 
     def __init__(self, gerrit_connection, username, hostname, port=29418,
-                 keyfile=None):
+                 keyfile=None, keepalive=60):
         threading.Thread.__init__(self)
         self.username = username
         self.keyfile = keyfile
         self.hostname = hostname
         self.port = port
         self.gerrit_connection = gerrit_connection
+        self.keepalive = keepalive
         self._stopped = False
 
     def _read(self, fd):
@@ -172,6 +175,8 @@ class GerritWatcher(threading.Thread):
                            username=self.username,
                            port=self.port,
                            key_filename=self.keyfile)
+            transport = client.get_transport()
+            transport.set_keepalive(self.keepalive)
 
             stdin, stdout, stderr = client.exec_command("gerrit stream-events")
 
@@ -208,7 +213,7 @@ class GerritWatcher(threading.Thread):
 
 class GerritConnection(BaseConnection):
     driver_name = 'gerrit'
-    log = logging.getLogger("connection.gerrit")
+    log = logging.getLogger("zuul.GerritConnection")
 
     def __init__(self, connection_name, connection_config):
         super(GerritConnection, self).__init__(connection_name,
@@ -224,8 +229,10 @@ class GerritConnection(BaseConnection):
         self.server = self.connection_config.get('server')
         self.port = int(self.connection_config.get('port', 29418))
         self.keyfile = self.connection_config.get('sshkey', None)
+        self.keepalive = int(self.connection_config.get('keepalive', 60))
         self.watcher_thread = None
         self.event_queue = None
+        self.event_delay = int(self.connection_config.get('event_delay', 10))
         self.client = None
 
         self.baseurl = self.connection_config.get('baseurl',
@@ -356,6 +363,8 @@ class GerritConnection(BaseConnection):
                        username=self.user,
                        port=self.port,
                        key_filename=self.keyfile)
+        transport = client.get_transport()
+        transport.set_keepalive(self.keepalive)
         self.client = client
 
     def _ssh(self, command, stdin_data=None):
@@ -440,7 +449,7 @@ class GerritConnection(BaseConnection):
         return url
 
     def onLoad(self):
-        self.log.debug("Starting Gerrit Conncetion/Watchers")
+        self.log.debug("Starting Gerrit Connection/Watchers")
         self._start_watcher_thread()
         self._start_event_connector()
 
@@ -461,7 +470,8 @@ class GerritConnection(BaseConnection):
             self.user,
             self.server,
             self.port,
-            keyfile=self.keyfile)
+            keyfile=self.keyfile,
+            keepalive=self.keepalive)
         self.watcher_thread.start()
 
     def _stop_event_connector(self):
@@ -470,7 +480,8 @@ class GerritConnection(BaseConnection):
             self.gerrit_event_connector.join()
 
     def _start_event_connector(self):
-        self.gerrit_event_connector = GerritEventConnector(self)
+        self.gerrit_event_connector = GerritEventConnector(
+            self, delay=self.event_delay)
         self.gerrit_event_connector.start()
 
 
