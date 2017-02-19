@@ -2,6 +2,7 @@
 *.egg
 *.egg-info
 *.pyc
+.idea
 .test
 .testrepository
 .tox
@@ -13,3 +14,4 @@ config
 doc/build/*
 zuul/versioninfo
 dist/
+.DS_Store
