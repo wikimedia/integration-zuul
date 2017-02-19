@@ -359,6 +359,7 @@ class Scheduler(threading.Thread):
             'reporter': {
                 'gerrit': 'zuul.reporter.gerrit:GerritReporter',
                 'smtp': 'zuul.reporter.smtp:SMTPReporter',
+                'sql': 'zuul.reporter.sql:SQLReporter',
             },
         }
 
@@ -529,6 +530,7 @@ class Scheduler(threading.Thread):
             m = config_job.get('hold-following-changes', False)
             if m:
                 job.hold_following_changes = True
+            job.attempts = config_job.get('attempts', 3)
             m = config_job.get('voting', None)
             if m is not None:
                 job.voting = m
@@ -866,6 +868,8 @@ class Scheduler(threading.Thread):
                         self.log.exception(
                             "Exception while canceling build %s "
                             "for change %s" % (build, item.change))
+                    finally:
+                        self.mutex.release(build.build_set.item, build.job)
             self.layout = layout
             self.maintainConnectionCache()
             for trigger in self.triggers.values():
@@ -1500,8 +1504,9 @@ class BasePipelineManager(object):
         else:
             self.log.debug("Preparing update repo for: %s" % item.change)
             url = self.pipeline.source.getGitUrl(item.change.project)
+            connection_name = self.pipeline.source.connection.connection_name
             self.sched.merger.updateRepo(item.change.project.name,
-                                         url, build_set,
+                                         connection_name, url, build_set,
                                          self.pipeline.precedence)
         # merge:merge has been emitted properly:
         build_set.merge_state = build_set.PENDING
@@ -1540,6 +1545,8 @@ class BasePipelineManager(object):
             except:
                 self.log.exception("Exception while canceling build %s "
                                    "for change %s" % (build, item.change))
+            finally:
+                self.sched.mutex.release(build.build_set.item, build.job)
             build.result = 'CANCELED'
             canceled = True
         self.updateBuildDescriptions(old_build_set)
