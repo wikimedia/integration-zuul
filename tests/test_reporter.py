@@ -12,17 +12,20 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import fixtures
 import logging
 import testtools
 
-import zuul.reporter
+import zuul.connection.gerrit
+import zuul.connection.smtp
+
+import zuul.reporter.gerrit
+import zuul.reporter.smtp
+import zuul.reporter.sql
 
 
 class TestSMTPReporter(testtools.TestCase):
     log = logging.getLogger("zuul.test_reporter")
-
-    def setUp(self):
-        super(TestSMTPReporter, self).setUp()
 
     def test_reporter_abc(self):
         # We only need to instantiate a class for this
@@ -31,12 +34,14 @@ class TestSMTPReporter(testtools.TestCase):
     def test_reporter_name(self):
         self.assertEqual('smtp', zuul.reporter.smtp.SMTPReporter.name)
 
+    def test_repr(self):
+        smtp = zuul.connection.smtp.SMTPConnection('smtp.example.org', {})
+        self.assertEqual(
+            '<SMTPReporter connection: smtp://smtp.example.org>',
+            repr(zuul.reporter.smtp.SMTPReporter(connection=smtp)))
 
 class TestGerritReporter(testtools.TestCase):
     log = logging.getLogger("zuul.test_reporter")
-
-    def setUp(self):
-        super(TestGerritReporter, self).setUp()
 
     def test_reporter_abc(self):
         # We only need to instantiate a class for this
@@ -44,3 +49,31 @@ class TestGerritReporter(testtools.TestCase):
 
     def test_reporter_name(self):
         self.assertEqual('gerrit', zuul.reporter.gerrit.GerritReporter.name)
+
+    def test_repr(self):
+        gerrit = zuul.connection.gerrit.GerritConnection(
+            'review.example.org',
+            {'server': 'review.example.org', 'user': 'zuul'})
+        self.assertEqual(
+            '<GerritReporter connection: gerrit://review.example.org>',
+            repr(zuul.reporter.gerrit.GerritReporter(connection=gerrit)))
+
+class TestSQLReporter(testtools.TestCase):
+    log = logging.getLogger("zuul.test_reporter")
+
+    def test_reporter_abc(self):
+        # We only need to instantiate a class for this
+        # First mock out _setup_tables
+        def _fake_setup_tables(self):
+            pass
+
+        self.useFixture(fixtures.MonkeyPatch(
+            'zuul.reporter.sql.SQLReporter._setup_tables',
+            _fake_setup_tables
+        ))
+
+        reporter = zuul.reporter.sql.SQLReporter()  # noqa
+
+    def test_reporter_name(self):
+        self.assertEqual(
+            'sql', zuul.reporter.sql.SQLReporter.name)
