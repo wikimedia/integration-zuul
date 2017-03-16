@@ -94,6 +94,7 @@ class GerritEventConnector(threading.Thread):
             'reviewer-added': 'reviewer',  # Gerrit 2.5/2.6
             'ref-replicated': None,
             'ref-replication-done': None,
+            'ref-replication-scheduled': None,
         }
         event.account = None
         if event.type in accountfield_from_type:
