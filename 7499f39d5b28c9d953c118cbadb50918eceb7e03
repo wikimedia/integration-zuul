@@ -1,0 +1,7 @@
+Verified+2: jenkins-bot
+Code-Review+2: Hashar <hashar@free.fr>
+Submitted-by: Hashar <hashar@free.fr>
+Submitted-at: Thu, 13 Apr 2017 15:02:20 +0000
+Reviewed-on: https://gerrit.wikimedia.org/r/348083
+Project: integration/zuul
+Branch: refs/heads/patch-queue/debian/precise-wikimedia
