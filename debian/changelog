@@ -1,3 +1,9 @@
+zuul (2.5.0-8-gcbc7f62-wmf7) jessie-wikimedia; urgency=medium
+
+  * Patch: "Fix change number extraction on new enough Gerrit master"
+
+ -- Paladox <thomasmulhall410@yahoo.com>  Mon, 15 Jan 2018 09:47:50 +0100
+
 zuul (2.5.0-8-gcbc7f62-wmf6) jessie-wikimedia; urgency=medium
 
   * debian/source/options ignore a few more files
