@@ -1,0 +1,42 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ zuul (2.5.0-8-gcbc7f62-wmf4jessie1) jessie-wikimedia; urgency=medium
+ .
+   * sync with precise-wikimedia:
+ .
+   * Link zuul-launcher in /usr/bin
+   * Properly set zuul-clear-refs and shebang. Fix T103529
+   * source ignore .pyc files and .tox directory
+Author: Antoine Musso <hashar@free.fr>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: https://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+Index: zuul/zuul/connection/gerrit.py
+===================================================================
+--- zuul/connection/gerrit.py
++++ zuul/connection/gerrit.py
+@@ -65,7 +65,7 @@ class GerritEventConnector(threading.Thr
+         if change:
+             event.project_name = change.get('project')
+             event.branch = change.get('branch')
+-            event.change_number = change.get('number')
++            event.change_number = str(change.get('number'))
+             event.change_url = change.get('url')
+             patchset = data.get('patchSet')
+             if patchset:
