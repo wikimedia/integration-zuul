@@ -1,0 +1,46 @@
+Parent:     1f3a9fa2 (Merge "Tidy up loggers")
+Author:     Jan Kundrát <jan.kundrat@cesnet.cz>
+AuthorDate: 2017-02-14 17:05:11 +0100
+Commit:     Jan Kundrát <jan.kundrat@cesnet.cz>
+CommitDate: 2017-02-14 17:08:09 +0100
+
+Fix change number extraction on new enough Gerrit master
+
+Apparently, there's been a change in recent upstream Gerrit which
+changed the JSON serialization of change numbers in the output of
+`gerrit stream-events`. Previously, the change number was being
+transmitted as a string. That has changed and now it's being sent as a
+number. That results in a failure later on:
+
+ 2017-02-14 15:35:55,294 ERROR zuul.IndependentPipelineManager: Exception while launching job XXX for change <Change 0x7f3efc185c90 64,1>:
+  Traceback (most recent call last):
+    File "/usr/lib/python2.7/site-packages/zuul/scheduler.py", line 1520, in _launchJobs
+      dependent_items)
+    File "/usr/lib/python2.7/site-packages/zuul/launcher/gearman.py", line 318, in launch
+      destination_path = os.path.join(item.change.getBasePath(),
+    File "/usr/lib/python2.7/site-packages/zuul/model.py", line 913, in getBasePath
+      self.number[-2:], self.number, self.patchset)
+  TypeError: 'int' object has no attribute '__getitem__'
+
+I would love to have this extended this with a proper testcase. Please
+feel free to push an updated version over this patchset, or just let me
+know which place is the most appropriate and I can do it myself, too.
+
+Change-Id: I68f5fa7fa4fac0b4d2eb232fe37df11e57157ecf
+---
+ zuul/connection/gerrit.py | 2 ++++++++++++-
+ 1 file changed, 1 insertions(+), 1 deletion(-)
+
+diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
+index 62891cd..ca24058 100644
+--- a/zuul/connection/gerrit.py
++++ b/zuul/connection/gerrit.py
+@@ -63,7 +63,7 @@ class GerritEventConnector(threading.Thread):
+         if change:
+             event.project_name = change.get('project')
+             event.branch = change.get('branch')
+-            event.change_number = change.get('number')
++            event.change_number = str(change.get('number'))
+             event.change_url = change.get('url')
+             patchset = data.get('patchSet')
+             if patchset:
