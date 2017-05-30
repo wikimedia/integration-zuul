@@ -14,3 +14,4 @@
 0014-Don-t-merge-queues-if-the-common-job-is-noop.patch
 0015-WMF-install-zuul-clear-refs.patch
 0016-constraint-GitPython-to-2.1.2.patch
+0017-fix-gerrit-2-14-support.patch
