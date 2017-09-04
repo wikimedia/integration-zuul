@@ -20,3 +20,7 @@ import setuptools
 setuptools.setup(
     setup_requires=['pbr'],
     pbr=True)
+
+[metadata]
+name = zuul
+version = 2.5.0-dev
