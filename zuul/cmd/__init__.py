@@ -64,8 +64,7 @@ class ZuulApp(object):
         self.connections = {}
 
     def _get_version(self):
-        from zuul.version import version_info as zuul_version_info
-        return "Zuul version: %s" % zuul_version_info.release_string()
+        return print("Zuul version: %s" % zuul.version.__version__)
 
     def read_config(self):
         self.config = ConfigParser.ConfigParser()
