@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "4e7eab26_91df256b",
+        "filename": "debian/changelog",
+        "patchSetId": 4
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 34
+      },
+      "writtenOn": "2017-09-04T17:04:36Z",
+      "side": 1,
+      "message": "This must be different from the previous version.  Using -wmf5jessie1 suffix would be the most straight forward.",
+      "range": {
+        "startLine": 1,
+        "startChar": 6,
+        "endLine": 1,
+        "endChar": 34
+      },
+      "revId": "cb92d3041fea2164b2c948b7e48fd1c726b90919",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
