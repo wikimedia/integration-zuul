@@ -1,0 +1,22 @@
+From: Paladox <thomasmulhall410@yahoo.com>
+Date: Mon Sep 4 19:11:29 2017 +0100
+Subject: Add metadata section to setup.py to specify a version
+
+Using the debian version seems to be breaking pbr, lets just use 2.5.0 for example.
+
+Change-Id: I9981d2144cd82e94ea34253a146aa4166dd9a1b5
+---
+ setup.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/setup.cfg b/setup.cfg
+index 7ddeb84..e88ac81 100644
+--- a/setup.cfg
++++ b/setup.cfg
+@@ -1,5 +1,6 @@
+ [metadata]
+ name = zuul
++version = '2.5.0'
+ summary = Trunk Gating System
+ description-file =
+     README.rst
