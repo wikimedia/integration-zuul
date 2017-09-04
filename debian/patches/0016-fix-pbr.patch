@@ -1,0 +1,21 @@
+From: Paladox <thomasmulhall410@yahoo.com>
+Date: Mon Sep 4 19:11:29 2017 +0100
+Subject: Add metadata section to setup.py to specify a version
+
+Using the debian version seems to be breaking pbr, lets just use 2.5.0 for example.
+
+Change-Id: I9981d2144cd82e94ea34253a146aa4166dd9a1b5
+---
+ setup.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/setup.py b/setup.py
+index 70c2b3f..f1d035e 100644
+--- a/setup.py
++++ b/setup.py
+@@ -19,4 +19,4 @@ import setuptools
+ 
+ setuptools.setup(
+     setup_requires=['pbr'],
+-    pbr=True)
++    pbr=False)
