@@ -22,6 +22,30 @@
       "revId": "cb92d3041fea2164b2c948b7e48fd1c726b90919",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "4e7eab26_51f9bdbf",
+        "filename": "debian/changelog",
+        "patchSetId": 4
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 458
+      },
+      "writtenOn": "2017-09-04T17:31:41Z",
+      "side": 1,
+      "message": "The - in front of gcbc was removed, but it would also be good to bump the wmf version number too.",
+      "parentUuid": "4e7eab26_91df256b",
+      "range": {
+        "startLine": 1,
+        "startChar": 6,
+        "endLine": 1,
+        "endChar": 34
+      },
+      "revId": "cb92d3041fea2164b2c948b7e48fd1c726b90919",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
     }
   ]
 }
