@@ -1,4 +1,4 @@
-zuul (2.5.0.8.gcbc7f62-wmf5jessie1) jessie-wikimedia; urgency=medium
+zuul (2.5.0.8-gcbc7f62-wmf5jessie1) jessie-wikimedia; urgency=medium
 
   * Fix zuul semver to be compatible with pbr 1.10.0
 
