@@ -1,0 +1,24 @@
+From: Paladox <thomasmulhall410@yahoo.com>
+Date: Fri, Thu Oct 12 21:30:38 2017 +0100
+Subject: Update paramiko to 2.2.2
+
+This will allow us to take advantage of the upcomming gerrit update.
+
+Change-Id: Iccbd09b75e93b2232ab6a1886584953a3ecd226b
+---
+ requirements.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/requirements.txt b/requirements.txt
+index 77ac0a5..f084f15 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -3,7 +3,7 @@ pbr>=1.1.0
+ PyYAML>=3.1.0
+ Paste
+ WebOb>=1.2.3
+-paramiko>=1.8.0,<2.0.0
++paramiko>=2.2.2,<2.2.3
+ GitPython>=0.3.3
+ ordereddict
+ python-daemon>=2.0.4,<2.1.0
