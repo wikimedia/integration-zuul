@@ -1,0 +1,29 @@
+From: Paladox <thomasmulhall410@yahoo.com>
+Date: Fri Nov 3 21:36:42 2017 +0000
+Subject: Pin GitPython to >=0.3.3,<2.1.2
+
+The other deps will still work.
+
+This is based on [1] though this is just a quick patch to try and unblock
+the update to 2.14.
+
+[1] https://github.com/openstack-infra/zuul/commit/7b3f3be326702ca20b49c88267e37c6f831114e1
+
+Change-Id: I994702fcd7889b4b6ed3338a72bd5586bc972cf6
+---
+ requirements.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/requirements.txt b/requirements.txt
+index 77ac0a5..05ffb23 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -4,7 +4,7 @@ PyYAML>=3.1.0
+ Paste
+ WebOb>=1.2.3
+ paramiko
+-GitPython>=0.3.3
++GitPython>=0.3.3,<2.1.2
+ ordereddict
+ python-daemon>=2.0.4,<2.1.0
+ extras
