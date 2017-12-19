@@ -106,6 +106,9 @@ function getStreamUrl (apiPrefix) {
 function fetchInfo () {
   return Axios.get(apiUrl + 'info')
 }
+function fetchOpenApi () {
+  return Axios.get(getHomepageUrl () + 'openapi.yaml')
+}
 function fetchTenants () {
   return Axios.get(apiUrl + 'tenants')
 }
@@ -155,6 +158,7 @@ function fetchNodes (apiPrefix) {
 }
 
 export {
+  apiUrl,
   getHomepageUrl,
   getStreamUrl,
   fetchChangeStatus,
@@ -169,6 +173,7 @@ export {
   fetchJobs,
   fetchLabels,
   fetchNodes,
+  fetchOpenApi,
   fetchTenants,
   fetchInfo
 }

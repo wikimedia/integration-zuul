@@ -1,0 +1,439 @@
+info:
+  title: Zuul REST API
+  version: v1
+  description: Incomplete (work in progress) list of the endpoints.
+openapi: 3.0.0
+tags:
+- name: tenant
+paths:
+  /api/tenant/{tenant}/builds:
+    get:
+      operationId: list-builds
+      parameters:
+      - description: The tenant name
+        in: path
+        name: tenant
+        required: true
+        schema:
+          type: string
+      - description: A project name
+        in: query
+        name: project
+        schema:
+          type: string
+      - description: A pipeline name
+        in: query
+        name: pipeline
+        schema:
+          type: string
+      - description: A job name
+        in: query
+        name: job_name
+        schema:
+          type: string
+      - description: A branch name
+        in: query
+        name: branch
+        schema:
+          type: string
+      - description: A change number
+        in: query
+        name: change
+        schema:
+          type: string
+      - description: A patchset number
+        in: query
+        name: patchset
+        schema:
+          type: string
+      - description: A ref
+        in: query
+        name: ref
+        schema:
+          type: string
+      - description: A new revision hash
+        in: query
+        name: newrev
+        schema:
+          type: string
+      - description: A build uuid
+        in: query
+        name: uuid
+        schema:
+          type: string
+      - description: A build voting status
+        in: query
+        name: voting
+        schema:
+          type: string
+      - description: A build result
+        in: query
+        name: result
+        schema:
+          type: string
+      - description: The limit count (default 50)
+        in: query
+        name: limit
+        schema:
+          type: string
+      - description: Skip number of results
+        in: query
+        name: skip
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: The list of builds
+                items:
+                  $ref: '#/components/schemas/build'
+                type: array
+          description: Returns the list of builds
+        '404':
+          description: Tenant not found
+      summary: List the executed builds
+      tags:
+      - tenant
+  /api/tenant/{tenant}/jobs:
+    get:
+      operationId: list-jobs
+      parameters:
+      - description: The tenant name
+        in: path
+        name: tenant
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: The list of jobs
+                items:
+                  description: A job
+                  properties:
+                    description:
+                      description: The job short description
+                      type: string
+                    name:
+                      description: The job name
+                      type: string
+                  type: object
+                type: array
+          description: Returns the list of jobs
+        '404':
+          description: Tenant not found
+      summary: List available jobs
+      tags:
+      - tenant
+  /api/tenant/{tenant}/key/{project}.pub:
+    get:
+      operationId: get-project-key
+      parameters:
+      - description: The tenant name
+        in: path
+        name: tenant
+        required: true
+        schema:
+          type: string
+      - description: The project name
+        in: path
+        name: project
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            text/plain:
+              example: '-----BEGIN PUBLIC KEY-----
+
+                MIICI...
+
+                -----END PUBLIC KEY-----
+
+                '
+              schema:
+                description: The project public key
+                type: string
+          description: Returns the project public key
+        '404':
+          description: Tenant or Project not found
+      summary: Get a project public key
+      tags:
+      - tenant
+  /api/tenant/{tenant}/status:
+    get:
+      operationId: get-status
+      parameters:
+      - description: The tenant name
+        in: path
+        name: tenant
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: The tenant status
+                properties:
+                  last_reconfigured:
+                    description: The Epoch timestamp of the last reconfiguration
+                    type: integer
+                  pipelines:
+                    description: The list of pipelines
+                    items:
+                      $ref: '#/components/schemas/pipelineStatus'
+                    type: array
+                  result_event_queue:
+                    description: The number of completed events
+                    type: integer
+                  trigger_event_queue:
+                    description: The number of running events
+                    type: integer
+                  zuul_version:
+                    description: The Zuul version
+                    type: string
+                type: object
+          description: Returns the list of tenants
+        '404':
+          description: Tenant not found
+      summary: Get tenant status
+      tags:
+      - tenant
+  /api/tenants:
+    get:
+      operationId: list-tenants
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  properties:
+                    name:
+                      description: Tenant name
+                      type: string
+                    projects:
+                      description: Tenant project count
+                      type: integer
+                    queue:
+                      description: Active changes count
+                      type: integer
+                  type: object
+                type: array
+          description: Returns the list of tenants
+      summary: List the tenants
+      tags:
+      - tenant
+components:
+  schemas:
+    build:
+      description: A build
+      properties:
+        branch:
+          description: The build change branch
+          type: string
+        change:
+          description: The build change number
+          type: integer
+        duration:
+          description: The build duration in second
+          type: integer
+        end_time:
+          description: The build end time ISO 8601 format
+          type: string
+        job_name:
+          description: The build job name
+          type: string
+        log_url:
+          description: The build logs url
+          type: string
+        newrev:
+          description: The build newrev
+          type: string
+        patchset:
+          description: The build patchset number
+          type: integer
+        pipeline:
+          description: The build pipeline
+          type: string
+        project:
+          description: The build project name
+          type: string
+        ref:
+          description: The build change reference
+          type: string
+        ref_url:
+          description: The build change reference url
+          type: string
+        result:
+          description: The build result
+          type: string
+        start_time:
+          description: The build start time ISO 8601 format
+          type: string
+        uuid:
+          description: The build uuid
+          type: string
+        voting:
+          description: The build voting status
+          type: boolean
+      type: object
+    changeQueue:
+      description: A change queue
+      properties:
+        heads:
+          description: The list of queue events
+          items:
+            items:
+              $ref: '#/components/schemas/eventQueue'
+            type: array
+          type: array
+        name:
+          description: The queue name
+          type: string
+        window:
+          description: The queue window
+          type: integer
+      type: object
+    eventQueue:
+      description: A queue event
+      properties:
+        active:
+          description: Is the event active
+          type: boolean
+        enqueue_time:
+          description: The epoch creation time
+          type: integer
+        failing_reasons:
+          description: The list of failing reasons
+          items:
+            type: string
+          type: array
+        id:
+          description: The event id
+          type: string
+        item_ahead:
+          description: The list of events ahead
+          items:
+            type: string
+          type: array
+        item_behind:
+          description: The list of events behind
+          items:
+            type: string
+          type: array
+        jobs:
+          description: The event list of jobs
+          items:
+            $ref: '#/components/schemas/statusJob'
+          type: array
+        live:
+          description: Is the event live
+          type: boolean
+        owner:
+          description: The event owner
+          type: string
+        project:
+          description: The event project
+          type: string
+        remaining_time:
+          description: The estimated remaining time
+          type: integer
+        url:
+          description: The event url
+          type: string
+        zuul_ref:
+          description: The zuul ref
+          type: string
+      type: object
+    pipelineStatus:
+      description: A pipeline
+      properties:
+        change_queues:
+          description: The pipeline list of change queues
+          items:
+            $ref: '#/components/schemas/changeQueue'
+          type: array
+        description:
+          description: The pipeline description
+          type: string
+        name:
+          description: The pipeline name
+          type: string
+      type: object
+    statusJob:
+      description: A job status
+      properties:
+        canceled:
+          description: Is the job canceled
+          type: boolean
+        elapsed_time:
+          description: The elapsed time
+          type: integer
+        launch_time:
+          description: The epoch launch time
+          type: integer
+        name:
+          description: The job name
+          type: string
+        number:
+          description: The job number
+          type: integer
+        pipeline:
+          description: The job pipeline
+          type: string
+        remaining_time:
+          description: The estimated remaining time
+          type: integer
+        result:
+          description: The job result
+          type: string
+        retry:
+          description: The retry count
+          type: integer
+        start_time:
+          description: The epoch start time
+          type: integer
+        url:
+          description: The job stream url
+          type: string
+        uuid:
+          description: The job uuid
+          type: string
+        voting:
+          description: Is the job voting
+          type: boolean
+        worker:
+          $ref: '#/components/schemas/statusWorker'
+      type: object
+    statusWorker:
+      description: A job worker node
+      properties:
+        fqdn:
+          description: The worker fully qualified domain name
+          type: string
+        hostname:
+          description: The worker hostname
+          type: string
+        ips:
+          description: The list of worker ip addresses
+          items:
+            type: string
+          type: array
+        name:
+          description: The worker name
+          type: string
+        program:
+          description: The worker program
+          type: string
+        version:
+          description: The worker version
+          type: string
+      type: object

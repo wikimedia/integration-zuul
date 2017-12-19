@@ -121,3 +121,12 @@ a.refresh {
 div.tree-view-container ul.list-group {
   margin: 0px 0px;
 }
+
+/* OpenAPI page */
+pre.version {
+    background-color: lightgrey;
+    color: black;
+}
+.swagger-ui .servers {
+    padding-top: 5px
+}
