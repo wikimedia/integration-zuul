@@ -1,0 +1,25 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Thu, 13 Apr 2017 16:59:44 +0200
+Subject: WMF: pin voluptuous<0.10
+
+Our Zuul version is not compatible with voluptuous 0.10+ that got
+released on April 12th 2017. So pin it.
+
+Change-Id: Ifdb8de868b23128c66813f0e6ff89738d7693378
+---
+ requirements.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/requirements.txt b/requirements.txt
+index f98bdd6..ced583d 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -8,7 +8,7 @@ GitPython>=0.3.3
+ python-daemon>=2.0.4,<2.1.0
+ extras
+ statsd>=1.0.0,<3.0
+-voluptuous>=0.7
++voluptuous>=0.7,<0.10
+ gear>=0.5.7,<1.0.0
+ apscheduler>=3.0,<3.1.0
+ PrettyTable>=0.6,<0.8
