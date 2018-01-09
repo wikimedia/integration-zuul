@@ -1,3 +1,9 @@
+zuul (2.5.0-8-gcbc7f62-wmf5jessie2) jessie-wikimedia; urgency=medium
+
+  * Fix lintian issues
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 09 Jan 2018 15:34:43 +0100
+
 zuul (2.5.0-8-gcbc7f62-wmf5jessie1) jessie-wikimedia; urgency=medium
 
   * debian/source/options ignore a few more files
