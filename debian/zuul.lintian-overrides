@@ -17,6 +17,8 @@ zuul binary: arch-dependent-file-in-usr-share usr/share/python/zuul/bin/python2.
 
 # No sphinx doc possible with Precise
 zuul binary: binary-without-manpage usr/bin/zuul
+zuul binary: binary-without-manpage usr/bin/zuul-clear-refs
 zuul binary: binary-without-manpage usr/bin/zuul-cloner
+zuul binary: binary-without-manpage usr/bin/zuul-launcher
 zuul binary: binary-without-manpage usr/bin/zuul-merger
 zuul binary: binary-without-manpage usr/bin/zuul-server

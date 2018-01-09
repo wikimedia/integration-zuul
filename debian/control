@@ -1,6 +1,5 @@
 Source: zuul
 Maintainer: Antoine Musso <hashar@free.fr>
-Uploaders: Antoine Musso <hashar@free.fr>
 Section: python
 Priority: optional
 Build-Depends: debhelper (>= 9),
@@ -59,7 +58,7 @@ Build-Depends: debhelper (>= 9),
 #  Debian packaging dependencies
 # #################################
  python-nose
-Standards-Version: 3.9.6
+Standards-Version: 3.9.8
 X-Python-Version: = 2.7
 Homepage: https://launchpad.net/zuul
 Vcs-Git: git://github.com/pabelanger/zuul-deb.git
@@ -74,6 +73,7 @@ Pre-Depends: dpkg (>= 1.16.1),
 Depends: adduser,
  libjs-jquery,
  libjs-underscore,
+ lsb-base (>= 3.0-6),
  python-pbr (>= 0.5.21),
  python-yaml (>= 3.1.0),
  python-paste,

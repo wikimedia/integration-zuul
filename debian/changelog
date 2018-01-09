@@ -1,3 +1,11 @@
+zuul (2.5.0-8-gcbc7f62-wmf5) jessie-wikimedia; urgency=medium
+
+  * Fix lintian issues
+  * Drop 'jessie1' suffix from the Debian version. We only use jessie right
+    now and it is already mentionned in 'jessie-wikimedia'
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 09 Jan 2018 15:34:43 +0100
+
 zuul (2.5.0-8-gcbc7f62-wmf4jessie1) jessie-wikimedia; urgency=medium
 
   * sync with precise-wikimedia:

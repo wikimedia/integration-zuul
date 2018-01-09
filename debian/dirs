@@ -2,5 +2,3 @@
 /var/lib/zuul
 /var/lib/zuul/git
 /var/log/zuul
-/var/run/zuul
-/var/run/zuul-merger
