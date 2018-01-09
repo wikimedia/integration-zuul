@@ -1,3 +1,13 @@
+zuul (2.5.0-8-gcbc7f62-wmf6) jessie-wikimedia; urgency=medium
+
+  * debian/source/options ignore a few more files
+  * WebOb / Paramkiko on Jessie do match upstream requirements.txt, drop the
+    related patch that removed the lower bound.
+  * Use python-prettytable Debian package
+  * python-daemon bring in docutils. Use the Debian package
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 09 Jan 2018 14:49:56 +0100
+
 zuul (2.5.0-8-gcbc7f62-wmf5) jessie-wikimedia; urgency=medium
 
   * Fix lintian issues
