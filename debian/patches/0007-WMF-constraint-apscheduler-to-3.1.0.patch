@@ -13,7 +13,7 @@ Change-Id: I9a736379f9391a91219afa1e9e192e53ca8883fe
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/requirements.txt b/requirements.txt
-index c85f242..3ab3540 100644
+index 793773e..f98bdd6 100644
 --- a/requirements.txt
 +++ b/requirements.txt
 @@ -10,7 +10,7 @@ extras
