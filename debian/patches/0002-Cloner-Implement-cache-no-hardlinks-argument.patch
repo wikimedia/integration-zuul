@@ -32,7 +32,7 @@ index 70577cc..c0ca990 100644
 +the cache directory is on the same disk as the workspace, git-clone
 +will hardlink git objects to speed up the process and save space.
 diff --git a/zuul/cmd/cloner.py b/zuul/cmd/cloner.py
-index dbbe396..0d045be 100755
+index 4f8b9f4..2f464c8 100755
 --- a/zuul/cmd/cloner.py
 +++ b/zuul/cmd/cloner.py
 @@ -59,6 +59,10 @@ class Cloner(zuul.cmd.ZuulApp):

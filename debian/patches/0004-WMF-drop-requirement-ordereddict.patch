@@ -10,12 +10,12 @@ Change-Id: I16d0ccaec46a79aaa11659213b7232e54a5a8ddd
  1 file changed, 1 deletion(-)
 
 diff --git a/requirements.txt b/requirements.txt
-index e06feb5..69484c7 100644
+index 77ac0a5..793773e 100644
 --- a/requirements.txt
 +++ b/requirements.txt
 @@ -5,7 +5,6 @@ Paste
- WebOb
- paramiko
+ WebOb>=1.2.3
+ paramiko>=1.8.0,<2.0.0
  GitPython>=0.3.3
 -ordereddict
  python-daemon>=2.0.4,<2.1.0

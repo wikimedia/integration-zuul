@@ -71,7 +71,7 @@ index d7b8eae..5cd9674 100644
  [connection smtp]
  driver=smtp
 diff --git a/tests/base.py b/tests/base.py
-index 6d4f017..622de36 100755
+index 38d2817..462dc0e 100755
 --- a/tests/base.py
 +++ b/tests/base.py
 @@ -952,7 +952,6 @@ class ZuulTestCase(BaseTestCase):
