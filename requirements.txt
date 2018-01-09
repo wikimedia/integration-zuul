@@ -8,11 +8,14 @@ GitPython==2.1.11
 smmap2==2.0.5
 gitdb2==2.0.5
 python-daemon>=2.0.4,<2.1.0
+lockfile==0.12.2
 extras
-statsd>=1.0.0,<3.0
+statsd==2.1.2
 voluptuous>=0.7,<0.10
-gear>=0.5.7,<1.0.0
-apscheduler>=3.0,<3.1.0
+futures==3.0.5
+gear==0.7.0
+apscheduler==3.0.6
 PrettyTable>=0.6,<0.8
 babel>=1.0
 six>=1.6.0
+tzlocal==1.2.2
