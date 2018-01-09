@@ -26,7 +26,7 @@ Change-Id: I3d5177787de5c4d629969cee1f715d692275ad9a
  2 files changed, 47 insertions(+), 15 deletions(-)
 
 diff --git a/tests/test_cloner.py b/tests/test_cloner.py
-index 064a61c..1c7cdc1 100644
+index e3576bd..c8943a5 100644
 --- a/tests/test_cloner.py
 +++ b/tests/test_cloner.py
 @@ -15,6 +15,7 @@

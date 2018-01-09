@@ -34,7 +34,7 @@ Change-Id: Iea3288abfde6ff2b7339fae775ad5561009dc129
  1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/zuul/cmd/__init__.py b/zuul/cmd/__init__.py
-index 120c62c..506d981 100644
+index 5ffd431..471fe15 100644
 --- a/zuul/cmd/__init__.py
 +++ b/zuul/cmd/__init__.py
 @@ -26,8 +26,6 @@ import traceback

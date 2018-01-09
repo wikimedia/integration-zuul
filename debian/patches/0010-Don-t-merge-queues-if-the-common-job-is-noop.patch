@@ -41,7 +41,7 @@ index 0000000..84efc2d
 +      - test-only-b
 +      - noop
 diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
-index a4bca5c..99a9edb 100755
+index 335f987..6c05b51 100755
 --- a/tests/test_scheduler.py
 +++ b/tests/test_scheduler.py
 @@ -2330,6 +2330,12 @@ jobs:
