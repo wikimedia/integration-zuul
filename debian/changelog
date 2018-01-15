@@ -1,3 +1,32 @@
+zuul (2.5.1-wmf1) jessie-wikimedia; urgency=medium
+
+  [ Antoine Musso ]
+  * Update to 2.5.1
+  * Point gbp upstream-tag to %(version)s
+  * Drop debian-branch=HEAD, just hardcode our branch
+
+  Upstream changelogs:
+
+  [ James E. Blair ]
+  * Revert "Make job registration with labels optional"
+  * Ansible launcher: re-register functions after disconnect
+
+  [ Paul Belanger ]
+  * Use {{ ansible_host }} for ssh-keyscan
+
+  [ Arie ]
+  * Handle non-valid HEAD
+
+  [ Sean Dague ]
+  * bump timeout on ssh commands to 30s
+
+  [ James E. Blair ]
+  * Ansible launcher: add AFS publisher
+  * Ansible launcher: run k5start in playbook
+  * Ansible launcher: format ipv6 urls [correctly]
+
+ -- Antoine Musso <hashar@free.fr>  Mon, 15 Jan 2018 10:25:44 +0100
+
 zuul (2.5.0-8-gcbc7f62-wmf7) jessie-wikimedia; urgency=medium
 
   * Patch: "Fix change number extraction on new enough Gerrit master"
