@@ -24,7 +24,7 @@ Change-Id: Ie869f0b147577d3b2a0b57afba4474ee07753210
  1 file changed, 12 insertions(+), 1 deletion(-)
 
 diff --git a/zuul/merger/merger.py b/zuul/merger/merger.py
-index 0c9f168..139a60a 100644
+index b3cfaca..dec68dc 100644
 --- a/zuul/merger/merger.py
 +++ b/zuul/merger/merger.py
 @@ -70,7 +70,18 @@ class Repo(object):

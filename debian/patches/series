@@ -11,4 +11,5 @@
 0011-WMF-install-zuul-clear-refs.patch
 0012-WMF-pin-voluptuous-0.10.patch
 0013-WMF-pin-requirements-to-what-is-deployed.patch
-0014-fix-gerrit-2-14-support.patch
+0014-Fix-change-number-extraction-on-new-enough-Gerrit-ma.patch
+0015-wmf-change-number-must-be-a-string-when-formatting.patch

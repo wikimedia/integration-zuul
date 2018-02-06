@@ -1,10 +1,6 @@
-Parent:     1f3a9fa2 (Merge "Tidy up loggers")
-Author:     Jan Kundrát <jan.kundrat@cesnet.cz>
-AuthorDate: 2017-02-14 17:05:11 +0100
-Commit:     Jan Kundrát <jan.kundrat@cesnet.cz>
-CommitDate: 2017-02-14 17:08:09 +0100
-
-Fix change number extraction on new enough Gerrit master
+From: =?utf-8?q?Jan_Kundr=C3=A1t?= <jan.kundrat@cesnet.cz>
+Date: Tue, 14 Feb 2017 17:05:11 +0100
+Subject: Fix change number extraction on new enough Gerrit master
 
 Apparently, there's been a change in recent upstream Gerrit which
 changed the JSON serialization of change numbers in the output of
@@ -28,14 +24,14 @@ know which place is the most appropriate and I can do it myself, too.
 
 Change-Id: I68f5fa7fa4fac0b4d2eb232fe37df11e57157ecf
 ---
- zuul/connection/gerrit.py | 2 ++++++++++++-
- 1 file changed, 1 insertions(+), 1 deletion(-)
+ zuul/connection/gerrit.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
-index 62891cd..ca24058 100644
+index 927aa11..95bf35c 100644
 --- a/zuul/connection/gerrit.py
 +++ b/zuul/connection/gerrit.py
-@@ -63,7 +63,7 @@ class GerritEventConnector(threading.Thread):
+@@ -65,7 +65,7 @@ class GerritEventConnector(threading.Thread):
          if change:
              event.project_name = change.get('project')
              event.branch = change.get('branch')

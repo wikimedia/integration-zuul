@@ -1,0 +1,66 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Tue, 6 Feb 2018 22:29:43 +0100
+Subject: wmf: change number must be a string when formatting
+
+Gerrit 2.14 changed its json formatting of changes. The change and
+patchset numbers are now numbers instead of string.
+
+When trying to get the base path of a change, Zuul reconstructs the
+change reference path based on the change number:
+
+ change_number[-2:]
+
+Since change_number is now an int, that causes an exception:
+    TypeError: 'int' object has no attribute '__getitem__'
+
+Another such case got fixed upstream and is already cherry picked:
+https://review.openstack.org/#/c/433748/  But that did not address all
+concerns.
+
+Hack ChangeIsh.getBasePath() to cast the change number to a string.
+
+I have run the test without the patch and it fails exactly like in
+production.  Applying the patch fix the test.
+
+Bug: T186381
+Change-Id: Id2dfc93979a63dd4f4c3d34da6b4927df058e3da
+---
+ tests/test_model.py | 11 +++++++++++
+ zuul/model.py       |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/tests/test_model.py b/tests/test_model.py
+index 6ad0750..834b2ed 100644
+--- a/tests/test_model.py
++++ b/tests/test_model.py
+@@ -23,6 +23,17 @@ from zuul import model
+ from tests.base import BaseTestCase
+ 
+ 
++class TestChangeish(BaseTestCase):
++
++    def test_getBasePath_cast_change_number_to_string(self):
++        changeish = model.Changeish(model.Project('test/example'))
++        changeish.number = 123456
++        changeish.patchset = 42
++        changeish.refspec = True
++
++        self.assertEqual('56/123456/42', changeish.getBasePath())
++
++
+ class TestJob(BaseTestCase):
+ 
+     @property
+diff --git a/zuul/model.py b/zuul/model.py
+index 46b0b98..7d1f006 100644
+--- a/zuul/model.py
++++ b/zuul/model.py
+@@ -901,7 +901,7 @@ class Changeish(object):
+         base_path = ''
+         if hasattr(self, 'refspec'):
+             base_path = "%s/%s/%s" % (
+-                self.number[-2:], self.number, self.patchset)
++                str(self.number)[-2:], self.number, self.patchset)
+         elif hasattr(self, 'ref'):
+             base_path = "%s/%s" % (self.newrev[:2], self.newrev)
+ 
