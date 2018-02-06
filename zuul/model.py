@@ -924,7 +924,7 @@ class Change(Changeish):
     def __init__(self, project):
         super(Change, self).__init__(project)
         self.branch = None
-        self.number = None
+        self._number = None
         self.url = None
         self.patchset = None
         self.refspec = None
@@ -969,6 +969,14 @@ class Change(Changeish):
             related.add(c)
             related.update(c.getRelatedChanges())
         return related
+
+    @property
+    def number(self):
+        return self._number
+
+    @number.setter
+    def number(self, val):
+        self._number = str(val)
 
 
 class Ref(Changeish):

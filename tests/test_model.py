@@ -23,10 +23,10 @@ from zuul import model
 from tests.base import BaseTestCase
 
 
-class TestChangeish(BaseTestCase):
+class TestChange(BaseTestCase):
 
     def test_getBasePath_cast_change_number_to_string(self):
-        changeish = model.Changeish(model.Project('test/example'))
+        changeish = model.Change(model.Project('test/example'))
         changeish.number = 123456
         changeish.patchset = 42
         changeish.refspec = True
