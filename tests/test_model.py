@@ -23,6 +23,17 @@ from zuul import model
 from tests.base import BaseTestCase
 
 
+class TestChangeish(BaseTestCase):
+
+    def test_getBasePath_cast_change_number_to_string(self):
+        changeish = model.Changeish(model.Project('test/example'))
+        changeish.number = 123456
+        changeish.patchset = 42
+        changeish.refspec = True
+
+        self.assertEqual('56/123456/42', changeish.getBasePath())
+
+
 class TestJob(BaseTestCase):
 
     @property
