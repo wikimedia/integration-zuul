@@ -69,7 +69,7 @@ class GerritEventConnector(threading.Thread):
             event.change_url = change.get('url')
             patchset = data.get('patchSet')
             if patchset:
-                event.patch_number = patchset.get('number')
+                event.patch_number = str(patchset.get('number'))
                 event.refspec = patchset.get('ref')
             event.approvals = data.get('approvals', [])
             event.comment = data.get('comment')
