@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "71f29e8e_c0266ed5",
+        "filename": "zuul/source/gerrit.py",
+        "patchSetId": 3
+      },
+      "lineNbr": 288,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2018-02-16T21:23:59Z",
+      "side": 1,
+      "message": "I think I still see some unicode string even after this patch got deployed :(",
+      "revId": "cfa80489e99247ea4c4f5b365e2b09a0093aafca",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "f0274e16_29b79364",
+        "filename": "zuul/source/gerrit.py",
+        "patchSetId": 3
+      },
+      "lineNbr": 329,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2018-02-16T21:23:59Z",
+      "side": 1,
+      "message": "Ditto, still seeing unicode",
+      "revId": "cfa80489e99247ea4c4f5b365e2b09a0093aafca",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
