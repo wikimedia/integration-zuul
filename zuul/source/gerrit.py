@@ -235,11 +235,14 @@ class GerritSource(BaseSource):
 
     def _updateChange(self, change, history=None):
         self.log.info("Updating %s" % (change,))
+        self.log.debug("T187567 %s pre change: %s" % (change, vars(change)))
         data = self.connection.query(change.number)
         change._data = data
 
         if change.patchset is None:
             change.patchset = data['currentPatchSet']['number']
+            self.log.debug("T187567 %s change.patchset = %s %s" % (
+                change, type(change.patchset), change.patchset))
 
         if 'project' not in data:
             raise exceptions.ChangeNotFound(change.number, change.patchset)
@@ -249,8 +252,15 @@ class GerritSource(BaseSource):
         max_ps = 0
         files = []
         for ps in data['patchSets']:
+            self.log.debug("T187567 %s checking Gerrit ps %s %s == %s %s" % (
+                change,
+                type(ps['number']), ps['number'],
+                type(change.patchset), change.patchset))
             if ps['number'] == change.patchset:
                 change.refspec = ps['ref']
+                self.log.debug(
+                    "T187567 %s found matching patchset: "
+                    "change.refspec = %s" % (change, change.refspec))
                 for f in ps.get('files', []):
                     files.append(f['file'])
             if int(ps['number']) > int(max_ps):
@@ -344,6 +354,9 @@ class GerritSource(BaseSource):
                 needed_by_changes.append(dep)
         change.needed_by_changes = needed_by_changes
 
+        self.log.debug(
+            "T187567 %s post change: patchset = %s, refspec = %s" % (
+                change, change.patchset, change.refspec))
         return change
 
     def getGitUrl(self, project):
