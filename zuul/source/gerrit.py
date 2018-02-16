@@ -249,7 +249,10 @@ class GerritSource(BaseSource):
         max_ps = 0
         files = []
         for ps in data['patchSets']:
-            if ps['number'] == change.patchset:
+            # In some cases change.patchset is a string and in some cases the
+            # connection query can return an int. Cast both patchsets to
+            # strings to compare value not type.
+            if str(ps['number']) == str(change.patchset):
                 change.refspec = ps['ref']
                 for f in ps.get('files', []):
                     files.append(f['file'])
