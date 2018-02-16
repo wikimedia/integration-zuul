@@ -1,3 +1,9 @@
+zuul (2.5.1-wmf3) jessie-wikimedia; urgency=medium
+
+  * Debug logging for GerritSource._updateChange T187567.
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 16 Feb 2018 19:19:39 +0100
+
 zuul (2.5.1-wmf2) jessie-wikimedia; urgency=medium
 
   * Refresh patches names, some git commits have been renamed.

@@ -13,3 +13,4 @@
 0013-WMF-pin-requirements-to-what-is-deployed.patch
 0014-Fix-change-number-extraction-on-new-enough-Gerrit-ma.patch
 0015-wmf-change-number-must-be-a-string-when-formatting.patch
+0016-wmf-debug-log-for-GerritSource._updateChange.patch
