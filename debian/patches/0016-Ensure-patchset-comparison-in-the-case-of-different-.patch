@@ -1,0 +1,37 @@
+From: Tyler Cipriani <tcipriani@wikimedia.org>
+Date: Fri, 16 Feb 2018 12:32:14 -0700
+Subject: Ensure patchset comparison in the case of different types
+
+One source of the change object being passed to updateChange is from
+dependsOn data. In that instance the patchset property of a change is a
+string.
+
+Depending on the connection backend, the result of zuul.connection.query
+may be a patchset dict where "number" is an integer.
+
+To ensure that the patchset value is being compared and not the patchset
+datatype (which is unimportant to us in this instance), cast both
+sources of patchset data to strings and compare their value.
+
+Bug: T187567
+Change-Id: I1fafbe326b34f23cb10820f61e65cef9e1ddc4b2
+---
+ zuul/source/gerrit.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/zuul/source/gerrit.py b/zuul/source/gerrit.py
+index 7cc0b3d..e7284fe 100644
+--- a/zuul/source/gerrit.py
++++ b/zuul/source/gerrit.py
+@@ -249,7 +249,10 @@ class GerritSource(BaseSource):
+         max_ps = 0
+         files = []
+         for ps in data['patchSets']:
+-            if ps['number'] == change.patchset:
++            # In some cases change.patchset is a string and in some cases the
++            # connection query can return an int. Cast both patchsets to
++            # strings to compare value not type.
++            if str(ps['number']) == str(change.patchset):
+                 change.refspec = ps['ref']
+                 for f in ps.get('files', []):
+                     files.append(f['file'])
