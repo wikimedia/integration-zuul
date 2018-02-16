@@ -1,0 +1,59 @@
+From: Tyler Cipriani <tcipriani@wikimedia.org>
+Date: Fri, 16 Feb 2018 12:32:14 -0700
+Subject: Ensure patchset comparison in the case of different types
+
+One source of the change object being passed to updateChange is from
+dependsOn data. In that instance the patchset property of a change is a
+string.
+
+Depending on the connection backend, the result of zuul.connection.query
+may be a patchset dict where "number" is an integer.
+
+Cast to integers the change and patchset numbers extracted from
+dependsOn/neededBy reference.
+
+To ensure that the patchset value is being compared and not the patchset
+datatype (which is unimportant to us in this instance), cast both
+sources of patchset data to strings and compare their value.
+
+Bug: T187567
+Change-Id: I1fafbe326b34f23cb10820f61e65cef9e1ddc4b2
+Signed-off-by: Antoine Musso <hashar@free.fr>
+---
+ zuul/source/gerrit.py | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/zuul/source/gerrit.py b/zuul/source/gerrit.py
+index 7cc0b3d..b706314 100644
+--- a/zuul/source/gerrit.py
++++ b/zuul/source/gerrit.py
+@@ -249,7 +249,10 @@ class GerritSource(BaseSource):
+         max_ps = 0
+         files = []
+         for ps in data['patchSets']:
+-            if ps['number'] == change.patchset:
++            # In some cases change.patchset is a string and in some cases the
++            # connection query can return an int. Cast both patchsets to
++            # strings to compare value not type.
++            if str(ps['number']) == str(change.patchset):
+                 change.refspec = ps['ref']
+                 for f in ps.get('files', []):
+                     files.append(f['file'])
+@@ -282,7 +285,7 @@ class GerritSource(BaseSource):
+         needs_changes = []
+         if 'dependsOn' in data:
+             parts = data['dependsOn'][0]['ref'].split('/')
+-            dep_num, dep_ps = parts[3], parts[4]
++            dep_num, dep_ps = int(parts[3]), int(parts[4])
+             if dep_num in history:
+                 raise Exception("Dependency cycle detected: %s in %s" % (
+                     dep_num, history))
+@@ -323,7 +326,7 @@ class GerritSource(BaseSource):
+         if 'neededBy' in data:
+             for needed in data['neededBy']:
+                 parts = needed['ref'].split('/')
+-                dep_num, dep_ps = parts[3], parts[4]
++                dep_num, dep_ps = int(parts[3]), int(parts[4])
+                 self.log.debug("Updating %s: Getting git-needed change %s,%s" %
+                                (change, dep_num, dep_ps))
+                 dep = self._getChange(dep_num, dep_ps)
