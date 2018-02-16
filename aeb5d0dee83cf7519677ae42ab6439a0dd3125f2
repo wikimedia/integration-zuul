@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "4052b65b_29237949",
+        "filename": "zuul/model.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 929,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2018-02-16T21:42:35Z",
+      "side": 1,
+      "message": "we would need the same magic trick for patchset :]",
+      "revId": "aeb5d0dee83cf7519677ae42ab6439a0dd3125f2",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
