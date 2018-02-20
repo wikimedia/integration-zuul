@@ -1,3 +1,9 @@
+zuul (2.5.1-1) jessie-wikimedia; urgency=medium
+
+  * Add support for pbr 1.x
+
+ -- Paladox <thomasmulhall410@yahoo.com>  Tue, 20 Feb 2018 11:49:00 +0000
+
 zuul (2.5.1-wmf2) jessie-wikimedia; urgency=medium
 
   * Refresh patches names, some git commits have been renamed.
