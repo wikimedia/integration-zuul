@@ -1,3 +1,10 @@
+zuul (2.5.1-wmf4) UNRELEASED; urgency=medium
+
+  * Drop debug logging patch made for T187567
+  * Add patch to "Fix missing mutex release when aborting builds" for T189859
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 16 Mar 2018 11:44:15 +0100
+
 zuul (2.5.1-wmf3) jessie-wikimedia; urgency=medium
 
   * Debug logging for GerritSource._updateChange T187567.

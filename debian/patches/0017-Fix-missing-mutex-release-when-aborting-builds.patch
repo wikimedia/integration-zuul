@@ -1,0 +1,138 @@
+From: Tobias Henkel <tobias.henkel@bmw-carit.de>
+Date: Tue, 11 Oct 2016 07:52:33 +0200
+Subject: Fix missing mutex release when aborting builds
+
+Currently when zuul aborts a build due to e.g. abandoning a change the
+mutex doesn't get released. This blocks all further jobs requiring the
+mutex until zuul is restarted. This adds test cases for detecting this
+and the missing mutex releases.
+
+Change-Id: I37e69310fed045c5a41bd4eccb151c8826f342ea
+Story: 2000657
+Task: 3115
+---
+ tests/fixtures/layout-mutex-reconfiguration.yaml | 23 ++++++++++
+ tests/test_scheduler.py                          | 57 ++++++++++++++++++++++++
+ zuul/scheduler.py                                |  4 ++
+ 3 files changed, 84 insertions(+)
+ create mode 100644 tests/fixtures/layout-mutex-reconfiguration.yaml
+
+diff --git a/tests/fixtures/layout-mutex-reconfiguration.yaml b/tests/fixtures/layout-mutex-reconfiguration.yaml
+new file mode 100644
+index 0000000..76cf1e9
+--- /dev/null
++++ b/tests/fixtures/layout-mutex-reconfiguration.yaml
+@@ -0,0 +1,23 @@
++pipelines:
++  - name: check
++    manager: IndependentPipelineManager
++    trigger:
++      gerrit:
++        - event: patchset-created
++    success:
++      gerrit:
++        verified: 1
++    failure:
++      gerrit:
++        verified: -1
++
++jobs:
++  - name: mutex-one
++    mutex: test-mutex
++  - name: mutex-two
++    mutex: test-mutex
++
++projects:
++  - name: org/project
++    check:
++      - project-test1
+diff --git a/tests/test_scheduler.py b/tests/test_scheduler.py
+index 6c05b51..589e54c 100755
+--- a/tests/test_scheduler.py
++++ b/tests/test_scheduler.py
+@@ -2400,6 +2400,63 @@ jobs:
+         self.assertEqual(B.reported, 1)
+         self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
+ 
++    def test_mutex_abandon(self):
++        "Test abandon with job mutexes"
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-mutex.yaml')
++        self.sched.reconfigure(self.config)
++
++        self.worker.hold_jobs_in_build = True
++
++        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
++
++        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
++
++        self.fake_gerrit.addEvent(A.getChangeAbandonedEvent())
++        self.waitUntilSettled()
++
++        # The check pipeline should be empty
++        items = self.sched.layout.pipelines['check'].getAllItems()
++        self.assertEqual(len(items), 0)
++
++        # The mutex should be released
++        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
++
++    def test_mutex_reconfigure(self):
++        "Test reconfigure with job mutexes"
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-mutex.yaml')
++        self.sched.reconfigure(self.config)
++
++        self.worker.hold_jobs_in_build = True
++
++        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
++        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
++
++        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
++        self.waitUntilSettled()
++
++        self.assertTrue('test-mutex' in self.sched.mutex.mutexes)
++
++        self.config.set('zuul', 'layout_config',
++                        'tests/fixtures/layout-mutex-reconfiguration.yaml')
++        self.sched.reconfigure(self.config)
++        self.waitUntilSettled()
++
++        self.worker.release('project-test1')
++        self.waitUntilSettled()
++
++        # The check pipeline should be empty
++        items = self.sched.layout.pipelines['check'].getAllItems()
++        self.assertEqual(len(items), 0)
++
++        # The mutex should be released
++        self.assertFalse('test-mutex' in self.sched.mutex.mutexes)
++
+     def test_node_label(self):
+         "Test that a job runs on a specific node label"
+         self.worker.registerFunction('build:node-project-test1:debian')
+diff --git a/zuul/scheduler.py b/zuul/scheduler.py
+index 4dd5cda..ee8872d 100644
+--- a/zuul/scheduler.py
++++ b/zuul/scheduler.py
+@@ -866,6 +866,8 @@ class Scheduler(threading.Thread):
+                         self.log.exception(
+                             "Exception while canceling build %s "
+                             "for change %s" % (build, item.change))
++                    finally:
++                        self.mutex.release(build.build_set.item, build.job)
+             self.layout = layout
+             self.maintainConnectionCache()
+             for trigger in self.triggers.values():
+@@ -1540,6 +1542,8 @@ class BasePipelineManager(object):
+             except:
+                 self.log.exception("Exception while canceling build %s "
+                                    "for change %s" % (build, item.change))
++            finally:
++                self.sched.mutex.release(build.build_set.item, build.job)
+             build.result = 'CANCELED'
+             canceled = True
+         self.updateBuildDescriptions(old_build_set)
