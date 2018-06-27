@@ -221,16 +221,19 @@ class MergeCompletedEvent(ResultEvent):
     :arg bool updated: Whether the repo was updated (changes without refs).
     :arg str commit: The SHA of the merged commit (changes with refs).
     :arg dict repo_state: The starting repo state before the merge.
+    :arg list item_in_branches: A list of branches in which the final
+        commit in the merge list appears (changes without refs).
     """
 
     def __init__(self, build_set, merged, updated, commit,
-                 files, repo_state):
+                 files, repo_state, item_in_branches):
         self.build_set = build_set
         self.merged = merged
         self.updated = updated
         self.commit = commit
         self.files = files
         self.repo_state = repo_state
+        self.item_in_branches = item_in_branches
 
 
 class FilesChangesCompletedEvent(ResultEvent):
@@ -519,9 +522,10 @@ class Scheduler(threading.Thread):
         self.wake_event.set()
 
     def onMergeCompleted(self, build_set, merged, updated,
-                         commit, files, repo_state):
-        event = MergeCompletedEvent(build_set, merged,
-                                    updated, commit, files, repo_state)
+                         commit, files, repo_state, item_in_branches):
+        event = MergeCompletedEvent(build_set, merged, updated,
+                                    commit, files, repo_state,
+                                    item_in_branches)
         self.result_event_queue.put(event)
         self.wake_event.set()
 

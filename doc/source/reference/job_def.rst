@@ -782,6 +782,10 @@ Here is an example of two job definitions:
       those projects.  This can be used to run a job defined in one
       project on another project without a matching branch.
 
+      If a tag item is enqueued, we look up the branches which contain
+      the commit referenced by the tag.  If any of those branches match a
+      branch matcher, the matcher is considered to have matched.
+
       This example illustrates a job called *run-tests* which uses a
       nodeset based on the current release of an operating system to
       perform its tests, except when testing changes to the stable/2.0

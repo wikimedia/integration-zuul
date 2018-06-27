@@ -431,13 +431,67 @@ class TestBranchTag(ZuulTestCase):
         event = self.fake_gerrit.addFakeTag('org/project', 'master', 'foo')
         self.fake_gerrit.addEvent(event)
         self.waitUntilSettled()
-        # test-job does not run in this case because it is defined in
-        # a branched repo with implied branch matchers.  A release job
-        # defined in a multi-branch repo would need at least one
-        # top-level variant with no branch matcher in order to match a
-        # tag.
+        # test-job does run in this case because it is defined in a
+        # branched repo with implied branch matchers, and the tagged
+        # commit is in both branches.
         self.assertHistory([
-            dict(name='central-job', result='SUCCESS', ref='refs/tags/foo')])
+            dict(name='central-job', result='SUCCESS', ref='refs/tags/foo'),
+            dict(name='test-job', result='SUCCESS', ref='refs/tags/foo')],
+            ordered=False)
+
+    def test_no_branch_match_divergent_multi_branch(self):
+        # Test that tag jobs from divergent branches run different job
+        # variants.
+        self.create_branch('org/project', 'stable/pike')
+        self.fake_gerrit.addEvent(
+            self.fake_gerrit.getFakeBranchCreatedEvent(
+                'org/project', 'stable/pike'))
+        self.waitUntilSettled()
+
+        # Add a new job to master
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: test2-job
+                run: playbooks/test-job.yaml
+
+            - project:
+                name: org/project
+                tag:
+                  jobs:
+                    - central-job
+                    - test2-job
+            """)
+
+        file_dict = {'.zuul.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        A.setMerged()
+        self.fake_gerrit.addEvent(A.getChangeMergedEvent())
+        self.waitUntilSettled()
+
+        event = self.fake_gerrit.addFakeTag(
+            'org/project', 'stable/pike', 'foo')
+        self.fake_gerrit.addEvent(event)
+        self.waitUntilSettled()
+        # test-job runs because we tagged stable/pike, but test2-job does
+        # not, it only applied to master.
+        self.assertHistory([
+            dict(name='central-job', result='SUCCESS', ref='refs/tags/foo'),
+            dict(name='test-job', result='SUCCESS', ref='refs/tags/foo')],
+            ordered=False)
+
+        event = self.fake_gerrit.addFakeTag('org/project', 'master', 'bar')
+        self.fake_gerrit.addEvent(event)
+        self.waitUntilSettled()
+        # test2-job runs because we tagged master, but test-job does
+        # not, it only applied to stable/pike.
+        self.assertHistory([
+            dict(name='central-job', result='SUCCESS', ref='refs/tags/foo'),
+            dict(name='test-job', result='SUCCESS', ref='refs/tags/foo'),
+            dict(name='central-job', result='SUCCESS', ref='refs/tags/bar'),
+            dict(name='test2-job', result='SUCCESS', ref='refs/tags/bar')],
+            ordered=False)
 
 
 class TestBranchNegative(ZuulTestCase):
