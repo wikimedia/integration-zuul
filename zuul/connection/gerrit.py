@@ -279,7 +279,14 @@ class GerritConnection(BaseConnection):
             else:
                 cmd += ' --%s %s' % (key, val)
         cmd += ' %s' % change
-        out, err = self._ssh(cmd)
+
+        # wmf: ignore submit error on merged change T203846
+        try:
+            out, err = self._ssh(cmd)
+        except Exception:
+            if 'submit' in action and err and 'change is merged' in err:
+                return
+            raise
         return err
 
     def query(self, query):
