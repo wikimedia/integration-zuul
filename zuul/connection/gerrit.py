@@ -279,7 +279,17 @@ class GerritConnection(BaseConnection):
             else:
                 cmd += ' --%s %s' % (key, val)
         cmd += ' %s' % change
-        out, err = self._ssh(cmd)
+
+        # wmf: ignore submit error on merged change T203846
+        try:
+            out, err = self._ssh(cmd)
+        except Exception as e:
+            if 'submit' in action and 'change is merged' in e[1]:
+                self.log.warning(
+                    'submit ignored on change already merged: %s' % change)
+                # Empty message means review worked (ie no error)
+                return
+            raise
         return err
 
     def query(self, query):
@@ -384,7 +394,7 @@ class GerritConnection(BaseConnection):
         err = stderr.read()
         self.log.debug("SSH received stderr:\n%s" % err)
         if ret:
-            raise Exception("Gerrit error executing %s" % command)
+            raise Exception("Gerrit error executing %s" % command, err)
         return (out, err)
 
     def getInfoRefs(self, project):
