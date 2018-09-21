@@ -64,6 +64,7 @@ Zuul includes the following drivers:
 
    drivers/gerrit
    drivers/github
+   drivers/pagure
    drivers/git
    drivers/mqtt
    drivers/smtp

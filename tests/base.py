@@ -61,6 +61,7 @@ import tests.fakegithub
 import zuul.driver.gerrit.gerritsource as gerritsource
 import zuul.driver.gerrit.gerritconnection as gerritconnection
 import zuul.driver.github.githubconnection as githubconnection
+import zuul.driver.pagure.pagureconnection as pagureconnection
 import zuul.driver.github
 import zuul.driver.sql
 import zuul.scheduler
@@ -800,6 +801,331 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         return 'file://' + os.path.join(self.upstream_root, project.name)
 
 
+class PagureChangeReference(git.Reference):
+    _common_path_default = "refs/pull"
+    _points_to_commits_only = True
+
+
+class FakePagurePullRequest(object):
+    log = logging.getLogger("zuul.test.FakePagurePullRequest")
+
+    def __init__(self, pagure, number, project, branch,
+                 subject, upstream_root, files=[], number_of_commits=1,
+                 initial_comment=None):
+        self.pagure = pagure
+        self.source = pagure
+        self.number = number
+        self.project = project
+        self.branch = branch
+        self.subject = subject
+        self.upstream_root = upstream_root
+        self.number_of_commits = 0
+        self.status = 'Open'
+        self.initial_comment = initial_comment
+        self.uuid = uuid.uuid4().hex
+        self.comments = []
+        self.flags = []
+        self.files = {}
+        self.cached_merge_status = ''
+        self.threshold_reached = False
+        self.commit_stop = None
+        self.commit_start = None
+        self.threshold_reached = False
+        self.upstream_root = upstream_root
+        self.cached_merge_status = 'MERGE'
+        self.url = "https://%s/%s/pull-request/%s" % (
+            self.pagure.server, self.project, self.number)
+        self.is_merged = False
+        self.pr_ref = self._createPRRef()
+        self._addCommitInPR(files=files)
+        self._updateTimeStamp()
+
+    def _getPullRequestEvent(self, action):
+        name = 'pg_pull_request'
+        data = {
+            'msg': {
+                'pullrequest': {
+                    'branch': self.branch,
+                    'comments': self.comments,
+                    'commit_start': self.commit_start,
+                    'commit_stop': self.commit_stop,
+                    'date_created': '0',
+                    'id': self.number,
+                    'project': {
+                        'fullname': self.project,
+                    },
+                    'status': self.status,
+                    'subject': self.subject,
+                    'uid': self.uuid,
+                }
+            },
+            'msg_id': str(uuid.uuid4()),
+            'timestamp': 1427459070,
+            'topic': action
+        }
+        if action == 'pull-request.flag.added':
+            data['msg']['flag'] = self.flags[0]
+        return (name, data)
+
+    def getPullRequestOpenedEvent(self):
+        return self._getPullRequestEvent('pull-request.new')
+
+    def getPullRequestUpdatedEvent(self):
+        self._addCommitInPR()
+        self.addComment(
+            "**1 new commit added**\n\n * ``Bump``\n",
+            True)
+        return self._getPullRequestEvent('pull-request.comment.added')
+
+    def getPullRequestCommentedEvent(self, message):
+        self.addComment(message)
+        return self._getPullRequestEvent('pull-request.comment.added')
+
+    def getPullRequestStatusSetEvent(self, status):
+        self.addFlag(
+            status, "https://url", "Build %s" % status)
+        return self._getPullRequestEvent('pull-request.flag.added')
+
+    def addFlag(self, status, url, comment, username="Pingou"):
+        flag = {
+            "username": username,
+            "comment": comment,
+            "status": status,
+            "url": url
+        }
+        self.flags.insert(0, flag)
+        self._updateTimeStamp()
+
+    def editInitialComment(self, initial_comment):
+        self.initial_comment = initial_comment
+        self._updateTimeStamp()
+
+    def addComment(self, message, notification=False, fullname=None):
+        self.comments.append({
+            'comment': message,
+            'notification': notification,
+            'date_created': str(int(time.time())),
+            'user': {
+                'fullname': fullname or 'Pingou'
+            }}
+        )
+        self._updateTimeStamp()
+
+    def getPRReference(self):
+        return '%s/head' % self.number
+
+    def _getRepo(self):
+        repo_path = os.path.join(self.upstream_root, self.project)
+        return git.Repo(repo_path)
+
+    def _createPRRef(self):
+        repo = self._getRepo()
+        return PagureChangeReference.create(
+            repo, self.getPRReference(), 'refs/tags/init')
+
+    def addCommit(self, files=[]):
+        """Adds a commit on top of the actual PR head."""
+        self._addCommitInPR(files=files)
+        self._updateTimeStamp()
+
+    def forcePush(self, files=[]):
+        """Clears actual commits and add a commit on top of the base."""
+        self._addCommitInPR(files=files, reset=True)
+        self._updateTimeStamp()
+
+    def _addCommitInPR(self, files=[], reset=False):
+        repo = self._getRepo()
+        ref = repo.references[self.getPRReference()]
+        if reset:
+            self.number_of_commits = 0
+            ref.set_object('refs/tags/init')
+        self.number_of_commits += 1
+        repo.head.reference = ref
+        repo.git.clean('-x', '-f', '-d')
+
+        if files:
+            self.files = files
+        else:
+            fn = '%s-%s' % (self.branch.replace('/', '_'), self.number)
+            self.files = {fn: "test %s %s\n" % (self.branch, self.number)}
+        msg = self.subject + '-' + str(self.number_of_commits)
+        for fn, content in self.files.items():
+            fn = os.path.join(repo.working_dir, fn)
+            with open(fn, 'w') as f:
+                f.write(content)
+            repo.index.add([fn])
+
+        self.commit_stop = repo.index.commit(msg).hexsha
+        if not self.commit_start:
+            self.commit_start = self.commit_stop
+
+        repo.create_head(self.getPRReference(), self.commit_stop, force=True)
+        self.pr_ref.set_commit(self.commit_stop)
+        repo.head.reference = 'master'
+        repo.git.clean('-x', '-f', '-d')
+        repo.heads['master'].checkout()
+
+    def _updateTimeStamp(self):
+        self.last_updated = str(int(time.time()))
+
+
+class FakePagureAPIClient(pagureconnection.PagureAPIClient):
+    log = logging.getLogger("zuul.test.FakePagureAPIClient")
+
+    def __init__(self, baseurl, api_token, project,
+                 token_exp_date=None, pull_requests_db={}):
+        super(FakePagureAPIClient, self).__init__(
+            baseurl, api_token, project, token_exp_date)
+        self.session = None
+        self.pull_requests = pull_requests_db
+
+    def gen_error(self):
+        return {
+            'error': 'some error',
+            'error_code': 'some error code'
+        }
+
+    def _get_pr(self, match):
+        project, number = match.groups()
+        pr = self.pull_requests.get(project, {}).get(number)
+        if not pr:
+            return self.gen_error()
+        return pr
+
+    def get(self, url):
+        self.log.debug("Getting resource %s ..." % url)
+
+        match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)$', url)
+        if match:
+            pr = self._get_pr(match)
+            return {
+                'branch': pr.branch,
+                'subject': pr.subject,
+                'status': pr.status,
+                'initial_comment': pr.initial_comment,
+                'last_updated': pr.last_updated,
+                'comments': pr.comments,
+                'commit_stop': pr.commit_stop,
+                'threshold_reached': pr.threshold_reached,
+                'cached_merge_status': pr.cached_merge_status
+            }
+
+        match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/flag$', url)
+        if match:
+            pr = self._get_pr(match)
+            return {'flags': pr.flags}
+
+        match = re.match('.+/api/0/(.+)/git/branches$', url)
+        if match:
+            # project = match.groups()[0]
+            return {'branches': ['master']}
+
+        match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/diffstats$', url)
+        if match:
+            pr = self._get_pr(match)
+            return pr.files
+
+    def post(self, url, params=None):
+
+        self.log.info(
+            "Posting on resource %s, params (%s) ..." % (url, params))
+
+        match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/merge$', url)
+        if match:
+            pr = self._get_pr(match)
+            pr.status = 'Merged'
+            pr.is_merged = True
+
+        if not params:
+            return self.gen_error()
+
+        match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/flag$', url)
+        if match:
+            pr = self._get_pr(match)
+            pr.flags.insert(0, params)
+
+        match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/comment$', url)
+        if match:
+            pr = self._get_pr(match)
+            pr.addComment(params['comment'])
+
+
+class FakePagureConnection(pagureconnection.PagureConnection):
+    log = logging.getLogger("zuul.test.FakePagureConnection")
+
+    def __init__(self, driver, connection_name, connection_config, rpcclient,
+                 changes_db=None, upstream_root=None):
+        super(FakePagureConnection, self).__init__(driver, connection_name,
+                                                   connection_config)
+        self.connection_name = connection_name
+        self.pr_number = 0
+        self.pull_requests = changes_db
+        self.statuses = {}
+        self.upstream_root = upstream_root
+        self.reports = []
+        self.rpcclient = rpcclient
+        self.cloneurl = self.upstream_root
+
+    def _refresh_project_connectors(self, project):
+        connector = self.connectors.setdefault(
+            project, {'api_client': None, 'webhook_token': None})
+        api_token_exp_date = int(time.time()) + 60 * 24 * 3600
+        connector['api_client'] = FakePagureAPIClient(
+            self.baseurl, "fake_api_token-%s" % project, project,
+            token_exp_date=api_token_exp_date,
+            pull_requests_db=self.pull_requests)
+        connector['webhook_token'] = "fake_webhook_token-%s" % project
+        return connector
+
+    def emitEvent(self, event, use_zuulweb=False, project=None):
+        name, payload = event
+        secret = 'fake_webhook_token-%s' % project
+        if use_zuulweb:
+            payload = json.dumps(payload).encode('utf-8')
+            signature, _ = pagureconnection._sign_request(payload, secret)
+            headers = {'x-pagure-signature': signature,
+                       'x-pagure-project': project}
+            return requests.post(
+                'http://127.0.0.1:%s/api/connection/%s/payload'
+                % (self.zuul_web_port, self.connection_name),
+                data=payload, headers=headers)
+        else:
+            job = self.rpcclient.submitJob(
+                'pagure:%s:payload' % self.connection_name,
+                {'payload': payload})
+            return json.loads(job.data[0])
+
+    def openFakePullRequest(self, project, branch, subject, files=[],
+                            initial_comment=None):
+        self.pr_number += 1
+        pull_request = FakePagurePullRequest(
+            self, self.pr_number, project, branch, subject, self.upstream_root,
+            files=files, initial_comment=initial_comment)
+        self.pull_requests.setdefault(
+            project, {})[str(self.pr_number)] = pull_request
+        return pull_request
+
+    def getGitReceiveEvent(self, project):
+        name = 'pg_push'
+        repo_path = os.path.join(self.upstream_root, project)
+        repo = git.Repo(repo_path)
+        headsha = repo.head.commit.hexsha
+        data = {
+            'msg': {
+                'project_fullname': project,
+                'branch': 'master',
+                'stop_commit': headsha,
+            },
+            'msg_id': str(uuid.uuid4()),
+            'timestamp': 1427459070,
+            'topic': 'git.receive',
+        }
+        return (name, data)
+
+    def setZuulWebPort(self, port):
+        self.zuul_web_port = port
+
+
 class GithubChangeReference(git.Reference):
     _common_path_default = "refs/pull"
     _points_to_commits_only = True
@@ -1378,7 +1704,7 @@ class FakeBuild(object):
         self.changes = None
         items = self.parameters['zuul']['items']
         self.changes = ' '.join(['%s,%s' % (x['change'], x['patchset'])
-                                for x in items if 'change' in x])
+                                 for x in items if 'change' in x])
         if 'change' in items[-1]:
             self.change = ' '.join((items[-1]['change'],
                                     items[-1]['patchset']))
@@ -2184,7 +2510,8 @@ class ZuulWebFixture(fixtures.Fixture):
         self.connections.configure(
             config,
             include_drivers=[zuul.driver.sql.SQLDriver,
-                             zuul.driver.github.GithubDriver])
+                             zuul.driver.github.GithubDriver,
+                             zuul.driver.pagure.PagureDriver])
         if info is None:
             self.info = zuul.model.WebInfo()
         else:
@@ -2635,6 +2962,7 @@ class ZuulTestCase(BaseTestCase):
         # a virtual canonical database given by the configured hostname
         self.gerrit_changes_dbs = {}
         self.github_changes_dbs = {}
+        self.pagure_changes_dbs = {}
 
         def getGerritConnection(driver, name, config):
             db = self.gerrit_changes_dbs.setdefault(config['server'], {})
@@ -2691,6 +3019,22 @@ class ZuulTestCase(BaseTestCase):
         self.useFixture(fixtures.MonkeyPatch(
             'zuul.driver.github.GithubDriver.getConnection',
             getGithubConnection))
+
+        def getPagureConnection(driver, name, config):
+            server = config.get('server', 'pagure.io')
+            db = self.pagure_changes_dbs.setdefault(server, {})
+            con = FakePagureConnection(
+                driver, name, config,
+                self.rpcclient,
+                changes_db=db,
+                upstream_root=self.upstream_root)
+            self.event_queues.append(con.event_queue)
+            setattr(self, 'fake_' + name, con)
+            return con
+
+        self.useFixture(fixtures.MonkeyPatch(
+            'zuul.driver.pagure.PagureDriver.getConnection',
+            getPagureConnection))
 
         # Set up smtp related fakes
         # TODO(jhesketh): This should come from lib.connections for better
@@ -3623,7 +3967,6 @@ class ZuulTestCase(BaseTestCase):
         self.addCleanup(_restoreTenantConfig)
 
     def addEvent(self, connection, event):
-
         """Inject a Fake (Gerrit) event.
 
         This method accepts a JSON-encoded event and simulates Zuul
