@@ -45,9 +45,14 @@ case "$1" in
 		# Populate python2.7 in Zuul virtualenv
 		# Make sure it is properly up-to-date even if the trigger is supposed
 		# to take care of it.
+		# Make sure to stop the daemons, otherwise the above can fail with text file busy error
+		/usr/sbin/service zuul stop
+		/usr/sbin/service zuul-merger stop
 		if ! cmp -s /usr/bin/python2.7 /usr/share/python/zuul/bin/python2.7; then
 			cp -a /usr/bin/python2.7 /usr/share/python/zuul/bin
 		fi
+		/usr/sbin/service zuul start
+		/usr/sbin/service zuul-merger start
 	;;
 
 	abort-upgrade|abort-remove|abort-deconfigure)
