@@ -38,13 +38,14 @@ class GitTriggerEvent(TriggerEvent):
 
 
 class GitEventFilter(EventFilter):
-    def __init__(self, trigger, types=[], refs=[],
+    def __init__(self, trigger, types=None, refs=None,
                  ignore_deletes=True):
 
         super().__init__(trigger)
 
         self._refs = refs
-        self.types = types
+        self.types = types if types is not None else []
+        refs = refs if refs is not None else []
         self.refs = [re.compile(x) for x in refs]
         self.ignore_deletes = ignore_deletes
 
