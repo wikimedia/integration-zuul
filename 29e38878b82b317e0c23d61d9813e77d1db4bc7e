@@ -1,0 +1,7 @@
+Verified+2: Hashar <hashar@free.fr>
+Code-Review+2: Hashar <hashar@free.fr>
+Submitted-by: Hashar <hashar@free.fr>
+Submitted-at: Wed, 31 Oct 2018 14:38:22 +0000
+Reviewed-on: https://gerrit.wikimedia.org/r/470843
+Project: integration/zuul
+Branch: refs/heads/patch-queue/debian/jessie-wikimedia
