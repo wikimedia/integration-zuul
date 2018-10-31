@@ -15,3 +15,5 @@
 0015-wmf-change-number-must-be-a-string-when-formatting.patch
 0016-Ensure-patchset-comparison-in-the-case-of-different-.patch
 0017-Fix-missing-mutex-release-when-aborting-builds.patch
+0018-wmf-ignore-submit-error-on-merged-change.patch
+0019-wmf-Show-project-in-build-description.patch

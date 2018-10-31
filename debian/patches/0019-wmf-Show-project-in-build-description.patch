@@ -1,0 +1,37 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Wed, 23 Nov 2016 19:08:45 +0100
+Subject: wmf: Show project in build description
+
+Our jobs are common to multiple projects, the build history shows the
+change, branch and pipeline but lack the project that triggered the
+build.
+
+Adjust the description template to also included the project name. The
+'change' here is a child of Changeish which is initialized with
+'project' and hence is always set.
+
+Change-Id: Ie2fd427bcda0ff45826590369be29c9a9f6bd3fc
+---
+ zuul/scheduler.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/zuul/scheduler.py b/zuul/scheduler.py
+index ee8872d..ea12b5b 100644
+--- a/zuul/scheduler.py
++++ b/zuul/scheduler.py
+@@ -1830,6 +1830,7 @@ class BasePipelineManager(object):
+ <p>
+   Triggered by change:
+     <a href="{change.url}">{change.number},{change.patchset}</a><br/>
++  Project: <b>{change.project}</b><br/>
+   Branch: <b>{change.branch}</b><br/>
+   Pipeline: <b>{self.pipeline.name}</b>
+ </p>"""
+@@ -1838,6 +1839,7 @@ class BasePipelineManager(object):
+ <p>
+   Triggered by reference:
+     {change.ref}</a><br/>
++  Project: <b>{change.project}</b><br/>
+   Old revision: <b>{change.oldrev}</b><br/>
+   New revision: <b>{change.newrev}</b><br/>
+   Pipeline: <b>{self.pipeline.name}</b>
