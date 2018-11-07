@@ -547,6 +547,7 @@ class Node(ConfigObject):
         self.region = None
         self.username = None
         self.hold_expiration = None
+        self.resources = None
 
     @property
     def state(self):

@@ -5317,6 +5317,72 @@ For CI problems and help debugging, contact ci@example.org"""
         self.assertIn('project-test1 : SKIPPED', A.messages[1])
         self.assertIn('project-test2 : SKIPPED', A.messages[1])
 
+    def test_nodepool_resources(self):
+        "Test that resources are reported"
+
+        self.executor_server.hold_jobs_in_build = True
+        self.fake_nodepool.resources = {
+            'cores': 2,
+            'ram': 1024,
+            'instances': 1,
+        }
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.addApproval('Code-Review', 2)
+        self.fake_gerrit.addEvent(A.addApproval('Approved', 1))
+        self.waitUntilSettled()
+
+        self.executor_server.release('project-merge')
+        self.waitUntilSettled()
+
+        # Check that resource usage gauges are reported
+        self.assertHistory([
+            dict(name='project-merge', result='SUCCESS', changes='1,1'),
+        ])
+        self.assertReportedStat(
+            'zuul.nodepool.resources.tenant.tenant-one.cores',
+            value='2', kind='g')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.tenant.tenant-one.ram',
+            value='1024', kind='g')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.tenant.tenant-one.instances',
+            value='1', kind='g')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.project.review_example_com/org/project.'
+            'cores', value='2', kind='g')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.project.review_example_com/org/project.'
+            'ram', value='1024', kind='g')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.project.review_example_com/org/project.'
+            'instances', value='1', kind='g')
+
+        # Check that resource usage counters are reported
+        self.assertReportedStat(
+            'zuul.nodepool.resources.tenant.tenant-one.cores',
+            kind='c')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.tenant.tenant-one.ram',
+            kind='c')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.tenant.tenant-one.instances',
+            kind='c')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.project.review_example_com/org/project.'
+            'cores', kind='c')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.project.review_example_com/org/project.'
+            'ram', kind='c')
+        self.assertReportedStat(
+            'zuul.nodepool.resources.project.review_example_com/org/project.'
+            'instances', kind='c')
+
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+        self.assertEqual(A.data['status'], 'MERGED')
+        self.assertEqual(A.reported, 2)
+
     def test_nodepool_pipeline_priority(self):
         "Test that nodes are requested at the correct pipeline priority"
 
@@ -6520,7 +6586,7 @@ class TestSemaphore(ZuulTestCase):
         # Simulate a single zk error in useNodeSet
         orig_useNodeSet = self.nodepool.useNodeSet
 
-        def broken_use_nodeset(nodeset):
+        def broken_use_nodeset(nodeset, build_set=None):
             # restore original useNodeSet
             self.nodepool.useNodeSet = orig_useNodeSet
             raise NoNodeError()

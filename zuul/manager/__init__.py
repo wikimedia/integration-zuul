@@ -403,7 +403,8 @@ class PipelineManager(object):
             self.log.debug("Found job %s for change %s" % (job, item.change))
             try:
                 nodeset = item.current_build_set.getJobNodeSet(job.name)
-                self.sched.nodepool.useNodeSet(nodeset)
+                self.sched.nodepool.useNodeSet(
+                    nodeset, build_set=item.current_build_set)
                 self.sched.executor.execute(
                     job, item, self.pipeline,
                     build_set.dependent_changes,

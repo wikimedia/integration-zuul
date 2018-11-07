@@ -288,6 +288,32 @@ These metrics are emitted by the Zuul :ref:`scheduler`:
       Persistently high values indicate more testing node resources
       would be helpful.
 
+   .. stat:: resources
+
+      Holds metrics about resource usage by tenant or project if resources
+      of nodes are reported by nodepool.
+
+      .. stat:: tenant
+
+         Holds resource usage metrics by tenant.
+
+         .. stat:: <tenant>.<resource>
+            :type: counter, gauge
+
+            Counter with the summed usage by tenant as <resource> seconds and
+            gauge with the currently used resources by tenant.
+
+      .. stat:: project
+
+         Holds resource usage metrics by project.
+
+         .. stat:: <project>.<resource>
+            :type: counter, gauge
+
+            Counter with the summed usage by project as <resource> seconds and
+            gauge with the currently used resources by tenant.
+
+
 .. stat:: zuul.mergers
 
    Holds metrics related to Zuul mergers.
