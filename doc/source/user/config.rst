@@ -1342,7 +1342,8 @@ pipeline.
 
       The merge mode which is used by Git for this project.  Be sure
       this matches what the remote system which performs merges (i.e.,
-      Gerrit or GitHub).
+      Gerrit). The requested merge mode will be used by the Github driver
+      when performing merges.
 
       Each project may only have one ``merge-mode`` therefore Zuul
       will use the first value that it encounters for a given project
@@ -1353,18 +1354,20 @@ pipeline.
 
       .. value:: merge
 
-         Uses the default git merge strategy (recursive).
+         Uses the default git merge strategy (recursive). This maps to
+         the merge mode ``merge`` in Github.
 
       .. value:: merge-resolve
 
          Uses the resolve git merge strategy.  This is a very
          conservative merge strategy which most closely matches the
-         behavior of Gerrit.
+         behavior of Gerrit. This maps to the merge mode ``merge`` in
+         Github.
 
       .. value:: cherry-pick
 
          Cherry-picks each change onto the branch rather than
-         performing any merges.
+         performing any merges. This is not supported by Github.
 
    .. attr:: vars
       :default: None

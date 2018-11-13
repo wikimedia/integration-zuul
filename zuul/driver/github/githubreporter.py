@@ -17,6 +17,7 @@ import voluptuous as v
 import time
 
 from zuul.lib.logutil import get_annotated_logger
+from zuul.model import MERGER_MERGE_RESOLVE, MERGER_MERGE, MERGER_MAP
 from zuul.reporter import BaseReporter
 from zuul.exceptions import MergeFailure
 from zuul.driver.util import scalar_or_list
@@ -28,6 +29,12 @@ class GithubReporter(BaseReporter):
 
     name = 'github'
     log = logging.getLogger("zuul.GithubReporter")
+
+    # Merge modes supported by github
+    merge_modes = {
+        MERGER_MERGE: 'merge',
+        MERGER_MERGE_RESOLVE: 'merge',
+    }
 
     def __init__(self, driver, connection, pipeline, config=None):
         super(GithubReporter, self).__init__(driver, connection, config)
@@ -136,6 +143,15 @@ class GithubReporter(BaseReporter):
 
     def mergePull(self, item):
         log = get_annotated_logger(self.log, item.event)
+        merge_mode = item.current_build_set.getMergeMode()
+
+        if merge_mode not in self.merge_modes:
+            mode = [x[0] for x in MERGER_MAP.items() if x[1] == merge_mode][0]
+            self.log.warning('Merge mode %s not supported by Github', mode)
+            # TODO(tobiash): report error to user
+            return
+
+        merge_mode = self.merge_modes[merge_mode]
         project = item.change.project.name
         pr_number = item.change.number
         sha = item.change.patchset
@@ -145,7 +161,8 @@ class GithubReporter(BaseReporter):
 
         for i in [1, 2]:
             try:
-                self.connection.mergePull(project, pr_number, message, sha,
+                self.connection.mergePull(project, pr_number, message, sha=sha,
+                                          method=merge_mode,
                                           zuul_event_id=item.event)
                 item.change.is_merged = True
                 return

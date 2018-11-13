@@ -1420,13 +1420,14 @@ class GithubConnection(BaseConnection):
         self.log_rate_limit(self.log, github)
 
     def mergePull(self, project, pr_number, commit_message='', sha=None,
-                  zuul_event_id=None):
+                  method='merge', zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
-        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
+        github = self.getGithubClient(project)
         owner, proj = project.split('/')
         pull_request = github.pull_request(owner, proj, pr_number)
         try:
-            result = pull_request.merge(commit_message=commit_message, sha=sha)
+            result = pull_request.merge(commit_message=commit_message, sha=sha,
+                                        merge_method=method)
         except github3.exceptions.MethodNotAllowed as e:
             raise MergeFailure('Merge was not successful due to mergeability'
                                ' conflict, original error is %s' % e)
