@@ -71,7 +71,7 @@ class GerritSource(BaseSource):
             # means it's merged.
             return True
 
-        data = self.connection.query(change.number)
+        data = self.connection.query('change:%s' % change.number)
         change._data = data
         change.is_merged = self._isMerged(change)
         if change.is_merged:
@@ -235,7 +235,7 @@ class GerritSource(BaseSource):
 
     def _updateChange(self, change, history=None):
         self.log.info("Updating %s" % (change,))
-        data = self.connection.query(change.number)
+        data = self.connection.query('change:%s' % change.number)
         change._data = data
 
         if change.patchset is None:
