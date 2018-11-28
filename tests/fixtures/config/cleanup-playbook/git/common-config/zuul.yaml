@@ -26,7 +26,7 @@
     post-run: playbooks/post.yaml
     cleanup-run: playbooks/cleanup.yaml
     vars:
-      waitpath: '{{zuul._test.test_root}}/{{zuul.build}}/test_wait'
+      waitpath: '{{zuul._test.test_root}}/builds/{{zuul.build}}/test_wait'
     run: playbooks/python27.yaml
 
 - job:

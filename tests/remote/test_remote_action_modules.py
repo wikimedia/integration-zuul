@@ -78,7 +78,7 @@ class TestActionModules25(AnsibleZuulTestCase):
             self.assertEqual(build.result, result)
 
             if expect_error:
-                path = os.path.join(self.test_root, build.uuid,
+                path = os.path.join(self.jobdir_root, build.uuid,
                                     'work', 'logs', 'job-output.txt')
                 with open(path, 'r') as f:
                     self.assertIn(expect_error, f.read())

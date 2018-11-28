@@ -2591,8 +2591,8 @@ class TestAnsible25(AnsibleZuulTestCase):
         self.waitUntilSettled()
         build_timeout = self.getJobFromHistory('timeout', result='TIMED_OUT')
         with self.jobLog(build_timeout):
-            post_flag_path = os.path.join(self.test_root, build_timeout.uuid +
-                                          '.post.flag')
+            post_flag_path = os.path.join(
+                self.jobdir_root, build_timeout.uuid + '.post.flag')
             self.assertTrue(os.path.exists(post_flag_path))
         build_post_timeout = self.getJobFromHistory('post-timeout')
         with self.jobLog(build_post_timeout):
@@ -2635,26 +2635,26 @@ class TestAnsible25(AnsibleZuulTestCase):
         build_python27 = self.getJobFromHistory('python27')
         with self.jobLog(build_python27):
             self.assertEqual(build_python27.result, 'SUCCESS')
-            flag_path = os.path.join(self.test_root,
+            flag_path = os.path.join(self.jobdir_root,
                                      build_python27.uuid + '.flag')
             self.assertTrue(os.path.exists(flag_path))
-            copied_path = os.path.join(self.test_root, build_python27.uuid +
+            copied_path = os.path.join(self.jobdir_root, build_python27.uuid +
                                        '.copied')
             self.assertTrue(os.path.exists(copied_path))
-            failed_path = os.path.join(self.test_root, build_python27.uuid +
+            failed_path = os.path.join(self.jobdir_root, build_python27.uuid +
                                        '.failed')
             self.assertFalse(os.path.exists(failed_path))
-            pre_flag_path = os.path.join(self.test_root, build_python27.uuid +
-                                         '.pre.flag')
+            pre_flag_path = os.path.join(
+                self.jobdir_root, build_python27.uuid + '.pre.flag')
             self.assertTrue(os.path.exists(pre_flag_path))
-            post_flag_path = os.path.join(self.test_root, build_python27.uuid +
-                                          '.post.flag')
+            post_flag_path = os.path.join(
+                self.jobdir_root, build_python27.uuid + '.post.flag')
             self.assertTrue(os.path.exists(post_flag_path))
-            bare_role_flag_path = os.path.join(self.test_root,
+            bare_role_flag_path = os.path.join(self.jobdir_root,
                                                build_python27.uuid +
                                                '.bare-role.flag')
             self.assertTrue(os.path.exists(bare_role_flag_path))
-            secrets_path = os.path.join(self.test_root,
+            secrets_path = os.path.join(self.jobdir_root,
                                         build_python27.uuid + '.secrets')
             with open(secrets_path) as f:
                 self.assertEqual(f.read(), "test-username test-password")
@@ -2796,8 +2796,8 @@ class TestPrePlaybooks(AnsibleZuulTestCase):
         pre_flag_path = os.path.join(self.test_root, build.uuid +
                                      '.pre.flag')
         self.assertFalse(os.path.exists(pre_flag_path))
-        post_flag_path = os.path.join(self.test_root, build.uuid +
-                                      '.post.flag')
+        post_flag_path = os.path.join(
+            self.jobdir_root, build.uuid + '.post.flag')
         self.assertTrue(os.path.exists(post_flag_path),
                         "The file %s should exist" % post_flag_path)
 
@@ -2878,7 +2878,7 @@ class TestPostPlaybooks(AnsibleZuulTestCase):
                 break
         build = self.builds[0]
 
-        post_start = os.path.join(self.test_root, build.uuid +
+        post_start = os.path.join(self.jobdir_root, build.uuid +
                                   '.post_start.flag')
         for _ in iterate_timeout(60, 'job post running'):
             if os.path.exists(post_start):
@@ -2890,7 +2890,7 @@ class TestPostPlaybooks(AnsibleZuulTestCase):
         build = self.getJobFromHistory('python27')
         self.assertEqual('ABORTED', build.result)
 
-        post_end = os.path.join(self.test_root, build.uuid +
+        post_end = os.path.join(self.jobdir_root, build.uuid +
                                 '.post_end.flag')
         self.assertTrue(os.path.exists(post_start))
         self.assertFalse(os.path.exists(post_end))
@@ -2910,19 +2910,19 @@ class TestCleanupPlaybooks(AnsibleZuulTestCase):
                 break
         build = self.builds[0]
 
-        post_start = os.path.join(self.test_root, build.uuid +
+        post_start = os.path.join(self.jobdir_root, build.uuid +
                                   '.post_start.flag')
         for _ in iterate_timeout(60, 'job post running'):
             if os.path.exists(post_start):
                 break
-        with open(os.path.join(self.test_root, build.uuid, 'test_wait'),
+        with open(os.path.join(self.jobdir_root, build.uuid, 'test_wait'),
                   "w") as of:
             of.write("continue")
         self.waitUntilSettled()
 
         build = self.getJobFromHistory('python27')
         self.assertEqual('SUCCESS', build.result)
-        cleanup_flag = os.path.join(self.test_root, build.uuid +
+        cleanup_flag = os.path.join(self.jobdir_root, build.uuid +
                                     '.cleanup.flag')
         self.assertTrue(os.path.exists(cleanup_flag))
         with open(cleanup_flag) as f:
@@ -2949,7 +2949,7 @@ class TestCleanupPlaybooks(AnsibleZuulTestCase):
 
         build = self.getJobFromHistory('python27-failure')
         self.assertEqual('FAILURE', build.result)
-        cleanup_flag = os.path.join(self.test_root, build.uuid +
+        cleanup_flag = os.path.join(self.jobdir_root, build.uuid +
                                     '.cleanup.flag')
         self.assertTrue(os.path.exists(cleanup_flag))
         with open(cleanup_flag) as f:
@@ -2966,7 +2966,7 @@ class TestCleanupPlaybooks(AnsibleZuulTestCase):
                 break
         build = self.builds[0]
 
-        post_start = os.path.join(self.test_root, build.uuid +
+        post_start = os.path.join(self.jobdir_root, build.uuid +
                                   '.post_start.flag')
         for _ in iterate_timeout(60, 'job post running'):
             if os.path.exists(post_start):
@@ -2978,9 +2978,9 @@ class TestCleanupPlaybooks(AnsibleZuulTestCase):
         build = self.getJobFromHistory('python27')
         self.assertEqual('ABORTED', build.result)
 
-        post_end = os.path.join(self.test_root, build.uuid +
+        post_end = os.path.join(self.jobdir_root, build.uuid +
                                 '.post_end.flag')
-        cleanup_flag = os.path.join(self.test_root, build.uuid +
+        cleanup_flag = os.path.join(self.jobdir_root, build.uuid +
                                     '.cleanup.flag')
         self.assertTrue(os.path.exists(cleanup_flag))
         self.assertTrue(os.path.exists(post_start))
@@ -3320,7 +3320,7 @@ class TestProjectKeys(ZuulTestCase):
 
 class RoleTestCase(ZuulTestCase):
     def _getRolesPaths(self, build, playbook):
-        path = os.path.join(self.test_root, build.uuid,
+        path = os.path.join(self.jobdir_root, build.uuid,
                             'ansible', playbook, 'ansible.cfg')
         roles_paths = []
         with open(path) as f:

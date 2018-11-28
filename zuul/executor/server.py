@@ -2390,6 +2390,7 @@ class ExecutorServer(object):
         # in case we were uncleanly shut down.
         if not self.keep_jobdir:
             for fn in os.listdir(self.jobdir_root):
+                fn = os.path.join(self.jobdir_root, fn)
                 if not os.path.isdir(fn):
                     continue
                 self.log.info("Deleting stale jobdir %s", fn)

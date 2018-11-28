@@ -75,7 +75,7 @@ class TestZuulStream25(AnsibleZuulTestCase):
         return job
 
     def _get_job_output(self, build):
-        path = os.path.join(self.test_root, build.uuid,
+        path = os.path.join(self.jobdir_root, build.uuid,
                             'work', 'logs', 'job-output.txt')
         with open(path) as f:
             return f.read()

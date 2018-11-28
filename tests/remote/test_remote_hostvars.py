@@ -73,7 +73,7 @@ class TestZuulHostVars(AnsibleZuulTestCase):
         with self.jobLog(job):
             build = self.history[-1]
             inventory = yaml.safe_load(open(os.path.join(
-                self.test_root, build.uuid, 'ansible', 'inventory.yaml')))
+                self.jobdir_root, build.uuid, 'ansible', 'inventory.yaml')))
             self.assertEqual(
                 "python2",
                 inventory["all"]["hosts"]["controller"][

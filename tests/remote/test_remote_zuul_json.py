@@ -68,7 +68,7 @@ class TestZuulJSON25(AnsibleZuulTestCase):
         return job
 
     def _get_json_as_text(self, build):
-        path = os.path.join(self.test_root, build.uuid,
+        path = os.path.join(self.jobdir_root, build.uuid,
                             'work', 'logs', 'job-output.json')
         with open(path) as f:
             return f.read()

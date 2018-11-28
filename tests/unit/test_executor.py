@@ -789,3 +789,15 @@ class TestExecutorFacts(AnsibleZuulTestCase):
         date_time = \
             j[0]['plays'][0]['tasks'][0]['hosts']['localhost']['date_time']
         self.assertEqual(18, len(date_time))
+
+
+class TestExecutorStart(ZuulTestCase):
+    tenant_config_file = 'config/single-tenant/main.yaml'
+
+    def setup_config(self):
+        super(TestExecutorStart, self).setup_config()
+        self.junk_dir = os.path.join(self.jobdir_root, 'junk')
+        os.makedirs(self.junk_dir)
+
+    def test_executor_start(self):
+        self.assertFalse(os.path.exists(self.junk_dir))
