@@ -192,3 +192,80 @@ class TestZuulStream26(TestZuulStream25):
 
 class TestZuulStream27(TestZuulStream25):
     ansible_version = '2.7'
+
+
+class TestZuulStream28(TestZuulStream25):
+    ansible_version = '2.8'
+
+    def test_command(self):
+        job = self._run_job('command')
+        with self.jobLog(job):
+            build = self.history[-1]
+            self.assertEqual(build.result, 'SUCCESS')
+
+            text = self._get_job_output(build)
+            self.assertLogLine(
+                r'RUN START: \[untrusted : review.example.com/org/project/'
+                r'playbooks/command.yaml@master\]', text)
+            self.assertLogLine(r'PLAY \[all\]', text)
+            self.assertLogLine(
+                r'Ansible version={}'.format(self.ansible_version), text)
+            self.assertLogLine(r'TASK \[Show contents of first file\]', text)
+            self.assertLogLine(r'controller \| command test one', text)
+            self.assertLogLine(
+                r'controller \| ok: Runtime: \d:\d\d:\d\d\.\d\d\d\d\d\d', text)
+            self.assertLogLine(r'TASK \[Show contents of second file\]', text)
+            self.assertLogLine(r'compute1 \| command test two', text)
+            self.assertLogLine(r'controller \| command test two', text)
+            self.assertLogLine(r'compute1 \| This is a rescue task', text)
+            self.assertLogLine(r'controller \| This is a rescue task', text)
+            self.assertLogLine(r'compute1 \| This is an always task', text)
+            self.assertLogLine(r'controller \| This is an always task', text)
+            self.assertLogLine(r'compute1 \| This is a handler', text)
+            self.assertLogLine(r'controller \| This is a handler', text)
+            self.assertLogLine(r'controller \| First free task', text)
+            self.assertLogLine(r'controller \| Second free task', text)
+            self.assertLogLine(r'controller \| This is a shell task after an '
+                               'included role', text)
+            self.assertLogLine(r'compute1 \| This is a shell task after an '
+                               'included role', text)
+            self.assertLogLine(r'controller \| This is a command task after '
+                               'an included role', text)
+            self.assertLogLine(r'compute1 \| This is a command task after an '
+                               'included role', text)
+            self.assertLogLine(r'controller \| This is a shell task with '
+                               'delegate compute1', text)
+            self.assertLogLine(r'controller \| This is a shell task with '
+                               'delegate controller', text)
+            self.assertLogLine(r'compute1 \| item_in_loop1', text)
+            self.assertLogLine(r'compute1 \| ok: Item: item_in_loop1 '
+                               r'Runtime: \d:\d\d:\d\d\.\d\d\d\d\d\d', text)
+            self.assertLogLine(r'compute1 \| item_in_loop2', text)
+            self.assertLogLine(r'compute1 \| ok: Item: item_in_loop2 '
+                               r'Runtime: \d:\d\d:\d\d\.\d\d\d\d\d\d', text)
+            self.assertLogLine(r'compute1 \| failed_in_loop1', text)
+            self.assertLogLine(r'compute1 \| ok: Item: failed_in_loop1 '
+                               r'Result: 1', text)
+            self.assertLogLine(r'compute1 \| failed_in_loop2', text)
+            self.assertLogLine(r'compute1 \| ok: Item: failed_in_loop2 '
+                               r'Result: 1', text)
+            self.assertLogLine(r'localhost \| .*No such file or directory: .*'
+                               r'\'/local-shelltask/somewhere/'
+                               r'that/does/not/exist\'', text)
+            self.assertLogLine(r'compute1 \| .*No such file or directory: .*'
+                               r'\'/remote-shelltask/somewhere/'
+                               r'that/does/not/exist\'', text)
+            self.assertLogLine(r'controller \| .*No such file or directory: .*'
+                               r'\'/remote-shelltask/somewhere/'
+                               r'that/does/not/exist\'', text)
+            self.assertLogLine(
+                r'controller \| ok: Runtime: \d:\d\d:\d\d\.\d\d\d\d\d\d', text)
+            self.assertLogLine('PLAY RECAP', text)
+            # NOTE(pabelanger): Ansible 2.8 added new stats
+            # skipped, rescued, ignored.
+            self.assertLogLine(
+                r'controller \| ok: \d+ changed: \d+ unreachable: 0 failed: 0 '
+                'skipped: 0 rescued: 1 ignored: 0', text)
+            self.assertLogLine(
+                r'RUN END RESULT_NORMAL: \[untrusted : review.example.com/'
+                r'org/project/playbooks/command.yaml@master]', text)

@@ -219,3 +219,7 @@ class TestActionModules26(TestActionModules25):
 
 class TestActionModules27(TestActionModules25):
     ansible_version = '2.7'
+
+
+class TestActionModules28(TestActionModules25):
+    ansible_version = '2.8'

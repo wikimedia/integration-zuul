@@ -46,6 +46,12 @@
       zuul_ansible_version: 2.7
 
 - job:
+    name: zuul-stream-functional-2.8
+    parent: zuul-stream-functional
+    vars:
+      zuul_ansible_version: 2.8
+
+- job:
     name: zuul-tox-remote
     parent: tox
     vars:
@@ -187,6 +193,7 @@
         - zuul-stream-functional-2.5
         - zuul-stream-functional-2.6
         - zuul-stream-functional-2.7
+        - zuul-stream-functional-2.8
         - zuul-tox-remote
         - zuul-quick-start:
             dependencies: zuul-build-image
@@ -223,6 +230,7 @@
         - zuul-stream-functional-2.5
         - zuul-stream-functional-2.6
         - zuul-stream-functional-2.7
+        - zuul-stream-functional-2.8
         - zuul-tox-remote
         - zuul-quick-start:
             dependencies: zuul-upload-image

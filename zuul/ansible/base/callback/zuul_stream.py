@@ -514,12 +514,23 @@ class CallbackModule(default.CallbackModule):
         hosts = sorted(stats.processed.keys())
         for host in hosts:
             t = stats.summarize(host)
-            self._log(
+            msg = (
                 "{host} |"
                 " ok: {ok}"
                 " changed: {changed}"
                 " unreachable: {unreachable}"
                 " failed: {failures}".format(host=host, **t))
+
+            # NOTE(pabelanger) Ansible 2.8 added rescued support
+            if 'rescued' in t:
+                # Even though skipped was in stable-2.7 and lower, only
+                # stable-2.8 started rendering it. So just lump into rescued
+                # check.
+                msg += " skipped: {skipped} rescued: {rescued}".format(**t)
+            # NOTE(pabelanger) Ansible 2.8 added ignored support
+            if 'ignored' in t:
+                msg += " ignored: {ignored}".format(**t)
+            self._log(msg)
 
         # Add a spacer line after the stats so that there will be a line
         # between each playbook
