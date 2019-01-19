@@ -51,6 +51,8 @@ class TestWebURLs(ZuulTestCase):
         ]:
             for item in page.find_all(tag):
                 suburl = item.get(attr)
+                if not suburl:
+                    continue
                 if suburl.startswith('/'):
                     suburl = suburl[1:]
                 link = urllib.parse.urljoin(url, suburl)

@@ -44,9 +44,9 @@ class Refreshable extends React.Component {
     const { remoteData } = this.props
     return (
       <Spinner loading={ remoteData.isFetching }>
-        <a className="refresh" onClick={() => {this.updateData(true)}}>
+        <div className="refresh" onClick={() => {this.updateData(true)}}>
           <Icon type="fa" name="refresh" /> refresh&nbsp;&nbsp;
-        </a>
+        </div>
       </Spinner>
     )
   }
