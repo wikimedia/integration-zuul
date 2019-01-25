@@ -1,3 +1,9 @@
+zuul (2.5.1-wmf6) jessie-wikimedia; urgency=medium
+
+  * Update GitPython to 2.1.11 for Gerrit 2.16+ support.
+
+ -- Paladox <thomasmulhall410@yahoo.com>  Fri, 25 Jan 2019 23:36:00 +0000
+
 zuul (2.5.1-wmf5) jessie-wikimedia; urgency=medium
 
   [ Antoine Musso (2) ]

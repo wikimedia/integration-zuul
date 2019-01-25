@@ -22,7 +22,7 @@ index ced583d..553b272 100644
  WebOb>=1.2.3
  paramiko>=1.8.0,<2.0.0
 -GitPython>=0.3.3
-+GitPython==2.0.8
++GitPython>=2.1.11
 +smmap==0.9.0
 +gitdb==0.6.4
  python-daemon>=2.0.4,<2.1.0
