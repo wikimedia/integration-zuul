@@ -1,26 +1,2 @@
-From: Antoine Musso <hashar@free.fr>
-Date: Fri, 29 Jul 2016 10:57:53 +0200
-Subject: WMF: reduce Gerrit replication delay from 300 to 15 secs
 
-Monkey patching to prevent Zuul from being deadlocked for 300 seconds
-whenever a patch is merged.
-
-Bug: T93812
-Change-Id: I76943fff8f5d843dd9b13e8b92d71a002f99249e
----
- zuul/source/gerrit.py | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/zuul/source/gerrit.py b/zuul/source/gerrit.py
-index 463f315..7cc0b3d 100644
---- a/zuul/source/gerrit.py
-+++ b/zuul/source/gerrit.py
-@@ -37,7 +37,7 @@ def detect_cycle(change, history=None):
- class GerritSource(BaseSource):
-     name = 'gerrit'
-     log = logging.getLogger("zuul.source.Gerrit")
--    replication_timeout = 300
-+    replication_timeout = 15
-     replication_retry_interval = 5
- 
-     depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$",
+NDQKCgo4YWlsaW5nIGFnYWluLCB3aGF0IHNob3VsZCBJIGNoYW5eW91IHNldCB0aGUgdmFsdWUgcmVhbGx5IGhpZ2ggYW5kIGl0IHN0aWxsIHN0b3BwZWQuIE15IGd1ZXNzIGlzIHlvdSBtaWdodCBoYXZlbXByb3ZlIHRoaXMgcXVlc3Rpb24KYXNrZWQgQXByIDIgJzEzIGF0IDIzOjQwCgpUb29Db29MCjYsNzkwNjIyMzcKMQpjYWxsIGl0IGZyb20gdGhlIGNvbW1hbmQgbGluZSwgbm8gdGltZSBsaW1pdCB0aGF0IHdheSDigJMgdXNlcjU1Nzg0NiBBcHIgMiAnMTMgYXQgMjM6NDIKMgpzZXRfdGltZV9saW1pdCgwKSBhdCB0aGUgYmVnaW5pbmcgb2YgeW91ciBzY3JpcHQgd2lsbCBkaXNhYmxlIHRoZSB0aW1lIGxpbWl0LiBCdXQgeW91IGNhbiBoYXZlIG90aGVyIHJlYXNvbiBmb3IgYSBwcmVtYXR1cmUgc3RvcC4gSXQgY2FuIGJlIGEgcHJvYmxlbSB3aXRoIHlvdXIgREIgb3IgYSBwcm9ibGVtIHdpdGggdGhlIG1lbW9yeSAoaWYgeW91IGFyZSBjcmVhdGluZyBhIGxvdCBvIGEgbWVtb3J5IGlzc3VlLiDigJMgTWlrZSBCcmFudCBBcHIgMiAnMTMgYXQgMjM6NTEKc2hvdyAzIG1vcWYgWF4X2V4ZWN1dGlvbl90aW1lIHRvIDUwMDAwMDAwMDAwIGFuZCB5ZXQgaXQgc3RvcGVkIGF0IGNlcnRhaW4gcG9pbnQsIEkgZG9udCBrbm93IHdoYXQgZWxzZSBjb3VsZCBsaW1pdCB0aGUgZXhlY3V0aW9uIHRpbWUsIEkgaGF2ZSBiZWVuIHJ1bm5pbmcgdGhpcyBhIGxvdCBvZiB0aW1lcyBhbmQgSSBhbSB0aXJlZCBvZiB3YWl0aW5nIGFuZCBmY2hlY2tlZCB0aGUgZm9yIFBIUCBlcnJvcnMgaW4gdGhlIHBocCBmb2xkZXIgb2YgeGFtcHAgYnV0IGl0IGRpZG50IHNob3cgYW55dGhpbmcgYXQgdGhlIHRpbWUgdGhlIHNjcmlwdCBzdG9wcGVkLCBldmVyeXRpbWUgaXQggcmVjb3JkcyDigJMgVG9vQ29vTCBBcHIgMiAnMTMgYXQgMjM6NDUKMQpZb3Ugc2hvdWxkIHNob3cgeW91ciBjb2RlLiBNeSBndWVzcyBpcyB0aGF0IHF1ZXJ5IGV4ZWN1d
