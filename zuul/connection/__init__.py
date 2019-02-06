@@ -51,6 +51,15 @@ class BaseConnection(object):
             'reporter': [],
         }
 
+    def __repr__(self):
+        return "<%s name: %s>" % (
+            self.__class__.__name__,
+            self.connection_name
+        )
+
+    def __str__(self):
+        return "%s://%s" % (self.driver_name, self.connection_name)
+
     def onLoad(self):
         pass
 
