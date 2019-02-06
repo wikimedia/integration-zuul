@@ -37,7 +37,7 @@ def detect_cycle(change, history=None):
 class GerritSource(BaseSource):
     name = 'gerrit'
     log = logging.getLogger("zuul.source.Gerrit")
-    replication_timeout = 300
+    replication_timeout = 15
     replication_retry_interval = 5
 
     depends_on_re = re.compile(r"^Depends-On: (I[0-9a-f]{40})\s*$",
@@ -249,7 +249,10 @@ class GerritSource(BaseSource):
         max_ps = 0
         files = []
         for ps in data['patchSets']:
-            if ps['number'] == change.patchset:
+            # In some cases change.patchset is a string and in some cases the
+            # connection query can return an int. Cast both patchsets to
+            # strings to compare value not type.
+            if str(ps['number']) == str(change.patchset):
                 change.refspec = ps['ref']
                 for f in ps.get('files', []):
                     files.append(f['file'])
@@ -282,7 +285,7 @@ class GerritSource(BaseSource):
         needs_changes = []
         if 'dependsOn' in data:
             parts = data['dependsOn'][0]['ref'].split('/')
-            dep_num, dep_ps = parts[3], parts[4]
+            dep_num, dep_ps = int(parts[3]), int(parts[4])
             if dep_num in history:
                 raise Exception("Dependency cycle detected: %s in %s" % (
                     dep_num, history))
@@ -323,7 +326,7 @@ class GerritSource(BaseSource):
         if 'neededBy' in data:
             for needed in data['neededBy']:
                 parts = needed['ref'].split('/')
-                dep_num, dep_ps = parts[3], parts[4]
+                dep_num, dep_ps = int(parts[3]), int(parts[4])
                 self.log.debug("Updating %s: Getting git-needed change %s,%s" %
                                (change, dep_num, dep_ps))
                 dep = self._getChange(dep_num, dep_ps)
