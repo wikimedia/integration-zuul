@@ -38,6 +38,17 @@ Create a connection with gerrit.
   Path to SSH key to use when logging into above server.
   ``sshkey=/home/zuul/.ssh/id_rsa``
 
+**event_delay** (optional)
+
+  When querying a change immediately after a patchset upload, Gerrit may
+  return incorrect data about dependent changes. In order to avoid this,
+  the events are not delivered to Zuul until a constant number of
+  seconds has passed.
+
+  Note that if we receive several events in succession, we will only
+  need to delay for the first event.
+
+  Default: ``10`` (seconds)
 
 Gerrit Configuration
 ~~~~~~~~~~~~~~~~~~~~
