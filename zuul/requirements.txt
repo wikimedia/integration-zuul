@@ -7,8 +7,7 @@ extras==1.0.0
 futures==3.0.5
 gear==0.7.0
 gitdb==0.6.4
-gitdb2==2.0.5
-GitPython==2.1.11
+GitPython==2.0.8
 lockfile==0.12.2
 paramiko==1.18.5
 Paste==3.0.6
@@ -20,8 +19,8 @@ pytz==2018.9
 PyYAML==3.13
 six==1.12.0
 smmap==0.9.0
-smmap2==2.0.5
 statsd==2.1.2
 tzlocal==1.2.2
 voluptuous==0.9.3
 WebOb==1.8.5
+zuul
