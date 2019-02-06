@@ -1,0 +1,6 @@
+checks:
+  fetch_checks:
+    type: script
+    stage: fetch
+    timeout: 300
+    command: fetch_check.sh

@@ -901,7 +901,7 @@ class Changeish(object):
         base_path = ''
         if hasattr(self, 'refspec'):
             base_path = "%s/%s/%s" % (
-                self.number[-2:], self.number, self.patchset)
+                str(self.number)[-2:], self.number, self.patchset)
         elif hasattr(self, 'ref'):
             base_path = "%s/%s" % (self.newrev[:2], self.newrev)
 
