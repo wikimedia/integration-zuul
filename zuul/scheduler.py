@@ -866,6 +866,8 @@ class Scheduler(threading.Thread):
                         self.log.exception(
                             "Exception while canceling build %s "
                             "for change %s" % (build, item.change))
+                    finally:
+                        self.mutex.release(build.build_set.item, build.job)
             self.layout = layout
             self.maintainConnectionCache()
             for trigger in self.triggers.values():
@@ -1540,6 +1542,8 @@ class BasePipelineManager(object):
             except:
                 self.log.exception("Exception while canceling build %s "
                                    "for change %s" % (build, item.change))
+            finally:
+                self.sched.mutex.release(build.build_set.item, build.job)
             build.result = 'CANCELED'
             canceled = True
         self.updateBuildDescriptions(old_build_set)
@@ -1826,6 +1830,7 @@ class BasePipelineManager(object):
 <p>
   Triggered by change:
     <a href="{change.url}">{change.number},{change.patchset}</a><br/>
+  Project: <b>{change.project}</b><br/>
   Branch: <b>{change.branch}</b><br/>
   Pipeline: <b>{self.pipeline.name}</b>
 </p>"""
@@ -1834,6 +1839,7 @@ class BasePipelineManager(object):
 <p>
   Triggered by reference:
     {change.ref}</a><br/>
+  Project: <b>{change.project}</b><br/>
   Old revision: <b>{change.oldrev}</b><br/>
   New revision: <b>{change.newrev}</b><br/>
   Pipeline: <b>{self.pipeline.name}</b>
@@ -2056,7 +2062,12 @@ class DependentPipelineManager(BasePipelineManager):
         for a in change_queues:
             merged_a = False
             for b in new_change_queues:
-                if not a.getJobs().isdisjoint(b.getJobs()):
+                intersection = a.getJobs().intersection(b.getJobs())
+                # Queues are combined if they have intersecting jobs
+                # But don't count the special 'noop' job.
+                intersection = {j for j in intersection
+                                if j.name != 'noop'}
+                if intersection:
                     self.log.debug("Merging queue %s into %s" % (a, b))
                     b.mergeChangeQueue(a)
                     merged_a = True
