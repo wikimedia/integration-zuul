@@ -1,1 +1,0 @@
-extend-diff-ignore = "(\.gitreview|\.tox|.+\.egg-info/|.*pyc|((^|/)\.tox)|doc/build/|\.testrepository/|AUTHORS|Changelog)"
