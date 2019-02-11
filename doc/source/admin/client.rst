@@ -135,3 +135,18 @@ Example::
 
 This command validates the tenant configuration schema. It exits '-1' in
 case of errors detected.
+
+create-auth-token
+^^^^^^^^^^^^^^^^^
+.. program-output:: zuul create-auth-token --help
+
+Example::
+
+    zuul create-auth-token --auth-config zuul-operator --user venkman --tenant tenantA --expires-in 1800
+
+The return value is the value of the ``Authorization`` header the user must set
+when querying a protected endpoint on Zuul's REST API.
+
+Example::
+
+    bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbWFuYWdlc2Yuc2ZyZG90ZXN0aW5zdGFuY2Uub3JnIiwienV1bC50ZW5hbnRzIjp7ImxvY2FsIjoiKiJ9LCJleHAiOjE1Mzc0MTcxOTguMzc3NTQ0fQ.DLbKx1J84wV4Vm7sv3zw9Bw9-WuIka7WkPQxGDAHz7s
