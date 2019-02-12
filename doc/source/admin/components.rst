@@ -944,6 +944,45 @@ Operation
 To start the web server, run ``zuul-web``.  To stop it, kill the
 PID which was saved in the pidfile specified in the configuration.
 
+Web Client
+----------
+
+Zuul's command line client may be configured to make calls to Zuul's web
+server. The client will then look for a ``zuul.conf`` file with a ``webclient``
+section to set up the connection over HTTP.
+
+Configuration
+~~~~~~~~~~~~~
+
+.. attr:: webclient
+
+   .. attr:: url
+
+      The root URL of Zuul's web server.
+
+   .. attr:: verify_ssl
+      :default: true
+
+      Enforce SSL verification when sending requests over to Zuul's web server.
+      This should only be disabled when working with test servers.
+
+Configuration
+~~~~~~~~~~~~~
+
+In addition to the common configuration sections, the following
+sections of ``zuul.conf`` are used by the web server:
+
+.. attr:: web
+
+   .. attr:: listen_address
+      :default: 127.0.0.1
+
+      IP address or domain name on which to listen.
+
+   .. attr:: log_config
+
+      Path to log config file for the web server process.
+
 Finger Gateway
 --------------
 
