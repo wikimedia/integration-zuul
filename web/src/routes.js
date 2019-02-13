@@ -25,6 +25,7 @@ import BuildLogsPage from './pages/BuildLogs'
 import BuildConsolePage from './pages/BuildConsole'
 import LogFilePage from './pages/LogFile'
 import BuildsPage from './pages/Builds'
+import BuildsetPage from './pages/Buildset'
 import BuildsetsPage from './pages/Buildsets'
 import ConfigErrorsPage from './pages/ConfigErrors'
 import TenantsPage from './pages/Tenants'
@@ -102,6 +103,10 @@ const routes = () => [
   {
     to: '/build/:buildId/log/:file*',
     component: LogFilePage
+  },
+  {
+    to: '/buildset/:buildsetId',
+    component: BuildsetPage
   },
   {
     to: '/config-errors',

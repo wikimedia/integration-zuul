@@ -15,6 +15,7 @@
 import * as React from 'react'
 import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
+import { Link } from 'react-router-dom'
 import { Table } from 'patternfly-react'
 
 import { fetchBuildsets } from '../api'
@@ -76,6 +77,15 @@ class BuildsetsPage extends TableFilters {
         </a>
       </Table.Cell>
     )
+    const linkBuildsetFormat = (value, rowdata) => (
+      <Table.Cell>
+        <Link
+          to={this.props.tenant.linkPrefix +
+              '/buildset/' + rowdata.rowData.uuid}>
+          {value}
+        </Link>
+      </Table.Cell>
+    )
     this.columns = []
     this.filterTypes = []
     const myColumns = [
@@ -89,6 +99,8 @@ class BuildsetsPage extends TableFilters {
       let formatter = cellFormat
       if (column === 'change') {
         formatter = linkChangeFormat
+      } else if (column === 'result') {
+        formatter = linkBuildsetFormat
       }
       const label = column.charAt(0).toUpperCase() + column.slice(1)
       this.columns.push({
