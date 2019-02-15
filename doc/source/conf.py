@@ -25,9 +25,24 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = [ 'sphinxcontrib.blockdiag', 'sphinxcontrib.programoutput' ]
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx_autodoc_typehints',
+    'sphinx.ext.graphviz',
+    'sphinxcontrib.blockdiag',
+    'sphinxcontrib.programoutput',
+    'zuul_sphinx',
+    'zuul.sphinx.ansible',
+    'zuul.sphinx.zuul',
+    'reno.sphinxext',
+]
 #extensions = ['sphinx.ext.intersphinx']
 #intersphinx_mapping = {'python': ('http://docs.python.org/2.7', None)}
+
+# The docs build references a non-local image served at zuul-ci.org.
+suppress_warnings = ['image.nonlocal_uri']
+
+primary_domain = 'zuuldoc'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -84,12 +99,15 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'default'
+#html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-#html_theme_options = {}
+html_theme_options = {
+    'show_related': True,
+    'logo': 'logo.svg',
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
@@ -103,7 +121,7 @@ html_theme = 'default'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+#html_logo = '_static/logo.svg'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -113,7 +131,7 @@ html_theme = 'default'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['_static']
+html_static_path = ['_static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
