@@ -14,9 +14,7 @@ REQUIREMENTS=${BASE}/requirements.txt
 PIP=${VENV}/bin/pip
 
 mkdir -p $VENV
-# Zuul v2 only supports python2 at the moment.
-# TODO: convert to python3.
-virtualenv --python python2 $VENV || /bin/true
+virtualenv --python python3 $VENV || /bin/true
 $PIP install -r ${ZUUL}/requirements.txt
 $PIP freeze --local --requirement $REQUIREMENTS > $REQUIREMENTS
 
@@ -27,7 +25,7 @@ $PIP wheel --find-links $WHEEL_DIR \
     --wheel-dir $WHEEL_DIR \
     --requirement $REQUIREMENTS
 
-cd _build/venv/lib/python2.7/site-packages
+cd build/venv/lib/python3.5/site-packages
 
 ln -s ../../../../../zuul ./zuul
 

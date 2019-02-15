@@ -1,0 +1,5 @@
+---
+features:
+  - |
+    The json log now also contains the role name and the uuid
+    similar to the task entry.
