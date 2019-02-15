@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Point at deployed dirs.
-deploy_dir="${SCAP_REV_PATH}"
+deploy_dir="${PWD}/../.."
 venv="${deploy_dir}/venv"
 
 # Install python libs.
 cd $deploy_dir
 mkdir -p $venv
-virtualenv --python python2 --system-site-packages --never-download $venv
-[ -f $deploy_dir/wheels/pip-*.whl ] && $venv/bin/pip install --use-wheel --no-deps $deploy_dir/wheels/pip-*.whl
-$venv/bin/pip install --use-wheel --no-deps $deploy_dir/wheels/*.whl
+python3 -m venv $venv
+[ -f $deploy_dir/wheels/pip-*.whl ] && $venv/bin/pip3 install --use-wheel --no-deps $deploy_dir/wheels/pip-*.whl
+$venv/bin/pip3 install --use-wheel --no-deps $deploy_dir/wheels/*.whl

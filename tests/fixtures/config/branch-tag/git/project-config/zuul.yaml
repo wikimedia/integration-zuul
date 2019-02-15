@@ -1,0 +1,25 @@
+- pipeline:
+    name: tag
+    manager: independent
+    trigger:
+      gerrit:
+        - event: ref-updated
+          ref: ^refs/tags/.*$
+
+- job:
+    name: base
+    parent: null
+
+- job:
+    name: central-job
+    run: playbooks/central-job.yaml
+
+- project:
+    name: project-config
+    tag:
+      jobs: []
+
+- project:
+    name: org/project
+    tag:
+      jobs: []
