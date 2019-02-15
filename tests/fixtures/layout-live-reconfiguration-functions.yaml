@@ -9,29 +9,20 @@ pipelines:
       gerrit:
         - event: comment-added
           approval:
-            - approved: 1
+            - Approved: 1
     success:
       gerrit:
-        verified: 2
+        Verified: 2
         submit: true
     failure:
       gerrit:
-        verified: -2
+        Verified: -2
     start:
       gerrit:
-        verified: 0
+        Verified: 0
     precedence: high
 
 jobs:
   - name: ^.*-merge$
     failure-message: Unable to merge change
     hold-following-changes: true
-  - name: node-project-test1
-    parameter-function: select_debian_node
-
-projects:
-  - name: org/node-project
-    gate:
-      - node-project-merge:
-        - node-project-test1
-        - node-project-test2
