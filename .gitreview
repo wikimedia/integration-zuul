@@ -1,5 +1,4 @@
 [gerrit]
-host=gerrit.wikimedia.org
+host=review.openstack.org
 port=29418
-project=integration/zuul.git
-defaultbranch=debian/jessie-wikimedia
+project=openstack-infra/zuul.git
