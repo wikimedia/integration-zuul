@@ -20,14 +20,27 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('url', help='The URL of the running Zuul instance')
-parser.add_argument('pipeline_name', help='The name of the Zuul pipeline')
+parser.add_argument('tenant', help='The Zuul tenant')
+parser.add_argument('pipeline', help='The name of the Zuul pipeline')
 options = parser.parse_args()
 
-data = urllib2.urlopen('%s/status.json' % options.url).read()
-data = json.loads(data)
+# Check if tenant is white label
+info = json.loads(urllib2.urlopen('%s/api/info' % options.url).read())
+api_tenant = info.get('info', {}).get('tenant')
+if api_tenant:
+    if api_tenant == options.tenant:
+        status_url = '%s/api/status' % options.url
+    else:
+        print("Error: %s doesn't match tenant %s (!= %s)" % (
+            options.url, options.tenant, api_tenant))
+        exit(1)
+else:
+    status_url = '%s/api/tenant/%s/status' % (options.url, options.tenant)
+
+data = json.loads(urllib2.urlopen(status_url).read())
 
 for pipeline in data['pipelines']:
-    if pipeline['name'] != options.pipeline_name:
+    if pipeline['name'] != options.pipeline:
         continue
     for queue in pipeline['change_queues']:
         for head in queue['heads']:
@@ -36,9 +49,10 @@ for pipeline in data['pipelines']:
                     continue
                 cid, cps = change['id'].split(',')
                 print(
-                    "zuul enqueue --trigger gerrit --pipeline %s "
-                    "--project %s --change %s,%s" % (
-                        options.pipeline_name,
-                        change['project'],
+                    "zuul enqueue --tenant %s --trigger gerrit "
+                    "--pipeline %s --project %s --change %s,%s" % (
+                        options.tenant,
+                        options.pipeline,
+                        change['project_canonical'],
                         cid, cps)
                 )
