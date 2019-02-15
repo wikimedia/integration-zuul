@@ -1,12 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Point at deployed dirs.
-deploy_dir="${SCAP_REV_PATH}"
-venv="${deploy_dir}/venv"
+DEPLOY_DIR=/srv/deployment/integration/zuul
+VENV="${DEPLOY_DIR}/venv"
 
 # Install python libs.
-cd $deploy_dir
-mkdir -p $venv
-virtualenv --python python2 --system-site-packages --never-download $venv
-[ -f $deploy_dir/wheels/pip-*.whl ] && $venv/bin/pip install --use-wheel --no-deps $deploy_dir/wheels/pip-*.whl
-$venv/bin/pip install --use-wheel --no-deps $deploy_dir/wheels/*.whl
+cd $DEPLOY_DIR
+mkdir -p $VENV
+python3 -m venv $VENV
+[ -f $DEPLOY_DIR/wheels/pip-*.whl ] && $VENV/bin/pip3 install --use-wheel --no-deps $DEPLOY_DIR/wheels/pip-*.whl
+$VENV/bin/pip3 install --use-wheel --no-deps $DEPLOY_DIR/wheels/*.whl

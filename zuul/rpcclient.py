@@ -26,18 +26,18 @@ class RPCFailure(Exception):
 class RPCClient(object):
     log = logging.getLogger("zuul.RPCClient")
 
-    def __init__(self, server, port):
+    def __init__(self, server, port, ssl_key=None, ssl_cert=None, ssl_ca=None):
         self.log.debug("Connecting to gearman at %s:%s" % (server, port))
         self.gearman = gear.Client()
-        self.gearman.addServer(server, port)
+        self.gearman.addServer(server, port, ssl_key, ssl_cert, ssl_ca)
         self.log.debug("Waiting for gearman")
         self.gearman.waitForServer()
 
     def submitJob(self, name, data):
         self.log.debug("Submitting job %s with data %s" % (name, data))
-        job = gear.Job(name,
-                       json.dumps(data),
-                       unique=str(time.time()))
+        job = gear.TextJob(name,
+                           json.dumps(data),
+                           unique=str(time.time()))
         self.gearman.submitJob(job, timeout=300)
 
         self.log.debug("Waiting for job completion")
@@ -48,16 +48,39 @@ class RPCClient(object):
         self.log.debug("Job complete, success: %s" % (not job.failure))
         return job
 
-    def enqueue(self, pipeline, project, trigger, change):
-        data = {'pipeline': pipeline,
+    def autohold(self, tenant, project, job, change, ref, reason, count,
+                 node_hold_expiration=None):
+        data = {'tenant': tenant,
+                'project': project,
+                'job': job,
+                'change': change,
+                'ref': ref,
+                'reason': reason,
+                'count': count,
+                'node_hold_expiration': node_hold_expiration}
+        return not self.submitJob('zuul:autohold', data).failure
+
+    def autohold_list(self):
+        data = {}
+        job = self.submitJob('zuul:autohold_list', data)
+        if job.failure:
+            return False
+        else:
+            return json.loads(job.data[0])
+
+    def enqueue(self, tenant, pipeline, project, trigger, change):
+        data = {'tenant': tenant,
+                'pipeline': pipeline,
                 'project': project,
                 'trigger': trigger,
                 'change': change,
                 }
         return not self.submitJob('zuul:enqueue', data).failure
 
-    def enqueue_ref(self, pipeline, project, trigger, ref, oldrev, newrev):
-        data = {'pipeline': pipeline,
+    def enqueue_ref(
+            self, tenant, pipeline, project, trigger, ref, oldrev, newrev):
+        data = {'tenant': tenant,
+                'pipeline': pipeline,
                 'project': project,
                 'trigger': trigger,
                 'ref': ref,
@@ -66,8 +89,18 @@ class RPCClient(object):
                 }
         return not self.submitJob('zuul:enqueue_ref', data).failure
 
-    def promote(self, pipeline, change_ids):
-        data = {'pipeline': pipeline,
+    def dequeue(self, tenant, pipeline, project, change, ref):
+        data = {'tenant': tenant,
+                'pipeline': pipeline,
+                'project': project,
+                'change': change,
+                'ref': ref,
+                }
+        return not self.submitJob('zuul:dequeue', data).failure
+
+    def promote(self, tenant, pipeline, change_ids):
+        data = {'tenant': tenant,
+                'pipeline': pipeline,
                 'change_ids': change_ids,
                 }
         return not self.submitJob('zuul:promote', data).failure
@@ -82,3 +115,11 @@ class RPCClient(object):
 
     def shutdown(self):
         self.gearman.shutdown()
+
+    def get_job_log_stream_address(self, uuid, logfile='console.log'):
+        data = {'uuid': uuid, 'logfile': logfile}
+        job = self.submitJob('zuul:get_job_log_stream_address', data)
+        if job.failure:
+            return False
+        else:
+            return json.loads(job.data[0])
