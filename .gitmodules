@@ -1,6 +1,0 @@
-[submodule "build"]
-	path = build
-	url = https://gerrit.wikimedia.org/r/integration/zuul/build
-[submodule "wheels"]
-	path = wheels
-	url = https://gerrit.wikimedia.org/r/integration/zuul/wheels
