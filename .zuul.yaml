@@ -1,0 +1,155 @@
+- nodeset:
+    name: zuul-functional-temp-master
+    nodes:
+      - name: controller
+        label: ubuntu-xenial
+      - name: node1
+        label: ubuntu-xenial
+      - name: node2
+        label: ubuntu-xenial
+    groups:
+      - name: node
+        nodes:
+          - node1
+          - node2
+
+- job:
+    name: zuul-stream-functional
+    parent: multinode
+    nodeset: zuul-functional-temp-master
+    pre-run: playbooks/zuul-stream/pre.yaml
+    run: playbooks/zuul-stream/functional.yaml
+    post-run:
+      - playbooks/zuul-stream/post.yaml
+      - playbooks/zuul-stream/post-ara.yaml
+    required-projects:
+      - openstack/ara
+    files:
+      - zuul/ansible/.*
+      - playbooks/zuul-stream/.*
+      - requirements.txt
+
+- job:
+    name: zuul-tox-remote
+    parent: tox
+    vars:
+      tox_envlist: remote
+      tox_environment:
+        ZUUL_SSH_KEY: /home/zuul/.ssh/id_rsa
+        ZUUL_REMOTE_IPV4: "{{ nodepool.interface_ip }}"
+        ZUUL_REMOTE_KEEP: "true"
+
+- job:
+    name: zuul-build-dashboard
+    parent: build-javascript-content
+    success-url: 'npm/html/'
+    files:
+      - web/.*
+      - playbooks/dashboard/.*
+    vars:
+      javascript_content_dir: "../zuul/web/static"
+      zuul_work_dir: "{{ zuul.project.src_dir }}/web"
+      zuul_api_url: https://zuul.openstack.org
+    run: playbooks/dashboard/run.yaml
+
+- job:
+    name: zuul-build-dashboard-multi-tenant
+    parent: zuul-build-dashboard
+    vars:
+      zuul_api_url: https://softwarefactory-project.io/zuul
+
+- job:
+    name: zuul-quick-start
+    description: Run the commands in the Zuul quick-start documentation.
+    run: playbooks/quick-start/run.yaml
+    post-run: playbooks/quick-start/post.yaml
+    roles:
+      - zuul: openstack-infra/zuul-jobs
+    required-projects:
+      - openstack/pbrx
+      - openstack-infra/nodepool
+      - openstack-infra/zuul
+
+- project:
+    check:
+      jobs:
+        - tox-docs
+        - tox-pep8
+        - tox-py35:
+            irrelevant-files:
+              - zuul/cmd/migrate.py
+              - playbooks/zuul-migrate/.*
+        - tox-py36:
+            nodeset: ubuntu-bionic
+            irrelevant-files:
+              - zuul/cmd/migrate.py
+              - playbooks/zuul-migrate/.*
+        - zuul-build-dashboard
+        - zuul-build-dashboard-multi-tenant
+        - nodejs-npm-run-lint:
+            vars:
+              node_version: 8
+              zuul_work_dir: "{{ zuul.project.src_dir }}/web"
+        - nodejs-npm-run-test:
+            vars:
+              node_version: 8
+              zuul_work_dir: "{{ zuul.project.src_dir }}/web"
+            success-url: 'npm/reports/bundle.html'
+            files:
+              - web/.*
+        - zuul-stream-functional
+        - zuul-tox-remote
+        - zuul-quick-start
+        - pbrx-build-container-images:
+            vars:
+              pbrx_prefix: zuul
+        - nodepool-zuul-functional:
+            voting: false
+    gate:
+      jobs:
+        - tox-docs
+        - tox-pep8
+        - tox-py35:
+            irrelevant-files:
+              - zuul/cmd/migrate.py
+              - playbooks/zuul-migrate/.*
+        - tox-py36:
+            nodeset: ubuntu-bionic
+            irrelevant-files:
+              - zuul/cmd/migrate.py
+              - playbooks/zuul-migrate/.*
+        - zuul-build-dashboard
+        - nodejs-npm-run-lint:
+            vars:
+              node_version: 8
+              zuul_work_dir: "{{ zuul.project.src_dir }}/web"
+        - nodejs-npm-run-test:
+            vars:
+              node_version: 8
+              zuul_work_dir: "{{ zuul.project.src_dir }}/web"
+            success-url: 'npm/reports/bundle.html'
+            files:
+              - web/.*
+        - zuul-stream-functional
+        - zuul-tox-remote
+        - zuul-quick-start
+        - pbrx-build-container-images:
+            vars:
+              pbrx_prefix: zuul
+    post:
+      jobs:
+        - publish-zuul-docs
+        - publish-zuul-python-branch-tarball
+        - publish-openstack-javascript-content:
+            vars:
+              node_version: 8
+              zuul_work_dir: "{{ zuul.project.src_dir }}/web"
+              create_tarball_directory: build
+        - openstackzuul-pbrx-push-container-images:
+            vars:
+              pbrx_prefix: zuul
+
+    release:
+      jobs:
+        - release-zuul-python
+        - publish-zuul-docs

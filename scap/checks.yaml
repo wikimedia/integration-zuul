@@ -1,6 +1,8 @@
+---
 checks:
-  fetch_checks:
-    type: script
-    stage: fetch
+  virtualenv:
+    type: command
+    stage: promote
     timeout: 300
-    command: fetch_check.sh
+    group: default
+    command: bash /srv/deployment/integration/zuul/scap/checks/virtualenv.sh
