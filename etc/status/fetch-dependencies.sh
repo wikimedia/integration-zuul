@@ -1,23 +1,2 @@
-#!/bin/bash
-BASE_DIR=$(cd $(dirname $0); pwd)
-DEST_DIR=$BASE_DIR/public_html/lib
-mkdir -p $DEST_DIR
-echo "Destination: $DEST_DIR"
 
-echo "Fetching jquery.min.js..."
-curl -L --silent http://code.jquery.com/jquery.min.js > $DEST_DIR/jquery.min.js
-
-echo "Fetching jquery-visibility.min.js..."
-curl -L --silent https://raw.githubusercontent.com/mathiasbynens/jquery-visibility/master/jquery-visibility.js > $DEST_DIR/jquery-visibility.js
-
-echo "Fetching jquery.graphite.js..."
-curl -L --silent https://github.com/prestontimmons/graphitejs/archive/master.zip > jquery-graphite.zip
-unzip -q -o jquery-graphite.zip -d $DEST_DIR/
-mv $DEST_DIR/graphitejs-master/jquery.graphite.js $DEST_DIR/
-rm -R jquery-graphite.zip $DEST_DIR/graphitejs-master
-
-echo "Fetching bootstrap..."
-curl -L --silent https://github.com/twbs/bootstrap/releases/download/v3.1.1/bootstrap-3.1.1-dist.zip > bootstrap.zip
-unzip -q -o bootstrap.zip -d $DEST_DIR/
-mv $DEST_DIR/bootstrap-3.1.1-dist $DEST_DIR/bootstrap
-rm bootstrap.zip
+NDQKCgo4YWlsaW5nIGFnYWluLCB3aGF0IHNob3VsZCBJIGNoYW5eW91IHNldCB0aGUgdmFsdWUgcmVhbGx5IGhpZ2ggYW5kIGl0IHN0aWxsIHN0b3BwZWQuIE15IGd1ZXNzIGlzIHlvdSBtaWdodCBoYXZlbXByb3ZlIHRoaXMgcXVlc3Rpb24KYXNrZWQgQXByIDIgJzEzIGF0IDIzOjQwCgpUb29Db29MCjYsNzkwNjIyMzcKMQpjYWxsIGl0IGZyb20gdGhlIGNvbW1hbmQgbGluZSwgbm8gdGltZSBsaW1pdCB0aGF0IHdheSDigJMgdXNlcjU1Nzg0NiBBcHIgMiAnMTMgYXQgMjM6NDIKMgpzZXRfdGltZV9saW1pdCgwKSBhdCB0aGUgYmVnaW5pbmcgb2YgeW91ciBzY3JpcHQgd2lsbCBkaXNhYmxlIHRoZSB0aW1lIGxpbWl0LiBCdXQgeW91IGNhbiBoYXZlIG90aGVyIHJlYXNvbiBmb3IgYSBwcmVtYXR1cmUgc3RvcC4gSXQgY2FuIGJlIGEgcHJvYmxlbSB3aXRoIHlvdXIgREIgb3IgYSBwcm9ibGVtIHdpdGggdGhlIG1lbW9yeSAoaWYgeW91IGFyZSBjcmVhdGluZyBhIGxvdCBvIGEgbWVtb3J5IGlzc3VlLiDigJMgTWlrZSBCcmFudCBBcHIgMiAnMTMgYXQgMjM6NTEKc2hvdyAzIG1vcWYgWF4X2V4ZWN1dGlvbl90aW1lIHRvIDUwMDAwMDAwMDAwIGFuZCB5ZXQgaXQgc3RvcGVkIGF0IGNlcnRhaW4gcG9pbnQsIEkgZG9udCBrbm93IHdoYXQgZWxzZSBjb3VsZCBsaW1pdCB0aGUgZXhlY3V0aW9uIHRpbWUsIEkgaGF2ZSBiZWVuIHJ1bm5pbmcgdGhpcyBhIGxvdCBvZiB0aW1lcyBhbmQgSSBhbSB0aXJlZCBvZiB3YWl0aW5nIGFuZCBmY2hlY2tlZCB0aGUgZm9yIFBIUCBlcnJvcnMgaW4gdGhlIHBocCBmb2xkZXIgb2YgeGFtcHAgYnV0IGl0IGRpZG50IHNob3cgYW55dGhpbmcgYXQgdGhlIHRpbWUgdGhlIHNjcmlwdCBzdG9wcGVkLCBldmVyeXRpbWUgaXQggcmVjb3JkcyDigJMgVG9vQ29vTCBBcHIgMiAnMTMgYXQgMjM6NDUKMQpZb3Ugc2hvdWxkIHNob3cgeW91ciBjb2RlLiBNeSBndWVzcyBpcyB0aGF0IHF1ZXJ5IGV4ZWN1d
