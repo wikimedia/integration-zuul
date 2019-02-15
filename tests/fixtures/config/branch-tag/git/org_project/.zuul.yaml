@@ -1,0 +1,10 @@
+- job:
+    name: test-job
+    run: playbooks/test-job.yaml
+
+- project:
+    name: org/project
+    tag:
+      jobs:
+        - central-job
+        - test-job
