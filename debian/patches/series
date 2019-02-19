@@ -17,3 +17,4 @@
 0017-Fix-missing-mutex-release-when-aborting-builds.patch
 0018-wmf-ignore-submit-error-on-merged-change.patch
 0019-wmf-Show-project-in-build-description.patch
+0020-remove-p-from-info-refs-call.patch
