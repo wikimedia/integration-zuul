@@ -41,6 +41,13 @@
           ref: ^(?!refs/).*$
     precedence: low
 
+- pipeline:
+    name: periodic
+    manager: independent
+    trigger:
+      timer:
+        - time: '0 0 * * *'
+
 - job:
     name: base
     parent: null
