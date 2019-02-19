@@ -1,0 +1,27 @@
+From: Paladox <thomasmulhall410@yahoo.com>
+Date: Tuesday, 19 Feb 2019 21:34:32 +0000
+Subject: Remove /p/ from /info/refs call
+
+In gerrit 2.16, PolyGerrit was made the default ui, but
+because of this /p/ stopped working. Upstream support
+calling /info/refs without the /p/ prefix (as /p/ is optional)
+
+Bug: T214807
+Change-Id: Id37f53213b3d2a88bd7b02fa6de9ae5f77935642
+---
+ zuul/connection/gerrit.py | 9 ++++++++-
+ 1 file changed, 1 insertions(+), 1 deletion(-)
+
+diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
+index c1c83dc..4e269df 100644
+--- a/zuul/connection/gerrit.py
++++ b/zuul/connection/gerrit.py
+@@ -392,7 +392,7 @@ class GerritConnection(BaseConnection):
+         return (out, err)
+ 
+     def getInfoRefs(self, project):
+-        url = "%s/p/%s/info/refs?service=git-upload-pack" % (
++        url = "%s/%s/info/refs?service=git-upload-pack" % (
+             self.baseurl, project)
+         try:
+             data = urllib.request.urlopen(url).read()
