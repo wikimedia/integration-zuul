@@ -398,7 +398,7 @@ class GerritConnection(BaseConnection):
         return (out, err)
 
     def getInfoRefs(self, project):
-        url = "%s/p/%s/info/refs?service=git-upload-pack" % (
+        url = "%s/%s/info/refs?service=git-upload-pack" % (
             self.baseurl, project)
         try:
             data = urllib.request.urlopen(url).read()
