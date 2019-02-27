@@ -27,6 +27,8 @@ import textwrap
 import types
 import itertools
 
+import jsonpath_rw
+
 from zuul import change_matcher
 from zuul.lib.config import get_default
 from zuul.lib.artifacts import get_artifacts_from_result_data
@@ -3443,16 +3445,18 @@ class UnparsedAbideConfig(object):
 
     """A collection of yaml lists that has not yet been parsed into objects.
 
-    An Abide is a collection of tenants.
+    An Abide is a collection of tenants and access rules to those tenants.
     """
 
     def __init__(self):
         self.tenants = []
+        self.admin_rules = []
         self.known_tenants = set()
 
     def extend(self, conf):
         if isinstance(conf, UnparsedAbideConfig):
             self.tenants.extend(conf.tenants)
+            self.admin_rules.extend(conf.admin_rules)
             return
 
         if not isinstance(conf, list):
@@ -3468,6 +3472,8 @@ class UnparsedAbideConfig(object):
                 self.tenants.append(value)
                 if 'name' in value:
                     self.known_tenants.add(value['name'])
+            elif key == 'admin-rule':
+                self.admin_rules.append(value)
             else:
                 raise ConfigItemUnknownError()
 
@@ -4237,6 +4243,8 @@ class Tenant(object):
         # The per tenant default ansible version
         self.default_ansible_version = None
 
+        self.authorization_rules = []
+
     def _addProject(self, tpc):
         """Add a project to the project index
 
@@ -4429,6 +4437,7 @@ class UnparsedBranchCache(object):
 
 class Abide(object):
     def __init__(self):
+        self.admin_rules = OrderedDict()
         self.tenants = OrderedDict()
         # project -> branch -> UnparsedBranchCache
         self.unparsed_project_branch_cache = {}
@@ -4619,3 +4628,110 @@ class WebInfo(object):
         if self.tenant:
             d['tenant'] = self.tenant
         return d
+
+
+# AuthZ models
+
+class AuthZRule(object):
+    """The base class for authorization rules"""
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class ClaimRule(AuthZRule):
+    """This rule checks the value of a claim.
+    The check tries to be smart by assessing the type of the tested value."""
+    def __init__(self, claim=None, value=None):
+        super(ClaimRule, self).__init__()
+        self.claim = claim or 'sub'
+        self.value = value
+
+    def __call__(self, claims):
+        matches = [match.value
+                   for match in jsonpath_rw.parse(self.claim).find(claims)]
+        if len(matches) == 1:
+            match = matches[0]
+            if isinstance(match, list):
+                return self.value in match
+            elif isinstance(match, str):
+                return self.value == match
+            else:
+                # unsupported type - don't raise, but this should be notified
+                return False
+        else:
+            # TODO we should differentiate no match and 2+ matches
+            return False
+
+    def __eq__(self, other):
+        if not isinstance(other, ClaimRule):
+            return False
+        return (self.claim == other.claim and self.value == other.value)
+
+    def __repr__(self):
+        return '<ClaimRule "%s":"%s">' % (self.claim, self.value)
+
+    def __hash__(self):
+        return hash(repr(self))
+
+
+class OrRule(AuthZRule):
+
+    def __init__(self, subrules):
+        super(OrRule, self).__init__()
+        self.rules = set(subrules)
+
+    def __call__(self, claims):
+        return any(rule(claims) for rule in self.rules)
+
+    def __eq__(self, other):
+        if not isinstance(other, OrRule):
+            return False
+        return self.rules == other.rules
+
+    def __repr__(self):
+        return '<OrRule %s>' % ('  || '.join(repr(r) for r in self.rules))
+
+    def __hash__(self):
+        return hash(repr(self))
+
+
+class AndRule(AuthZRule):
+
+    def __init__(self, subrules):
+        super(AndRule, self).__init__()
+        self.rules = set(subrules)
+
+    def __call__(self, claims):
+        return all(rule(claims) for rule in self.rules)
+
+    def __eq__(self, other):
+        if not isinstance(other, AndRule):
+            return False
+        return self.rules == other.rules
+
+    def __repr__(self):
+        return '<AndRule %s>' % (' && '.join(repr(r) for r in self.rules))
+
+    def __hash__(self):
+        return hash(repr(self))
+
+
+class AuthZRuleTree(object):
+
+    def __init__(self, name):
+        self.name = name
+        # initialize actions as unauthorized
+        self.ruletree = None
+
+    def __call__(self, claims):
+        return self.ruletree(claims)
+
+    def __eq__(self, other):
+        if not isinstance(other, AuthZRuleTree):
+            return False
+        return (self.name == other.name and
+                self.ruletree == other.ruletree)
+
+    def __repr__(self):
+        return '<AuthZRuleTree [ %s ]>' % self.ruletree

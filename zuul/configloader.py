@@ -1317,6 +1317,38 @@ class SemaphoreParser(object):
         return semaphore
 
 
+class AuthorizationRuleParser(object):
+    def __init__(self):
+        self.log = logging.getLogger("zuul.AuthorizationRuleParser")
+        self.schema = self.getSchema()
+
+    def getSchema(self):
+
+        authRule = {vs.Required('name'): str,
+                    vs.Required('conditions'): to_list(dict)
+                   }
+
+        return vs.Schema(authRule)
+
+    def fromYaml(self, conf):
+        self.schema(conf)
+        a = model.AuthZRuleTree(conf['name'])
+
+        def parse_tree(node):
+            if isinstance(node, list):
+                return model.OrRule(parse_tree(x) for x in node)
+            elif isinstance(node, dict):
+                subrules = []
+                for claim, value in node.items():
+                    subrules.append(model.ClaimRule(claim, value))
+                return model.AndRule(subrules)
+            else:
+                raise Exception('Invalid claim declaration %r' % node)
+
+        a.ruletree = parse_tree(conf['conditions'])
+        return a
+
+
 class ParseContext(object):
     """Hold information about a particular run of the parser"""
 
@@ -1419,6 +1451,7 @@ class TenantParser(object):
                   'allowed-labels': to_list(str),
                   'default-parent': str,
                   'default-ansible-version': vs.Any(str, float),
+                  'admin-rules': to_list(str),
                   }
         return vs.Schema(tenant)
 
@@ -2064,6 +2097,7 @@ class ConfigLoader(object):
             self.keystorage = None
         self.tenant_parser = TenantParser(connections, scheduler,
                                           merger, self.keystorage)
+        self.admin_rule_parser = AuthorizationRuleParser()
 
     def expandConfigPath(self, config_path):
         if config_path:
@@ -2105,6 +2139,9 @@ class ConfigLoader(object):
 
     def loadConfig(self, unparsed_abide, ansible_manager):
         abide = model.Abide()
+        for conf_admin_rule in unparsed_abide.admin_rules:
+            admin_rule = self.admin_rule_parser.fromYaml(conf_admin_rule)
+            abide.admin_rules[admin_rule.name] = admin_rule
         for conf_tenant in unparsed_abide.tenants:
             # When performing a full reload, do not use cached data.
             tenant = self.tenant_parser.fromYaml(
@@ -2123,6 +2160,7 @@ class ConfigLoader(object):
     def reloadTenant(self, abide, tenant, ansible_manager):
         new_abide = model.Abide()
         new_abide.tenants = abide.tenants.copy()
+        new_abide.admin_rules = abide.admin_rules.copy()
         new_abide.unparsed_project_branch_cache = \
             abide.unparsed_project_branch_cache
 

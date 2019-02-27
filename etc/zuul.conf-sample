@@ -39,6 +39,7 @@ listen_address=127.0.0.1
 port=9000
 static_cache_expiry=0
 status_url=https://zuul.example.com/status
+authorizations_config=/etc/zuul/authorizations.yaml
 
 [webclient]
 url=https://zuul.example.com
