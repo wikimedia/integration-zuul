@@ -15,11 +15,15 @@ rest (no pipelines, jobs, etc are shared between them).
 A project may appear in more than one tenant; this may be useful if
 you wish to use common job definitions across multiple tenants.
 
+Actions normally available to the Zuul operator only can be performed by specific
+users on Zuul's REST API, if admin rules are listed for the tenant. Admin rules
+are also defined in the tenant configuration file.
+
 The tenant configuration file is specified by the
 :attr:`scheduler.tenant_config` setting in ``zuul.conf``.  It is a
 YAML file which, like other Zuul configuration files, is a list of
-configuration objects, though only one type of object is supported:
-``tenant``.
+configuration objects, though only two types of objects are supported:
+``tenant`` and ``admin-rule``.
 
 Alternatively the :attr:`scheduler.tenant_config_script`
 can be the path to an executable that will be executed and its stdout
@@ -55,6 +59,9 @@ configuration. Some examples of tenant definitions are:
 
    - tenant:
        name: my-tenant
+       admin-rules:
+         - acl1
+         - acl2
        source:
          gerrit:
            config-projects:
@@ -83,6 +90,17 @@ configuration. Some examples of tenant definitions are:
       monitoring fields, and so should be restricted to URL friendly
       characters (ASCII letters, numbers, hyphen and underscore) and
       you should avoid changing it unless necessary.
+
+   .. attr:: admin-rules
+
+      A list of access rules for the tenant. These rules are checked to grant
+      privileged actions to users at the tenant level, through Zuul's REST API.
+
+      At least one rule in the list must match for the user to be allowed the
+      privileged action.
+
+      More information on tenant-scoped actions can be found in
+      :ref:`this section <tenant-scoped-rest-api>`.
 
    .. attr:: source
       :required:
@@ -288,3 +306,107 @@ configuration. Some examples of tenant definitions are:
       The list of labels regexp a tenant can use in job's nodeset. When set,
       this setting can be used to restrict what labels a tenant can use.
       Without this setting, the tenant can use any labels.
+
+.. _admin_rule_definition:
+
+Access Rule
+-----------
+
+An access rule is a set of conditions the claims of a user's JWT must match
+in order to be allowed to perform protected actions at a tenant's level.
+
+The protected actions available at tenant level are **autohold**, **enqueue**
+or **dequeue**.
+
+.. note::
+
+   Rules can be overridden by the ``zuul.admin`` claim in a Token if if matches
+   an authenticator configuration where `allow_authz_override` is set to true.
+   See :ref:`Zuul web server's configuration <web-server-tenant-scoped-api>` for
+   more details.
+
+Below are some examples of how access rules can be defined:
+
+.. code-block:: yaml
+
+   - admin-rule:
+       name: ghostbuster_or_gozerian
+       conditions:
+         - resources_access.account.roles: "ghostbuster"
+           iss: columbia_university
+         - resources_access.account.roles: "gozerian"
+   - admin-rule:
+       name: venkman_or_stantz
+       conditions:
+         - zuul_uid: venkman
+         - zuul_uid: stantz
+
+
+.. attr:: admin-rule
+
+   The following attributes are supported:
+
+   .. attr:: name
+      :required:
+
+      The name of the rule, so that it can be referenced in the ``admin-rules``
+      attribute of a tenant's definition. It must be unique.
+
+   .. attr:: conditions
+      :required:
+
+      This is the list of conditions that define a rule. A JWT must match **at
+      least one** of the conditions for the rule to apply. A condition is a
+      dictionary where keys are claims. **All** the associated values must
+      match the claims in the user's Token.
+
+      Zuul's authorization engine will adapt matching tests depending on the
+      nature of the claim in the Token, eg:
+
+      * if the claim is a JSON list, check that the condition value is in the
+        claim
+      * if the claim is a string, check that the condition value is equal to
+        the claim's value
+
+        In order to allow the parsing of claims with complex structures like
+        dictionaries, claim names can be written in the XPath format.
+
+        The special ``zuul_uid`` claim refers to the ``uid_claim`` setting in an
+        authenticator's configuration. By default it refers to the ``sub`` claim
+        of a Token. For more details see the :ref:`configuration section
+        <web-server-tenant-scoped-api>` for Zuul web server.
+
+        Under the above example, the following Token would match rules
+        ``ghostbuster_or_gozerian`` and ``venkman_or_stantz``:
+
+        .. code-block:: javascript
+
+          {
+           'iss': 'columbia_university',
+           'aud': 'my_zuul_deployment',
+           'exp': 1234567890,
+           'iat': 1234556780,
+           'sub': 'venkman',
+           'resources_access': {
+               'account': {
+                   'roles': ['ghostbuster', 'played_by_bill_murray']
+               }
+           },
+          }
+
+        And this Token would only match rule ``ghostbuster_or_gozerian``:
+
+        .. code-block:: javascript
+
+          {
+           'iss': 'some_hellish_dimension',
+           'aud': 'my_zuul_deployment',
+           'exp': 1234567890,
+           'sub': 'vinz_clortho',
+           'iat': 1234556780,
+           'resources_access': {
+               'account': {
+                   'roles': ['gozerian', 'keymaster']
+               }
+           },
+          }

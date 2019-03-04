@@ -2531,7 +2531,6 @@ class ZuulWebFixture(fixtures.Fixture):
                              zuul.driver.pagure.PagureDriver])
         self.authenticators = zuul.lib.auth.AuthenticatorRegistry()
         self.authenticators.configure(config)
-        self.authorizations = zuul.lib.auth.AuthorizationRegistry()
         if info is None:
             self.info = zuul.model.WebInfo()
         else:
@@ -2548,8 +2547,7 @@ class ZuulWebFixture(fixtures.Fixture):
             connections=self.connections,
             zk_hosts=self.zk_hosts,
             command_socket=os.path.join(self.test_root, 'web.socket'),
-            authenticators=self.authenticators,
-            authorizations=self.authorizations)
+            authenticators=self.authenticators)
         self.web.start()
         self.addCleanup(self.stop)
 

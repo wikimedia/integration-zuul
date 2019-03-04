@@ -36,6 +36,11 @@ class JWTAuthenticator(AuthenticatorInterface):
         self.audience = conf.get('client_id')
         self.realm = conf.get('realm')
         self.allow_authz_override = conf.get('allow_authz_override', False)
+        if isinstance(self.allow_authz_override, str):
+            if self.allow_authz_override.lower() == 'true':
+                self.allow_authz_override = True
+            else:
+                self.allow_authz_override = False
 
     def _decode(self, rawToken):
         raise NotImplementedError
@@ -90,8 +95,9 @@ class JWTAuthenticator(AuthenticatorInterface):
 
     def authenticate(self, rawToken):
         decoded = self.decodeToken(rawToken)
-        return (decoded[self.uid_claim],
-                decoded.get('zuul', {}).get('admin', []))
+        # inject the special authenticator-specific uid
+        decoded['__zuul_uid_claim'] = decoded[self.uid_claim]
+        return decoded
 
 
 class HS256Authenticator(JWTAuthenticator):
