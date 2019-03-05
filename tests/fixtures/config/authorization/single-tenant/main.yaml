@@ -16,7 +16,7 @@
 - admin-rule:
     name: car_rule
     conditions:
-      - car: ecto-1
+      - vehicle.car: ecto-1
 - tenant:
     name: tenant-one
     admin-rules:
