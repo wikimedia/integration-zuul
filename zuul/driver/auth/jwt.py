@@ -14,6 +14,7 @@
 # under the License.
 
 import logging
+import math
 import time
 import jwt
 import requests
@@ -36,11 +37,21 @@ class JWTAuthenticator(AuthenticatorInterface):
         self.audience = conf.get('client_id')
         self.realm = conf.get('realm')
         self.allow_authz_override = conf.get('allow_authz_override', False)
+        try:
+            self.skew = int(conf.get('skew', 0))
+        except Exception:
+            raise ValueError(
+                'skew must be an integer, got %s' % conf.get('skew'))
         if isinstance(self.allow_authz_override, str):
             if self.allow_authz_override.lower() == 'true':
                 self.allow_authz_override = True
             else:
                 self.allow_authz_override = False
+        try:
+            self.max_validity_time = float(conf.get('max_validity_time',
+                                                    math.inf))
+        except ValueError:
+            raise ValueError('"max_validity_time" must be a numerical value')
 
     def _decode(self, rawToken):
         raise NotImplementedError
@@ -68,13 +79,31 @@ class JWTAuthenticator(AuthenticatorInterface):
             raise exceptions.AuthTokenUnauthorizedException(
                 realm=self.realm,
                 msg=e)
+        # Missing claim tests
         if not all(x in decoded for x in ['aud', 'iss', 'exp', 'sub']):
             raise exceptions.MissingClaimError(realm=self.realm)
+        if self.max_validity_time < math.inf and 'iat' not in decoded:
+            raise exceptions.MissingClaimError(
+                msg='Missing "iat" claim',
+                realm=self.realm)
         if self.uid_claim not in decoded:
             raise exceptions.MissingUIDClaimError(realm=self.realm)
+        # Time related tests
         expires = decoded.get('exp', 0)
-        if expires < time.time():
+        issued_at = decoded.get('iat', 0)
+        now = time.time()
+        if issued_at + self.skew > now:
+            raise exceptions.AuthTokenUnauthorizedException(
+                msg='"iat" claim set in the future',
+                realm=self.realm
+            )
+        if now - issued_at > self.max_validity_time:
+            raise exceptions.TokenExpiredError(
+                msg='Token was issued too long ago',
+                realm=self.realm)
+        if expires + self.skew < now:
             raise exceptions.TokenExpiredError(realm=self.realm)
+        # Zuul-specific claims tests
         zuul_claims = decoded.get('zuul', {})
         admin_tenants = zuul_claims.get('admin', [])
         if not isinstance(admin_tenants, list):
