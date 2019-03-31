@@ -107,6 +107,11 @@ a.refresh {
     animation: progress-bar-stripes 1s linear infinite;
 }
 
+/* Stream page */
+.xterm-selection-layer {
+  mix-blend-mode: exclusion;
+}
+
 /* Job Tree View group gap */
 div.tree-view-container ul.list-group {
   margin: 0px 0px;
