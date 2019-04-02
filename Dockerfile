@@ -44,10 +44,7 @@ VOLUME /var/lib/zuul
 CMD ["/usr/local/bin/zuul"]
 
 FROM zuul as zuul-executor
-COPY --from=builder /output/ /output
 COPY --from=builder /usr/local/lib/zuul/ /usr/local/lib/zuul
-RUN pip install --cache-dir=/output/wheels -r /output/zuul_executor/requirements.txt \
-  && rm -rf /output
 
 CMD ["/usr/local/bin/zuul-executor"]
 
