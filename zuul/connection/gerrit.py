@@ -308,6 +308,9 @@ class GerritConnection(BaseConnection):
                        (pprint.pformat(data)))
         return data
 
+    def queryChange(self, number):
+        return self.query('change:%s' % number)
+
     def simpleQuery(self, query):
         def _query_chunk(query):
             args = '--commit-message --current-patch-set'
