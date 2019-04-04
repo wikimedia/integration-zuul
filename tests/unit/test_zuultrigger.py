@@ -215,7 +215,7 @@ class TestZuulTriggerProjectChangeMerged(ZuulTestCase):
             "current state of its repository. Please rebase the change and "
             "upload a new patchset.")
 
-        self.assertTrue("project:org/project status:open" in
+        self.assertTrue("project:{org/project} status:open" in
                         self.fake_gerrit.queries)
 
         # Reconfigure and run the test again.  This is a regression
@@ -241,5 +241,5 @@ class TestZuulTriggerProjectChangeMerged(ZuulTestCase):
             "dependencies was unable to be automatically merged with the "
             "current state of its repository. Please rebase the change and "
             "upload a new patchset.")
-        self.assertIn("project:org/project status:open",
+        self.assertIn("project:{org/project} status:open",
                       self.fake_gerrit.queries)
