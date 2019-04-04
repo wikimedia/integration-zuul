@@ -4,7 +4,9 @@ PyYAML>=3.1.0
 Paste
 WebOb>=1.2.3
 paramiko>=1.8.0,<2.0.0
-GitPython>=0.3.3
+GitPython==2.1.11
+smmap2==2.0.5
+gitdb2==2.0.5
 python-daemon>=2.0.4,<2.1.0
 extras
 statsd>=1.0.0,<3.0
