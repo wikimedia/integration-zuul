@@ -265,7 +265,7 @@ class Scheduler(threading.Thread):
             time_dir = self._get_time_database_dir()
             self.time_database = model.TimeDataBase(time_dir)
 
-        self.zuul_version = zuul_version.version_info.release_string()
+        self.zuul_version = zuul_version.version
         self.last_reconfigured = None
 
         # A set of reporter configuration keys to action mapping
