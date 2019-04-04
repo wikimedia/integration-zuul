@@ -1,0 +1,72 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Thu, 4 Apr 2019 15:55:46 +0200
+Subject: WMF: get version from pkg_resources
+
+The debian package uses a versioning string which is not pip compliant.
+As such python-pbr 1.10 fails to process it.
+
+Stop using pbr for the version, and get it directly via pkg_resources.
+
+Bug: T162787
+Change-Id: Ia9f95b4d44d04ea962d61a9e3786fdb43bf47368
+---
+ zuul/cmd/__init__.py |  4 ++--
+ zuul/scheduler.py    |  2 +-
+ zuul/version.py      | 21 ++-------------------
+ 3 files changed, 5 insertions(+), 22 deletions(-)
+
+diff --git a/zuul/cmd/__init__.py b/zuul/cmd/__init__.py
+index 471fe15..e8cbf40 100644
+--- a/zuul/cmd/__init__.py
++++ b/zuul/cmd/__init__.py
+@@ -62,8 +62,8 @@ class ZuulApp(object):
+         self.connections = {}
+ 
+     def _get_version(self):
+-        from zuul.version import version_info as zuul_version_info
+-        return "Zuul version: %s" % zuul_version_info.release_string()
++        from zuul.version import version
++        return "Zuul version: %s" % version
+ 
+     def read_config(self):
+         self.config = ConfigParser.ConfigParser()
+diff --git a/zuul/scheduler.py b/zuul/scheduler.py
+index ea12b5b..bf2f12e 100644
+--- a/zuul/scheduler.py
++++ b/zuul/scheduler.py
+@@ -265,7 +265,7 @@ class Scheduler(threading.Thread):
+             time_dir = self._get_time_database_dir()
+             self.time_database = model.TimeDataBase(time_dir)
+ 
+-        self.zuul_version = zuul_version.version_info.release_string()
++        self.zuul_version = zuul_version.version
+         self.last_reconfigured = None
+ 
+         # A set of reporter configuration keys to action mapping
+diff --git a/zuul/version.py b/zuul/version.py
+index 480812d..8788574 100644
+--- a/zuul/version.py
++++ b/zuul/version.py
+@@ -1,20 +1,3 @@
+-# vim: tabstop=4 shiftwidth=4 softtabstop=4
++import pkg_resources
+ 
+-#    Copyright 2011 OpenStack LLC
+-#    Copyright 2012 Hewlett-Packard Development Company, L.P.
+-#
+-#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+-#    not use this file except in compliance with the License. You may obtain
+-#    a copy of the License at
+-#
+-#         http://www.apache.org/licenses/LICENSE-2.0
+-#
+-#    Unless required by applicable law or agreed to in writing, software
+-#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+-#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+-#    License for the specific language governing permissions and limitations
+-#    under the License.
+-
+-import pbr.version
+-
+-version_info = pbr.version.VersionInfo('zuul')
++version = pkg_resources.get_distribution('zuul').version

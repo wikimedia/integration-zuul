@@ -1,3 +1,15 @@
+zuul (2.5.1-wmf6) jessie-wikimedia; urgency=medium
+
+  [ Antoine Musso (2) ]
+  * WMF: backport gerrit: use change: when querying changes - T198968
+  * WMF: get version from pkg_resources - T162787
+
+  [ paladox (2) ]
+  * Remove /p/ from /info/refs call - T214807
+  * Update GitPython to 2.1.11 - T214739
+
+ -- Antoine Musso <hashar@free.fr>  Thu, 04 Apr 2019 15:58:08 +0200
+
 zuul (2.5.1-wmf5) jessie-wikimedia; urgency=medium
 
   [ Antoine Musso (2) ]

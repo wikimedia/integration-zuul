@@ -17,3 +17,7 @@
 0017-Fix-missing-mutex-release-when-aborting-builds.patch
 0018-wmf-ignore-submit-error-on-merged-change.patch
 0019-wmf-Show-project-in-build-description.patch
+0020-Remove-p-from-info-refs-call.patch
+0021-Update-GitPython-to-2.1.11.patch
+0022-WMF-backport-gerrit-use-change-when-querying-changes.patch
+0023-WMF-get-version-from-pkg_resources.patch
