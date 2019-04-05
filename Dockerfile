@@ -40,12 +40,13 @@ RUN echo "deb http://ftp.debian.org/debian stretch-backports main" >> /etc/apt/s
 RUN /output/install-from-bindep \
   && pip install --cache-dir=/output/wheels -r /output/zuul_base/requirements.txt \
   && rm -rf /output
+RUN useradd -u 10001 -m -d /var/lib/zuul -c "Zuul Daemon" zuul
+
 VOLUME /var/lib/zuul
 CMD ["/usr/local/bin/zuul"]
 
 FROM zuul as zuul-executor
 COPY --from=builder /usr/local/lib/zuul/ /usr/local/lib/zuul
-
 CMD ["/usr/local/bin/zuul-executor"]
 
 FROM zuul as zuul-fingergw
