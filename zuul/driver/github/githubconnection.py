@@ -1001,7 +1001,13 @@ class GithubConnection(BaseConnection):
             change.files = None
         change.title = change.pr.get('title')
         change.open = change.pr.get('state') == 'open'
-        change.is_merged = change.pr.get('merged')
+
+        # Never change the is_merged attribute back to unmerged. This is
+        # crucial so this cannot race with mergePull wich sets this attribute
+        # after a successful merge.
+        if not change.is_merged:
+            change.is_merged = change.pr.get('merged')
+
         change.status = self._get_statuses(change.project,
                                            change.patchset)
         change.reviews = self.getPullReviews(pr_obj, change.project,
