@@ -20,9 +20,9 @@ import textwrap
 from tests.base import AnsibleZuulTestCase
 
 
-class TestZuulJSON25(AnsibleZuulTestCase):
+class TestZuulJSON26(AnsibleZuulTestCase):
     tenant_config_file = 'config/remote-zuul-json/main.yaml'
-    ansible_version = '2.5'
+    ansible_version = '2.6'
 
     def setUp(self):
         super().setUp()
@@ -144,15 +144,11 @@ class TestZuulJSON25(AnsibleZuulTestCase):
             dateutil.parser.parse(play_end_time)
 
 
-class TestZuulJSON26(TestZuulJSON25):
-    ansible_version = '2.6'
-
-
-class TestZuulJSON27(TestZuulJSON25):
+class TestZuulJSON27(TestZuulJSON26):
     ansible_version = '2.7'
 
 
-class TestZuulJSON28(TestZuulJSON25):
+class TestZuulJSON28(TestZuulJSON27):
     ansible_version = '2.8'
 
     def test_json_task_action(self):
