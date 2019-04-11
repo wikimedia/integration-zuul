@@ -13,7 +13,7 @@ Change-Id: Id37f53213b3d2a88bd7b02fa6de9ae5f77935642
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
-index c1c83dc..db84d57 100644
+index b3a30e0..e6e4e18 100644
 --- a/zuul/connection/gerrit.py
 +++ b/zuul/connection/gerrit.py
 @@ -395,7 +395,7 @@ class GerritConnection(BaseConnection):

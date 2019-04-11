@@ -15,7 +15,7 @@ Change-Id: I775fd1d632fa647b2b7b20c69057e5d7949a8c35
  1 file changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
-index 95bf35c..c1c83dc 100644
+index 95bf35c..b3a30e0 100644
 --- a/zuul/connection/gerrit.py
 +++ b/zuul/connection/gerrit.py
 @@ -279,7 +279,14 @@ class GerritConnection(BaseConnection):
@@ -28,7 +28,7 @@ index 95bf35c..c1c83dc 100644
 +        try:
 +            out, err = self._ssh(cmd)
 +        except Exception:
-+            if 'submit' not in action and 'change is merged' in err:
++            if 'submit' in action and err and 'change is merged' in err:
 +                return
 +            raise
          return err
