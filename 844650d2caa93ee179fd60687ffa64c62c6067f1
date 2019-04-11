@@ -1,0 +1,7 @@
+Code-Review+2: Hashar <hashar@free.fr>
+Verified+2: jenkins-bot
+Submitted-by: jenkins-bot
+Submitted-at: Thu, 11 Apr 2019 12:56:20 +0000
+Reviewed-on: https://gerrit.wikimedia.org/r/502984
+Project: integration/zuul
+Branch: refs/heads/debian/jessie-wikimedia
