@@ -8025,3 +8025,96 @@ class TestReportBuildPage(ZuulTestCase):
             dict(name='python27', result='SUCCESS', changes='1,1'),
         ])
         self.assertIn('python27 finger://', A.messages[0])
+
+
+class TestSchedulerSmartReconfiguration(ZuulTestCase):
+    tenant_config_file = 'config/multi-tenant/main.yaml'
+
+    def _test_smart_reconfiguration(self, command_socket=False):
+        """
+        Tests that smart reconfiguration works
+
+        In this scenario we have the tenants tenant-one, tenant-two and
+        tenant-three. We make the following changes and then trigger a smart
+        reconfiguration:
+        - tenant-one remains unchanged
+        - tenant-two gets another repo
+        - tenant-three gets removed completely
+        - tenant-four is a new tenant
+        """
+        self.executor_server.hold_jobs_in_build = True
+
+        # Create changes for all tenants
+        A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        B = self.fake_gerrit.addFakeChange('org/project2', 'master', 'B')
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        C = self.fake_gerrit.addFakeChange('org/project3', 'master', 'C')
+        self.fake_gerrit.addEvent(C.getPatchsetCreatedEvent(1))
+
+        # record previous tenant reconfiguration time, which may not be set
+        old_one = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        old_two = self.sched.tenant_last_reconfigured.get('tenant-two', 0)
+        self.waitUntilSettled()
+
+        self.newTenantConfig('config/multi-tenant/main-reconfig.yaml')
+
+        self.smartReconfigure(command_socket=command_socket)
+
+        # Wait for smart reconfiguration. Only tenant-two should be
+        # reconfigured. Note that waitUntilSettled is not
+        # reliable here because the reconfigure event may arrive in the
+        # event queue after waitUntilSettled.
+        start = time.time()
+        while True:
+            if time.time() - start > 15:
+                raise Exception("Timeout waiting for smart reconfiguration")
+            new_two = self.sched.tenant_last_reconfigured.get('tenant-two', 0)
+            if old_two < new_two:
+                break
+            else:
+                time.sleep(0.1)
+
+        # Ensure that tenant-one has not been reconfigured
+        self.waitUntilSettled()
+        new_one = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        self.assertEqual(old_one, new_one)
+
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        # Changes in tenant-one and tenant-two have to be reported
+        self.assertEqual(1, A.reported)
+        self.assertEqual(1, B.reported)
+
+        # The tenant-three has been removed so nothing should be reported
+        self.assertEqual(0, C.reported)
+
+        # Verify known tenants
+        expected_tenants = {'tenant-one', 'tenant-two', 'tenant-four'}
+        self.assertEqual(expected_tenants, self.sched.abide.tenants.keys())
+
+        self.assertIsNotNone(
+            self.sched.tenant_last_reconfigured.get('tenant-four'),
+            'Tenant tenant-four should exist now.')
+
+        # Test that the new tenant-four actually works
+        D = self.fake_gerrit.addFakeChange('org/project4', 'master', 'D')
+        self.fake_gerrit.addEvent(D.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertEqual(1, D.reported)
+
+        # Test that the new project in tenant-two works
+        B2 = self.fake_gerrit.addFakeChange('org/project2b', 'master', 'B2')
+        self.fake_gerrit.addEvent(B2.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertEqual(1, B2.reported)
+
+    def test_smart_reconfiguration(self):
+        "Test that live reconfiguration works"
+        self._test_smart_reconfiguration()
+
+    def test_smart_reconfiguration_command_socket(self):
+        "Test that live reconfiguration works using command socket"
+        self._test_smart_reconfiguration(command_socket=True)

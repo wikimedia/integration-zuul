@@ -2173,17 +2173,30 @@ class ConfigLoader(object):
                     self.log.warning(err.error)
         return abide
 
-    def reloadTenant(self, abide, tenant, ansible_manager):
+    def reloadTenant(self, abide, tenant, ansible_manager,
+                     unparsed_abide=None):
         new_abide = model.Abide()
         new_abide.tenants = abide.tenants.copy()
         new_abide.admin_rules = abide.admin_rules.copy()
         new_abide.unparsed_project_branch_cache = \
             abide.unparsed_project_branch_cache
 
+        if unparsed_abide:
+            # We got a new unparsed abide so re-load the tenant completely.
+            # First check if the tenant is still existing and if not remove
+            # from the abide.
+            if tenant.name not in unparsed_abide.known_tenants:
+                del new_abide.tenants[tenant.name]
+                return new_abide
+
+            unparsed_config = next(t for t in unparsed_abide.tenants
+                                   if t['name'] == tenant.name)
+        else:
+            unparsed_config = tenant.unparsed_config
+
         # When reloading a tenant only, use cached data if available.
         new_tenant = self.tenant_parser.fromYaml(
-            new_abide,
-            tenant.unparsed_config, ansible_manager)
+            new_abide, unparsed_config, ansible_manager)
         new_abide.tenants[tenant.name] = new_tenant
         if len(new_tenant.layout.loading_errors):
             self.log.warning(
