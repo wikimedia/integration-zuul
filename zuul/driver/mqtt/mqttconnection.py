@@ -52,6 +52,14 @@ class MQTTConnection(BaseConnection):
                 keyfile=keyfile,
                 ciphers=ciphers)
         self.connected = False
+        self.client.on_connect = self._on_connect
+        self.client.on_disconnect = self._on_disconnect
+
+    def _on_connect(self, client, userdata, flags, rc):
+        self.connected = True
+
+    def _on_disconnect(self, client, userdata, rc):
+        self.connected = False
 
     def onLoad(self):
         self.log.debug("Starting MQTT Connection")
