@@ -56,7 +56,7 @@ def stack_dump_handler(signum, frame):
                 thread_name = thread.name
                 thread_is_daemon = str(thread.daemon)
             else:
-                thread_name = thread.ident
+                thread_name = '(Unknown)'
                 thread_is_daemon = '(Unknown)'
             log_str += "Thread: %s %s d: %s\n"\
                        % (thread_id, thread_name, thread_is_daemon)
