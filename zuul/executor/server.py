@@ -37,10 +37,6 @@ from zuul.lib.config import get_default
 from zuul.lib.statsd import get_statsd
 from zuul.lib import filecomments
 
-try:
-    import ara.plugins.callbacks as ara_callbacks
-except ImportError:
-    ara_callbacks = None
 import gear
 
 import zuul.merger.merger
@@ -718,6 +714,9 @@ class AnsibleJob(object):
 
         plugin_dir = self.executor_server.ansible_manager.getAnsiblePluginDir(
             self.arguments.get('ansible_version'))
+        self.ara_callbacks = \
+            self.executor_server.ansible_manager.getAraCallbackPlugin(
+                self.arguments.get('ansible_version'))
         self.library_dir = os.path.join(plugin_dir, 'library')
         self.action_dir = os.path.join(plugin_dir, 'action')
         self.action_dir_general = os.path.join(plugin_dir, 'actiongeneral')
@@ -1747,10 +1746,10 @@ class AnsibleJob(object):
         # TODO(mordred) This should likely be extracted into a more generalized
         #               mechanism for deployers being able to add callback
         #               plugins.
-        if ara_callbacks:
+        if self.ara_callbacks:
             callback_path = '%s:%s' % (
                 self.callback_dir,
-                os.path.dirname(ara_callbacks.__file__))
+                os.path.dirname(self.ara_callbacks))
         else:
             callback_path = self.callback_dir
         with open(jobdir_playbook.ansible_config, 'w') as config:
@@ -1843,7 +1842,7 @@ class AnsibleJob(object):
         config_file = playbook.ansible_config
         env_copy = os.environ.copy()
         env_copy.update(self.ssh_agent.env)
-        if ara_callbacks:
+        if self.ara_callbacks:
             env_copy['ARA_LOG_CONFIG'] = self.jobdir.logging_json
         env_copy['ZUUL_JOB_LOG_CONFIG'] = self.jobdir.logging_json
         env_copy['ZUUL_JOBDIR'] = self.jobdir.root

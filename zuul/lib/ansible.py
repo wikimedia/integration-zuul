@@ -14,6 +14,7 @@
 
 import concurrent.futures
 import configparser
+import functools
 import logging
 import os
 import shutil
@@ -228,6 +229,23 @@ class AnsibleManager:
         if not ansible:
             raise Exception('Requested ansible version %s not found' % version)
         return ansible
+
+    @functools.lru_cache(maxsize=3)
+    def getAraCallbackPlugin(self, version):
+        result = None
+        try:
+            _python = self.getAnsibleCommand(version, 'python')
+            result = subprocess.run(
+                [_python, '-m', 'ara.setup.callback_plugins'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True).stdout.decode().strip()
+            self.log.info(
+                'Ansible version %s ARA callback plugin: %s', version, result)
+        except Exception:
+            self.log.exception(
+                'Ansible version %s ARA not installed' % version)
+        return result
 
     def getAnsibleCommand(self, version, command='ansible-playbook'):
         ansible = self._getAnsible(version)
