@@ -1,4 +1,4 @@
-zuul (2.5.1-wmf7) UNRELEASED; urgency=medium
+zuul (2.5.1-wmf7) jessie-wikimedia; urgency=medium
 
   [ Antoine Musso (1) ]
   * Update 0018-wmf-ignore-submit-error-on-merged-change.patch to fix a logic
