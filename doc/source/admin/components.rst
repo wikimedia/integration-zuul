@@ -713,7 +713,7 @@ The following sections of ``zuul.conf`` are used by the executor:
 
       Name of the nodepool executor-zone to exclusively execute all jobs that
       have nodes with the specified executor-zone attribute.  As an example,
-      it is possible for nodepool nodes to exist in a cloud with out public
+      it is possible for nodepool nodes to exist in a cloud without public
       accessable IP address. By adding an executor to a zone nodepool nodes
       could be configured to use private ip addresses.
 
