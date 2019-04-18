@@ -66,11 +66,11 @@ The ``zuul.yaml`` and ``.zuul.yaml`` configuration files are
 YAML-formatted and are structured as a series of items, each of which
 is described below.
 
-In the case of a ``zuul.d`` directory, Zuul recurses the directory and
-extends the configuration using all the .yaml files in the sorted path
-order.  For example, to keep job's variants in a separate file, it
-needs to be loaded after the main entries, for example using number
-prefixes in file's names::
+In the case of a ``zuul.d`` (or ``.zuul.d``) directory, Zuul recurses
+the directory and extends the configuration using all the .yaml files
+in the sorted path order.  For example, to keep job's variants in a
+separate file, it needs to be loaded after the main entries, for
+example using number prefixes in file's names::
 
 * zuul.d/pipelines.yaml
 * zuul.d/projects.yaml
