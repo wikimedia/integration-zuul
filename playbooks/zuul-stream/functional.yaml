@@ -8,7 +8,7 @@
     - name: Run ansible that should succeed
       command: >
         /usr/lib/zuul/ansible/{{ zuul_ansible_version }}/bin/ansible-playbook
-        src/git.openstack.org/openstack-infra/zuul/playbooks/zuul-stream/fixtures/test-stream.yaml
+        src/opendev.org/zuul/zuul/playbooks/zuul-stream/fixtures/test-stream.yaml
       environment:
         ZUUL_JOB_LOG_CONFIG: "{{ ansible_user_dir}}/logging.json"
         ZUUL_JOBDIR: "{{ ansible_user_dir}}"
@@ -18,7 +18,7 @@
     - name: Run ansible playbook that should fail
       command: >
         /usr/lib/zuul/ansible/{{ zuul_ansible_version }}/bin/ansible-playbook
-        src/git.openstack.org/openstack-infra/zuul/playbooks/zuul-stream/fixtures/test-stream-failure.yaml
+        src/opendev.org/zuul/zuul/playbooks/zuul-stream/fixtures/test-stream-failure.yaml
       register: failed_results
       failed_when: "failed_results.rc != 2"
       environment:

@@ -85,7 +85,7 @@
     post-run: playbooks/quick-start/post.yaml
     requires: docker-image
     required-projects:
-      - openstack-infra/zuul
+      - zuul/zuul
 
 # Image building jobs
 - secret:
@@ -108,7 +108,7 @@
     name: zuul-build-image
     parent: opendev-build-docker-image
     description: Build Docker images.
-    allowed-projects: openstack-infra/zuul
+    allowed-projects: zuul/zuul
     vars: &zuul_image_vars
       docker_images:
         - context: .
@@ -134,7 +134,7 @@
     name: zuul-upload-image
     parent: opendev-upload-docker-image
     description: Build Docker images and upload to Docker Hub.
-    allowed-projects: openstack-infra/zuul
+    allowed-projects: zuul/zuul
     secrets:
       name: docker_credentials
       secret: zuul-dockerhub
@@ -145,7 +145,7 @@
     name: zuul-promote-image
     parent: opendev-promote-docker-image
     description: Promote previously uploaded Docker images.
-    allowed-projects: openstack-infra/zuul
+    allowed-projects: zuul/zuul
     secrets:
       name: docker_credentials
       secret: zuul-dockerhub
