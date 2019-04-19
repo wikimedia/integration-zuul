@@ -766,6 +766,21 @@ class TestWeb(BaseTestWeb):
         self.assertIn(expected, resp.json())
 
 
+class TestWebMultiTenant(BaseTestWeb):
+    tenant_config_file = 'config/multi-tenant/main.yaml'
+
+    def test_web_labels_allowed_list(self):
+        labels = ["tenant-one-label", "fake", "tenant-two-label"]
+        self.fake_nodepool.registerLauncher(labels, "FakeLauncher2")
+        # Tenant-one has label restriction in place
+        res = self.get_url('api/tenant/tenant-one/labels').json()
+        self.assertEqual([{'name': 'fake'}, {'name': 'tenant-one-label'}], res)
+        # Tenant-two does not
+        res = self.get_url('api/tenant/tenant-two/labels').json()
+        self.assertEqual(
+            list(map(lambda x: {'name': x}, sorted(labels + ["label1"]))), res)
+
+
 class TestWebSecrets(BaseTestWeb):
     tenant_config_file = 'config/secrets/main.yaml'
 

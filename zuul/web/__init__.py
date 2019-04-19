@@ -29,6 +29,8 @@ import time
 import select
 import threading
 
+import re2
+
 import zuul.model
 import zuul.rpcclient
 import zuul.zk
@@ -394,10 +396,17 @@ class ZuulWebAPI(object):
     @cherrypy.tools.save_params()
     @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
     def labels(self, tenant):
+        job = self.rpc.submitJob('zuul:allowed_labels_get', {'tenant': tenant})
+        allowed_labels = json.loads(job.data[0])
+        if allowed_labels is None:
+            raise cherrypy.HTTPError(404, 'Tenant %s does not exist.' % tenant)
         labels = set()
         for launcher in self.zk.getRegisteredLaunchers():
             for label in launcher.supported_labels:
-                labels.add(label)
+                if not allowed_labels or (
+                        [True for allowed_label in allowed_labels if
+                         re2.match(allowed_label, label)]):
+                    labels.add(label)
         ret = [{'name': label} for label in sorted(labels)]
         resp = cherrypy.response
         resp.headers['Access-Control-Allow-Origin'] = '*'
