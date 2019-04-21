@@ -56,7 +56,7 @@ class TestGerrit(BaseTestCase):
         calls, values = read_fixtures(files)
         _ssh_mock.side_effect = values
 
-        result = gerrit.simpleQuery('project:openstack-infra/zuul')
+        result = gerrit.simpleQuery('project:zuul/zuul')
 
         _ssh_mock.assert_has_calls(calls)
         self.assertEqual(len(calls), _ssh_mock.call_count,

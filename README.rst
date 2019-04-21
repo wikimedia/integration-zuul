@@ -33,10 +33,10 @@ IRC.
 Contributing
 ------------
 
-To browse the latest code, see: https://git.zuul-ci.org/cgit/zuul/tree/
-To clone the latest code, use `git clone https://git.zuul-ci.org/zuul`
+To browse the latest code, see: https://opendev.org/zuul/zuul
+To clone the latest code, use `git clone https://opendev.org/zuul/zuul`
 
-Bugs are handled at: https://storyboard.openstack.org/#!/project/openstack-infra/zuul
+Bugs are handled at: https://storyboard.openstack.org/#!/project/zuul/zuul
 
 Suspected security vulnerabilities are most appreciated if first
 reported privately following any of the supported mechanisms

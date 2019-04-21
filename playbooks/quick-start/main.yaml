@@ -2,7 +2,7 @@
   when: not local
   shell:
     cmd: docker-compose up -d
-    chdir: src/git.openstack.org/openstack-infra/zuul/doc/source/admin/examples
+    chdir: src/opendev.org/zuul/zuul/doc/source/admin/examples
   become: true
 - name: Run docker-compose up
   when: local

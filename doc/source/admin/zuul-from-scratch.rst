@@ -106,7 +106,7 @@ Add to ``/etc/zuul/zuul.conf``:
 
    [connection zuul-git]
    driver=git
-   baseurl=https://git.zuul-ci.org/
+   baseurl=https://opendev.org/
    EOF"
 
 Restart executor and scheduler:

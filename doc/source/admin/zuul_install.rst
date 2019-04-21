@@ -32,7 +32,7 @@ required.
 .. code-block:: console
 
    # All:
-   $ git clone https://git.zuul-ci.org/zuul
+   $ git clone https://opendev.org/zuul/zuul
    $ pushd zuul/
 
    # For Fedora and CentOS:

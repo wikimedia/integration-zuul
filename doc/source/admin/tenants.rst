@@ -45,7 +45,7 @@ configuration. Some examples of tenant definitions are:
              - shared-jobs:
                  include: job
            untrusted-projects:
-             - zuul-jobs:
+             - zuul/zuul-jobs:
                  shadow: common-config
              - project1
              - project2:

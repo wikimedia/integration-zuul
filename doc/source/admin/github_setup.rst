@@ -108,9 +108,9 @@ Edit ``/etc/zuul/main.yaml`` so that it looks like this:
        source:
          zuul-git:
            config-projects:
-             - zuul-base-jobs
+             - zuul/zuul-base-jobs
            untrusted-projects:
-             - zuul-jobs
+             - zuul/zuul-jobs
          github:
            config-projects:
              - my-org/zuul-test-config

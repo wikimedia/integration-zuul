@@ -7,8 +7,8 @@
         untrusted-projects:
           - test1
           - test2
-      zuul-ci.org:
+      opendev.org:
         untrusted-projects:
-          - zuul-jobs:
+          - zuul/zuul-jobs:
               include:
                 - job

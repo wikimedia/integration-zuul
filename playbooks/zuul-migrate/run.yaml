@@ -2,9 +2,9 @@
   tasks:
 
     - name: Install migration dependencies
-      command: "python3 -m pip install --user src/git.openstack.org/openstack-infra/zuul[migrate]"
+      command: "python3 -m pip install --user src/opendev.org/zuul/zuul[migrate]"
 
     - name: Migrate the data
       command: tools/run-migration.sh -v --final
       args:
-        chdir: src/git.openstack.org/openstack-infra/zuul
+        chdir: src/opendev.org/zuul/zuul

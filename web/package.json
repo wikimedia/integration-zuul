@@ -2,7 +2,7 @@
   "name": "@zuul-ci/dashboard",
   "version": "1.0.0",
   "description": "Zuul Web Dashboard",
-  "repository": "https://git.zuul-ci.org/zuul",
+  "repository": "https://opendev.org/zuul/zuul",
   "author": "Zuul Developers",
   "license": "Apache-2.0",
   "private": true,

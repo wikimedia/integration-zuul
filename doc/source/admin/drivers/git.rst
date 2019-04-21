@@ -4,7 +4,7 @@ Git
 ===
 
 This driver can be used to load Zuul configuration from public Git repositories,
-for instance from ``openstack-infra/zuul-jobs`` that is suitable for use by
+for instance from ``opendev.org/zuul/zuul-jobs`` that is suitable for use by
 any Zuul system. It can also be used to trigger jobs from ``ref-updated`` events
 in a pipeline.
 

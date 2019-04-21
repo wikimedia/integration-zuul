@@ -5,7 +5,7 @@
       synchronize:
         dest: "{{ zuul.executor.log_root }}/openstack-zuul-jobs"
         mode: pull
-        src: "src/git.openstack.org/openstack-infra/openstack-zuul-jobs/zuul.d"
+        src: "src/opendev.org/openstack/openstack-zuul-jobs/zuul.d"
         verify_host: true
       no_log: true
 
@@ -13,7 +13,7 @@
       synchronize:
         dest: "{{ zuul.executor.log_root }}/openstack-zuul-jobs"
         mode: pull
-        src: "src/git.openstack.org/openstack-infra/project-config/zuul.d"
+        src: "src/opendev.org/openstack/project-config/zuul.d"
         verify_host: true
       no_log: true
 
@@ -21,6 +21,6 @@
       synchronize:
         dest: "{{ zuul.executor.log_root }}/playbooks"
         mode: pull
-        src: "src/git.openstack.org/openstack-infra/openstack-zuul-jobs/playbooks/legacy"
+        src: "src/opendev.org/openstack/openstack-zuul-jobs/playbooks/legacy"
         verify_host: true
       no_log: true

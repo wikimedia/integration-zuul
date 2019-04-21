@@ -54,7 +54,7 @@ Clone the Zuul repository:
 
 .. code-block:: shell
 
-   git clone https://git.zuul-ci.org/zuul
+   git clone https://opendev.org/zuul/zuul
 
 Then cd into the directory containing this document, and run
 docker-compose in order to start Zuul, Nodepool and Gerrit.
@@ -65,7 +65,7 @@ docker-compose in order to start Zuul, Nodepool and Gerrit.
    sudo -E docker-compose up
 
 For reference, the files in that directory are also `browsable on the web
-<http://git.zuul-ci.org/cgit/zuul/tree/doc/source/admin/examples>`_.
+<https://opendev.org/zuul/zuul/src/branch/master/doc/source/admin/examples>`_.
 
 All of the services will be started with debug-level logging sent to
 the standard output of the terminal where docker-compose is running.

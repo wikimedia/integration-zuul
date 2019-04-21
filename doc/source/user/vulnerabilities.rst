@@ -34,8 +34,8 @@ provide risks, concerns or other relevant details in the description
 field. Where it lists teams and users that can see this story, add
 the ``zuul-security`` team so they'll be able to work on triaging
 it. For the initial task, select the project to which this is
-specific (e.g., ``openstack-infra/zuul`` or
-``openstack-infra/nodepool``) and if it relates to additional
+specific (e.g., ``zuul/zuul`` or
+``zuul/nodepool``) and if it relates to additional
 projects you can add another task for each of them making sure to
 include a relevant title for each task. When you've included all the
 detail and tasks you want, save the new story and then you can

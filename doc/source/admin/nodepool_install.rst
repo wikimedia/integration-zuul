@@ -30,7 +30,7 @@ are required.
 .. code-block:: shell
 
    # All:
-   git clone https://git.zuul-ci.org/nodepool
+   git clone https://opendev.org/zuul/nodepool
    pushd nodepool/
 
    # For Fedora and CentOS:
