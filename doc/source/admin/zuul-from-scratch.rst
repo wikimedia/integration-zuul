@@ -54,6 +54,9 @@ further restrict public access.
    [gearman_server]
    start=true
 
+   [zookeeper]
+   hosts=localhost
+
    [executor]
    private_key_file=/var/lib/zuul/.ssh/nodepool_rsa
 
