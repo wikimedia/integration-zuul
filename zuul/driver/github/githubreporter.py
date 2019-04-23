@@ -174,7 +174,6 @@ class GithubReporter(BaseReporter):
         if not account:
             return message
 
-        username = account['username']
         name = account['name']
         email = account['email']
         message += '\n\nReviewed-by: '
@@ -187,7 +186,7 @@ class GithubReporter(BaseReporter):
             message += '<' + email + '>'
         if name or email:
             message += '\n             '
-        message += self.connection.getUserUri(username)
+        message += account['html_url']
 
         return message
 

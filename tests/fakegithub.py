@@ -25,6 +25,7 @@ class FakeUser(object):
         self.login = login
         self.name = "Github User"
         self.email = "github.user@example.com"
+        self.html_url = 'https://example.com/%s' % login
 
 
 class FakeBranch(object):
