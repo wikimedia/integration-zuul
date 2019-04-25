@@ -141,6 +141,9 @@ class ChangePanel extends React.Component {
               case 'unstable':
                 className = ' progress-bar-warning'
                 break
+              case 'paused':
+                className = ' progress-bar-info'
+                break
               case 'in progress':
               case 'queued':
                 break
@@ -216,6 +219,7 @@ class ChangePanel extends React.Component {
       case 'unstable':
         className = 'label-warning'
         break
+      case 'paused':
       case 'skipped':
         className = 'label-info'
         break
