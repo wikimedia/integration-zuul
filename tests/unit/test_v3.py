@@ -5836,8 +5836,39 @@ class TestProvidesRequires(ZuulDBTestCase):
             dict(name='hold', result='SUCCESS', changes='1,1'),
             dict(name='hold', result='SUCCESS', changes='1,1 2,1'),
         ], ordered=False)
-        self.assertIn('image-user : FAILED', B.messages[0])
-        self.assertIn('not met by build', B.messages[0])
+        self.assertIn('image-user : FAILURE', B.messages[0])
+        self.assertEqual(B.messages[0].count("not met by build"), 2)
+
+    @simple_layout('layouts/provides-requires-single-project.yaml')
+    def test_provides_requires_check_old_failure_single_project(self):
+        # Similar to above test, but has job dependencies which will
+        # cause the requirements check to potentially run multiple
+        # times as the queue processor runs repeatedly.
+        A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
+        self.executor_server.failJob('image-builder', A)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='image-builder', result='FAILURE', changes='1,1'),
+            dict(name='hold', result='SUCCESS', changes='1,1'),
+        ], ordered=False)
+        self.assertIn('image-user : SKIPPED', A.messages[0])
+
+        B = self.fake_gerrit.addFakeChange('org/project1', 'master', 'B')
+        B.data['commitMessage'] = '%s\n\nDepends-On: %s\n' % (
+            B.subject, A.data['id'])
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='image-builder', result='FAILURE', changes='1,1'),
+            dict(name='hold', result='SUCCESS', changes='1,1'),
+            dict(name='image-builder', result='FAILURE', changes='1,1 2,1'),
+            dict(name='hold', result='SUCCESS', changes='1,1 2,1'),
+        ], ordered=False)
+        self.assertIn('image-user : FAILURE', B.messages[0])
+        self.assertEqual(B.messages[0].count("not met by build"), 1)
 
 
 class TestForceMergeMissingTemplate(ZuulTestCase):
