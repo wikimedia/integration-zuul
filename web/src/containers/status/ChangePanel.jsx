@@ -145,7 +145,6 @@ class ChangePanel extends React.Component {
                 className = ' progress-bar-info'
                 break
               case 'in progress':
-              case 'queued':
                 break
               default:
                 break
