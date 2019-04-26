@@ -182,11 +182,36 @@ class TestMergerRepo(ZuulTestCase):
         work_repo.reset()
 
         # Now open a cache repo and break it in a way that git.Repo is happy
-        # at first but git won't be.
+        # at first but git won't be because of a broken HEAD revision.
         merger = self.executor_server.merger
         cache_repo = merger.getRepo('gerrit', 'org/project')
         with open(os.path.join(cache_repo.local_path, '.git/HEAD'), 'w'):
             pass
+        cache_repo.update()
+
+        # Now open a cache repo and break it in a way that git.Repo is happy
+        # at first but git won't be because of a corrupt object file.
+        #
+        # To construct this we create a commit so we have a guaranteed free
+        # object file, then we break it by truncating it.
+        fn = os.path.join(cache_repo.local_path, 'commit_filename')
+        with open(fn, 'a') as f:
+            f.write("test")
+        repo = cache_repo.createRepoObject()
+        repo.index.add([fn])
+        repo.index.commit('test commit')
+
+        # Pick the first object file we find and break it
+        objects_path = os.path.join(cache_repo.local_path, '.git', 'objects')
+        object_dir = os.path.join(
+            objects_path,
+            [d for d in os.listdir(objects_path) if len(d) == 2][0])
+        object_to_break = os.path.join(object_dir, os.listdir(object_dir)[0])
+        self.log.error(os.stat(object_to_break))
+        os.chmod(object_to_break, 644)
+        with open(object_to_break, 'w'):
+            pass
+        os.chmod(object_to_break, 444)
         cache_repo.update()
 
     def test_broken_gitmodules(self):

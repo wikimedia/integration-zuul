@@ -232,6 +232,13 @@ class Repo(object):
                         # fundamentally broken with the repo and we need to
                         # delete it before advancing to _ensure_cloned.
                         shutil.rmtree(self.local_path)
+                    elif 'error: object file' in e.stderr.lower():
+                        # If we get here the git.Repo object was happy with its
+                        # lightweight way of checking if this is a valid git
+                        # repository. However if git complains about corrupt
+                        # object files the repository is essentially broken and
+                        # needs to be cloned cleanly.
+                        shutil.rmtree(self.local_path)
                     else:
                         time.sleep(self.retry_interval)
                     self.log.exception("Retry %s: Fetch %s %s %s" % (
