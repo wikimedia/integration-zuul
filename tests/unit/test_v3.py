@@ -5077,21 +5077,12 @@ class TestJobPause(AnsibleZuulTestCase):
                 job_worker.stop()
         self.waitUntilSettled()
 
-        # All still running child jobs must be aborted
-        self.assertHistory([
-            dict(name='test-fail', result='FAILURE', changes='1,1'),
-            dict(name='test-good', result='SUCCESS', changes='1,1'),
-            dict(name='compile2', result='SUCCESS', changes='1,1'),
-            dict(name='test-after-compile2', result='SUCCESS', changes='1,1'),
-            dict(name='compile1', result='ABORTED', changes='1,1'),
-            dict(name='test1-after-compile1', result='ABORTED', changes='1,1'),
-            dict(name='test2-after-compile1', result='ABORTED', changes='1,1'),
-        ], ordered=False)
-
         # Only compile1 must be waiting
         for _ in iterate_timeout(30, 'waiting for compile1 job'):
             if len(self.builds) == 1:
                 break
+        self.waitUntilSettled()
+        self.assertBuilds([dict(name='compile1', changes='1,1')])
 
         self.executor_server.hold_jobs_in_build = False
         self.executor_server.release()
