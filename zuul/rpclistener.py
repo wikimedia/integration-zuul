@@ -22,6 +22,7 @@ import types
 import gear
 
 from zuul import model
+from zuul.connection import BaseConnection
 from zuul.lib import encryption
 from zuul.lib.config import get_default
 
@@ -487,8 +488,19 @@ class RPCListener(object):
             job.sendWorkComplete(json.dumps(None))
             return
         output = []
-        for pipeline in tenant.layout.pipelines.keys():
-            output.append({"name": pipeline})
+        for pipeline, pipeline_config in tenant.layout.pipelines.items():
+            triggers = []
+            for trigger in pipeline_config.triggers:
+                if isinstance(trigger.connection, BaseConnection):
+                    name = trigger.connection.connection_name
+                else:
+                    # Trigger not based on a connection doesn't use this attr
+                    name = trigger.name
+                triggers.append({
+                    "name": name,
+                    "driver": trigger.driver.name,
+                })
+            output.append({"name": pipeline, "triggers": triggers})
         job.sendWorkComplete(json.dumps(output))
 
     def handle_key_get(self, job):
