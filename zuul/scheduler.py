@@ -1419,15 +1419,15 @@ class Scheduler(threading.Thread):
 
     def cancelJob(self, buildset, job, build=None):
         item = buildset.item
+        job_name = job.name
         try:
             # Cancel node request if needed
-            req = buildset.node_requests.get(job)
+            req = buildset.getJobNodeRequest(job_name)
             if req:
                 self.nodepool.cancelRequest(req)
-                buildset.removeJobNodeRequest(job.name)
+                buildset.removeJobNodeRequest(job_name)
 
             # Cancel build if needed
-            job_name = job.name
             build = build or buildset.getBuild(job_name)
             if build:
                 was_running = False
@@ -1442,19 +1442,19 @@ class Scheduler(threading.Thread):
                 # later added back, make sure we clear out the nodeset
                 # so it gets requested again.
                 try:
-                    buildset.removeJobNodeSet(job.name)
+                    buildset.removeJobNodeSet(job_name)
                 except Exception:
                     self.log.exception(
                         "Exception while removing nodeset from build %s "
                         "for change %s" % (build, build.build_set.item.change))
 
                 if not was_running:
-                    nodeset = buildset.getJobNodeSet(job.name)
+                    nodeset = buildset.getJobNodeSet(job_name)
                     if nodeset:
                         self.nodepool.returnNodeSet(nodeset, build)
                 build.result = 'CANCELED'
             else:
-                nodeset = buildset.getJobNodeSet(job.name)
+                nodeset = buildset.getJobNodeSet(job_name)
                 if nodeset:
                     self.nodepool.returnNodeSet(nodeset)
         finally:

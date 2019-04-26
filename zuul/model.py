@@ -1983,29 +1983,29 @@ class BuildSet(object):
         keys.sort()
         return [self.builds.get(x) for x in keys]
 
-    def getJobNodeSet(self, job_name):
+    def getJobNodeSet(self, job_name: str) -> NodeSet:
         # Return None if not provisioned; empty NodeSet if no nodes
         # required
         return self.nodesets.get(job_name)
 
-    def removeJobNodeSet(self, job_name):
+    def removeJobNodeSet(self, job_name: str):
         if job_name not in self.nodesets:
             raise Exception("No job nodeset for %s" % (job_name))
         del self.nodesets[job_name]
 
-    def setJobNodeRequest(self, job_name, req):
+    def setJobNodeRequest(self, job_name: str, req: NodeRequest):
         if job_name in self.node_requests:
             raise Exception("Prior node request for %s" % (job_name))
         self.node_requests[job_name] = req
 
-    def getJobNodeRequest(self, job_name):
+    def getJobNodeRequest(self, job_name: str) -> NodeRequest:
         return self.node_requests.get(job_name)
 
-    def removeJobNodeRequest(self, job_name):
+    def removeJobNodeRequest(self, job_name: str):
         if job_name in self.node_requests:
             del self.node_requests[job_name]
 
-    def jobNodeRequestComplete(self, job_name, req, nodeset):
+    def jobNodeRequestComplete(self, job_name: str, nodeset: NodeSet):
         if job_name in self.nodesets:
             raise Exception("Prior node request for %s" % (job_name))
         self.nodesets[job_name] = nodeset

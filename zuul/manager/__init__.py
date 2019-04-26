@@ -894,7 +894,7 @@ class PipelineManager(object):
         # TODOv3(jeblair): handle provisioning failure here
         request = event.request
         build_set = request.build_set
-        build_set.jobNodeRequestComplete(request.job.name, request,
+        build_set.jobNodeRequestComplete(request.job.name,
                                          request.nodeset)
         if request.failed or not request.fulfilled:
             self.log.info("Node request %s: failure for %s" %
