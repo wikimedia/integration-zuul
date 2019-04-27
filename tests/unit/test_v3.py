@@ -5096,6 +5096,14 @@ class TestJobPause(AnsibleZuulTestCase):
         self.executor_server.release()
         self.waitUntilSettled("global release")
 
+        # The "pause" job might be paused during the waitUntilSettled
+        # call and appear settled; it should automatically resume
+        # though, so just wait for it.
+        for x in iterate_timeout(30, 'paused job'):
+            if not self.builds:
+                break
+        self.waitUntilSettled()
+
         self.assertHistory([
             dict(name='test-fail', result='FAILURE', changes='1,1'),
             dict(name='test-good', result='SUCCESS', changes='1,1'),
