@@ -5037,11 +5037,11 @@ class TestJobPause(AnsibleZuulTestCase):
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
 
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
-        self.waitUntilSettled()
+        self.waitUntilSettled("patchset uploaded")
 
         self.executor_server.release('test-.*')
         self.executor_server.release('compile1')
-        self.waitUntilSettled()
+        self.waitUntilSettled("released compile1")
 
         # test-fail and test-good must be finished by now
         self.assertHistory([
@@ -5056,7 +5056,7 @@ class TestJobPause(AnsibleZuulTestCase):
         for _ in iterate_timeout(30, 'waiting for child jobs'):
             if len(self.builds) == 4:
                 break
-        self.waitUntilSettled()
+        self.waitUntilSettled("child jobs are running")
 
         compile1 = self.builds[0]
         self.assertTrue(compile1.paused)
@@ -5067,11 +5067,11 @@ class TestJobPause(AnsibleZuulTestCase):
         for _ in iterate_timeout(30, 'waiting for child jobs'):
             if len(self.builds) == 5:
                 break
-        self.waitUntilSettled()
+        self.waitUntilSettled("release compile2")
         self.executor_server.release('test-after-compile2')
-        self.waitUntilSettled()
+        self.waitUntilSettled("release test-after-compile2")
         self.executor_server.release('compile2')
-        self.waitUntilSettled()
+        self.waitUntilSettled("release compile2 again")
         self.assertHistory([
             dict(name='test-fail', result='FAILURE', changes='1,1'),
             dict(name='test-good', result='SUCCESS', changes='1,1'),
@@ -5083,18 +5083,18 @@ class TestJobPause(AnsibleZuulTestCase):
         for job_worker in self.executor_server.job_workers.values():
             if job_worker.job.unique == compile1.unique:
                 job_worker.stop()
-        self.waitUntilSettled()
+        self.waitUntilSettled("Stop job")
 
         # Only compile1 must be waiting
         for _ in iterate_timeout(30, 'waiting for compile1 job'):
             if len(self.builds) == 1:
                 break
-        self.waitUntilSettled()
+        self.waitUntilSettled("only compile1 is running")
         self.assertBuilds([dict(name='compile1', changes='1,1')])
 
         self.executor_server.hold_jobs_in_build = False
         self.executor_server.release()
-        self.waitUntilSettled()
+        self.waitUntilSettled("global release")
 
         self.assertHistory([
             dict(name='test-fail', result='FAILURE', changes='1,1'),

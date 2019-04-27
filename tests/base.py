@@ -3161,8 +3161,8 @@ class ZuulTestCase(BaseTestCase):
         for event_queue in self.event_queues:
             event_queue.join()
 
-    def waitUntilSettled(self):
-        self.log.debug("Waiting until settled...")
+    def waitUntilSettled(self, msg=""):
+        self.log.debug("Waiting until settled... (%s)", msg)
         start = time.time()
         while True:
             if time.time() - start > self.wait_timeout:
@@ -3201,11 +3201,35 @@ class ZuulTestCase(BaseTestCase):
                     # report that we are settled.
                     self.sched.run_handler_lock.release()
                     self.executor_server.lock.release()
-                    self.log.debug("...settled.")
+                    self.log.debug("...settled. (%s)", msg)
+                    self.logState()
                     return
                 self.sched.run_handler_lock.release()
             self.executor_server.lock.release()
             self.sched.wake_event.wait(0.1)
+
+    def logState(self):
+        """ Log the current state of the system """
+        self.log.info("Begin state dump --------------------")
+        for build in self.history:
+            self.log.info("Completed build: %s" % build)
+        for build in self.builds:
+            self.log.info("Running build: %s" % build)
+        for tenant in self.sched.abide.tenants.values():
+            for pipeline in tenant.layout.pipelines.values():
+                for pipeline_queue in pipeline.queues:
+                    if len(pipeline_queue.queue) != 0:
+                        status = ''
+                        for item in pipeline_queue.queue:
+                            status += item.formatStatus()
+                        self.log.info(
+                            'Tenant %s pipeline %s queue %s contents:' % (
+                                tenant.name, pipeline.name,
+                                pipeline_queue.name))
+                        for l in status.split('\n'):
+                            if l.strip():
+                                self.log.info(l)
+        self.log.info("End state dump --------------------")
 
     def countJobResults(self, jobs, result):
         jobs = filter(lambda x: x.result == result, jobs)
@@ -3403,7 +3427,7 @@ class ZuulTestCase(BaseTestCase):
         except Exception:
             for build in self.history:
                 self.log.error("Completed build: %s" % build)
-            else:
+            if not self.history:
                 self.log.error("No completed builds")
             raise
 
