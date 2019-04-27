@@ -5304,6 +5304,14 @@ class TestProvidesRequiresPause(AnsibleZuulTestCase):
         self.executor_server.release()
         self.waitUntilSettled()
 
+        # The "pause" job might be paused during the waitUntilSettled
+        # call and appear settled; it should automatically resume
+        # though, so just wait for it.
+        for _ in iterate_timeout(60, 'paused job'):
+            if not self.builds:
+                break
+        self.waitUntilSettled()
+
         self.assertHistory([
             dict(name='image-builder', result='SUCCESS', changes='1,1'),
             dict(name='image-user', result='SUCCESS', changes='1,1'),
