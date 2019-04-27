@@ -1,0 +1,42 @@
+- pipeline:
+    name: check
+    manager: independent
+    trigger:
+      gerrit:
+        - event: patchset-created
+    success:
+      gerrit:
+        Verified: 1
+      resultsdb_mysql: null
+      resultsdb_postgresql: null
+    failure:
+      gerrit:
+        Verified: -1
+      resultsdb_mysql: null
+      resultsdb_postgresql: null
+
+- job:
+    name: base
+    parent: null
+    run: playbooks/base.yaml
+
+- job:
+    name: image-builder
+    provides: images
+
+- job:
+    name: image-user
+    requires: images
+    dependencies:
+      - image-builder
+
+- job:
+    name: hold
+
+- project:
+    name: org/project1
+    check:
+      jobs:
+        - image-builder
+        - image-user
+        - hold
