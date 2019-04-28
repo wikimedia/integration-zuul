@@ -2569,9 +2569,8 @@ class TestAnsible25(AnsibleZuulTestCase):
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
-        build_timeout = self.getJobFromHistory('timeout')
+        build_timeout = self.getJobFromHistory('timeout', result='TIMED_OUT')
         with self.jobLog(build_timeout):
-            self.assertEqual(build_timeout.result, 'TIMED_OUT')
             post_flag_path = os.path.join(self.test_root, build_timeout.uuid +
                                           '.post.flag')
             self.assertTrue(os.path.exists(post_flag_path))
