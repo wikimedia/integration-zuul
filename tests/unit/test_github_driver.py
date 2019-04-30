@@ -287,7 +287,7 @@ class TestGithubDriver(ZuulTestCase):
         self.assertEqual(['other label'], C.labels)
 
     @simple_layout('layouts/reviews-github.yaml', driver='github')
-    def test_review_event(self):
+    def test_reviews(self):
         A = self.fake_github.openFakePullRequest('org/project', 'master', 'A')
         self.fake_github.emitEvent(A.getReviewAddedEvent('approve'))
         self.waitUntilSettled()
@@ -300,6 +300,15 @@ class TestGithubDriver(ZuulTestCase):
         self.fake_github.emitEvent(B.getReviewAddedEvent('comment'))
         self.waitUntilSettled()
         self.assertEqual(1, len(self.history))
+
+        # test sending reviews
+        C = self.fake_github.openFakePullRequest('org/project', 'master', 'C')
+        self.fake_github.emitEvent(C.getCommentAddedEvent(
+            "I solemnly swear that I am up to no good"))
+        self.waitUntilSettled()
+        self.assertEqual('project-reviews', self.history[0].name)
+        self.assertEqual(1, len(C.reviews))
+        self.assertEqual('APPROVE', C.reviews[0].as_dict()['state'])
 
     @simple_layout('layouts/basic-github.yaml', driver='github')
     def test_timer_event(self):

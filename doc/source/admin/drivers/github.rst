@@ -327,6 +327,17 @@ itself. Status name, description, and context is taken from the pipeline.
       comment to the pipeline status to the github pull request. Only
       used for Pull Request based items.
 
+   .. attr:: review
+
+      One of `approve`, `comment`, or `request-changes` that causes the
+      reporter to submit a review with the specified status on Pull Request
+      based items. Has no effect on other items.
+
+   .. attr:: review-body
+
+      Text that will be submitted as the body of the review. Required if review
+      is set to `comment` or `request-changes`.
+
    .. attr:: merge
       :default: false
 

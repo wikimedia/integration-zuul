@@ -37,6 +37,8 @@ class GithubReporter(BaseReporter):
         if not isinstance(self._labels, list):
             self._labels = [self._labels]
         self._unlabels = self.config.get('unlabel', [])
+        self._review = self.config.get('review')
+        self._review_body = self.config.get('review-body')
         if not isinstance(self._unlabels, list):
             self._unlabels = [self._unlabels]
         self.context = "{}/{}".format(pipeline.tenant.name, pipeline.name)
@@ -70,6 +72,8 @@ class GithubReporter(BaseReporter):
                 self.addPullComment(item)
             if self._labels or self._unlabels:
                 self.setLabels(item)
+            if self._review:
+                self.addReview(item)
             if (self._merge):
                 self.mergePull(item)
                 if not item.change.is_merged:
@@ -150,6 +154,21 @@ class GithubReporter(BaseReporter):
             'Merge of change %s failed after 2 attempts, giving up' %
             item.change)
 
+    def addReview(self, item):
+        project = item.change.project.name
+        pr_number = item.change.number
+        sha = item.change.patchset
+        self.log.debug('Reporting change %s, params %s, review:\n%s' %
+                       (item.change, self.config, self._review))
+        self.connection.reviewPull(
+            project,
+            pr_number,
+            sha,
+            self._review,
+            self._review_body)
+        for label in self._unlabels:
+            self.connection.unlabelPull(project, pr_number, label)
+
     def setLabels(self, item):
         project = item.change.project.name
         pr_number = item.change.number
@@ -214,6 +233,8 @@ def getSchema():
         'comment': bool,
         'merge': bool,
         'label': scalar_or_list(str),
-        'unlabel': scalar_or_list(str)
+        'unlabel': scalar_or_list(str),
+        'review': v.Any('approve', 'request-changes', 'comment'),
+        'review-body': str
     })
     return github_reporter
