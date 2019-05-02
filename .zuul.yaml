@@ -165,12 +165,12 @@
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
             nodeset: ubuntu-xenial
-            timeout: 2700  # 45 minutes
+            timeout: 3600  # 60 minutes
         - tox-py36:
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
-            timeout: 2700  # 45 minutes
+            timeout: 3600  # 60 minutes
         - zuul-build-dashboard
         - zuul-build-dashboard-multi-tenant
         - nodejs-npm-run-lint:
