@@ -21,3 +21,4 @@
 0021-Update-GitPython-to-2.1.11.patch
 0022-WMF-backport-gerrit-use-change-when-querying-changes.patch
 0023-WMF-get-version-from-pkg_resources.patch
+0024-WMF-backport-Don-t-call-the-merger-for-non-live-item.patch
