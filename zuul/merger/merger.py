@@ -63,7 +63,8 @@ def timeout_handler(path):
     except git.exc.GitCommandError as e:
         if e.status == -9:
             # Timeout.  The repo could be in a bad state, so delete it.
-            shutil.rmtree(path)
+            if os.path.exists(path):
+                shutil.rmtree(path)
         raise
 
 
