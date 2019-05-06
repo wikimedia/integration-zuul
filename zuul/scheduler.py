@@ -1596,7 +1596,7 @@ class BasePipelineManager(object):
                 change_queue.moveItem(item, nnfi)
                 changed = True
                 self.cancelJobs(item)
-            if actionable:
+            if actionable and item.live:
                 ready = self.prepareRef(item)
                 if item.current_build_set.unable_to_merge:
                     failing_reasons.append("it has a merge conflict")
