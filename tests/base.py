@@ -2870,10 +2870,26 @@ class ZuulTestCase(BaseTestCase):
     def assertNodepoolState(self):
         # Make sure that there are no pending requests
 
-        requests = self.fake_nodepool.getNodeRequests()
+        requests = None
+        for x in iterate_timeout(30, "zk getNodeRequests"):
+            try:
+                requests = self.fake_nodepool.getNodeRequests()
+                break
+            except kazoo.exceptions.ConnectionLoss:
+                # NOTE(pabelanger): We lost access to zookeeper, iterate again
+                pass
         self.assertEqual(len(requests), 0)
 
-        nodes = self.fake_nodepool.getNodes()
+        nodes = None
+
+        for x in iterate_timeout(30, "zk getNodeRequests"):
+            try:
+                nodes = self.fake_nodepool.getNodes()
+                break
+            except kazoo.exceptions.ConnectionLoss:
+                # NOTE(pabelanger): We lost access to zookeeper, iterate again
+                pass
+
         for node in nodes:
             self.assertFalse(node['_lock'], "Node %s is locked" %
                              (node['_oid'],))
