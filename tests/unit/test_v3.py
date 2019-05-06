@@ -5133,6 +5133,14 @@ class TestJobPause(AnsibleZuulTestCase):
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
 
+        # The "pause" job might be paused during the waitUntilSettled
+        # call and appear settled; it should automatically resume
+        # though, so just wait for it.
+        for x in iterate_timeout(30, 'paused job'):
+            if not self.builds:
+                break
+        self.waitUntilSettled()
+
         self.assertEqual([], self.builds)
         self.assertHistory([
             dict(name='just-pause', result='SUCCESS', changes='1,1'),
