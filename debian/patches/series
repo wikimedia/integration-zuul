@@ -22,3 +22,4 @@
 0022-WMF-backport-gerrit-use-change-when-querying-changes.patch
 0023-WMF-get-version-from-pkg_resources.patch
 0024-WMF-backport-Don-t-call-the-merger-for-non-live-item.patch
+0025-WMF-backport-Fix-reject-clauses-in-the-abscence-of-a.patch

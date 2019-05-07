@@ -1,0 +1,29 @@
+From: Antoine Musso <hashar@free.fr>
+Date: Tue, 7 May 2019 10:10:13 +0200
+Subject: WMF: backport Fix reject clauses in the abscence of approvals
+
+Backport of upstream https://review.opendev.org/#/c/589762/
+
+Stripped tests since the test suite is broken in our fork but we will
+have a test covering the behavior in integration/config.git
+
+Bug: T105474
+Change-Id: Id2505e3823bd9badabb3e33103cbe537be36701d
+---
+ zuul/model.py | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/zuul/model.py b/zuul/model.py
+index 7d1f006..1690781 100644
+--- a/zuul/model.py
++++ b/zuul/model.py
+@@ -1120,8 +1120,7 @@ class BaseFilter(object):
+         return True
+ 
+     def matchesApprovals(self, change):
+-        if (self.required_approvals and not change.approvals
+-                or self.reject_approvals and not change.approvals):
++        if self.required_approvals and not change.approvals:
+             # A change with no approvals can not match
+             return False
+ 
