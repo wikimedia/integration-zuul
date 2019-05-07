@@ -40,8 +40,3 @@ override_dh_virtualenv:
 	find $(CURDIR)/debian/zuul/usr/share/python/zuul -type f -name '*.pyc' -delete
 	# python2.7 is populated in postinst and refreshed by dh-virtualenv trigger
 	rm $(CURDIR)/debian/zuul/usr/share/python/zuul/bin/python2.7
-
-override_dh_auto_test:
-ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
-	nosetests
-endif
