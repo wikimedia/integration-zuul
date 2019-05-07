@@ -518,7 +518,8 @@ class GithubUser(collections.Mapping):
             self._data = {
                 'username': user.login,
                 'name': user.name,
-                'email': user.email
+                'email': user.email,
+                'html_url': user.html_url,
             }
 
 
@@ -1352,9 +1353,6 @@ class GithubConnection(BaseConnection):
 
     def getUser(self, login, project):
         return GithubUser(login, self, project)
-
-    def getUserUri(self, login):
-        return 'https://%s/%s' % (self.server, login)
 
     def getRepoPermission(self, project, login):
         github = self.getGithubClient(project)
