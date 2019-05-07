@@ -1,3 +1,9 @@
+zuul (2.5.1-wmf9) UNRELEASED; urgency=medium
+
+  * debian/rules: zuul-merger and the test suite both depends on git
+
+ -- Antoine Musso <hashar@free.fr>  Tue, 07 May 2019 22:36:06 +0200
+
 zuul (2.5.1-wmf8) jessie-wikimedia; urgency=medium
 
   [ Antoine Musso (1) ]

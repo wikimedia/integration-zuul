@@ -44,6 +44,7 @@ Build-Depends: debhelper (>= 9),
 # #################################
 #  test-requirements.txt
 # #################################
+ git,
 #python-hacking (>= 0.9.2),
 #python-coverage (>= 3.6),
 #python-sphinx (>= 1.0.7+dfsg),
@@ -73,6 +74,7 @@ Pre-Depends: dpkg (>= 1.16.1),
  python2.7,
  ${misc:Pre-Depends}
 Depends: adduser,
+ git,
  libjs-jquery,
  libjs-underscore,
  lsb-base (>= 3.0-6),
