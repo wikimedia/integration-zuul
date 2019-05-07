@@ -1,14 +1,9 @@
 #!/usr/bin/make -f
 
-# Uncomment this to turn on verbose mode.
 export DH_VERBOSE=1
 
-UPSTREAM_GIT = git://github.com/openstack-infra/zuul.git
-
-include /usr/share/openstack-pkg-tools/pkgos.make
-
 # Make pbr to use the version from the Debian changelog
-export OSLO_PACKAGE_VERSION=$(DEBVERS)
+export PBR_VERSION=$(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
 
 %:
 	dh $@ --with python-virtualenv

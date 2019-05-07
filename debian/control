@@ -7,7 +7,6 @@ Build-Depends: debhelper (>= 9),
  dh-exec,
  dh-virtualenv (>= 0.9),
  virtualenv,
- openstack-pkg-tools,
  python2.7,
 # Following was Build-Depends-Indep
 #
