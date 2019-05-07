@@ -45,17 +45,18 @@ Build-Depends: debhelper (>= 9),
 # #################################
  git,
 #python-hacking (>= 0.9.2),
-#python-coverage (>= 3.6),
-#python-sphinx (>= 1.0.7+dfsg),
-#python-sphinxcontrib.blockdiag (>= 0.5.5),  added by dh-virtualenv
+ python-coverage (>= 3.6),
+ python-sphinx (>= 1.0.7+dfsg),
+ python-sphinxcontrib.blockdiag (>= 0.5.5),
+ python-sphinxcontrib.programoutput,
 #python-discover,
-#python-fixtures (>= 0.3.14),
-#python-keystoneclient (>= 0.4.2),
+ python-fixtures (>= 0.3.14),
+ python-keystoneclient (>= 0.4.2),
+ python-mock,
  python-subunit,
-#python-swiftclient (>= 1.6),
-#python-testrepository (>= 0.0.17),
-#python-testtools (>= 0.9.32),
-#python-sphinxcontrib.programoutput    added by dh-virtualenv
+ python-swiftclient (>= 1.6),
+ python-testrepository (>= 0.0.17),
+ python-testtools (>= 0.9.32),
 # #################################
 #  Debian packaging dependencies
 # #################################

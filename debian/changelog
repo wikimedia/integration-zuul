@@ -3,6 +3,7 @@ zuul (2.5.1-wmf9) UNRELEASED; urgency=medium
   * debian/rules: zuul-merger and the test suite both depends on git
   * debian/rules: remove unused override_dh_auto_test
   * Remove openstack-pkg-tools dependency
+  * Add test dependencies to Depends
 
  -- Antoine Musso <hashar@free.fr>  Tue, 07 May 2019 22:36:06 +0200
 
