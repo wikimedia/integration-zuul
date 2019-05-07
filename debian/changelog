@@ -1,4 +1,4 @@
-zuul (2.5.1-wmf8) UNRELEASED; urgency=medium
+zuul (2.5.1-wmf8) jessie-wikimedia; urgency=medium
 
   [ Antoine Musso (1) ]
   * 0024-WMF-backport-Don-t-call-the-merger-for-non-live-item.patch
@@ -6,7 +6,7 @@ zuul (2.5.1-wmf8) UNRELEASED; urgency=medium
   * 0025-WMF-backport-Fix-reject-clauses-in-the-abscence-of-a.patch
     Backport of https://review.opendev.org/#/c/589762/ for T105474
 
- -- Antoine Musso <hashar@free.fr>  Mon, 06 May 2019 21:41:34 +0200
+ -- Antoine Musso <hashar@free.fr>  Tue, 07 May 2019 11:06:25 +0200
 
 zuul (2.5.1-wmf7) jessie-wikimedia; urgency=medium
 
