@@ -24,6 +24,7 @@ override_dh_installinit:
 override_dh_virtualenv:
 	# Needs dh_virtualenv 0.9+ for --use-system-packages
 	# The .pyc are generated in postinst
+	PYTHON=$(CURDIR)/debian/zuul/usr/share/python/zuul/bin/python \
 	PIP_NO_COMPILE=1 PYTHONDONTWRITEBYTECODE=true VIRTUALENV_VERBOSE=true dh_virtualenv \
 		--python '/usr/bin/python2.7' \
 		--use-system-packages \
