@@ -235,6 +235,7 @@
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
               create_tarball_directory: build
+        - release-zuul-python
     promote:
       jobs:
         - zuul-promote-image
