@@ -46,7 +46,7 @@ which we will use in these instructions.
    sudo yum update -y
    sudo systemctl reboot
    sudo yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-   sudo yum install -y git python35u python35u-pip python35u-devel java-1.8.0-openjdk
+   sudo yum install -y git2u-all python35u python35u-pip python35u-devel java-1.8.0-openjdk
    sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.5 10
    sudo alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.5 10
    sudo pip3 install python-openstackclient bindep

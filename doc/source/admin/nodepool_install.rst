@@ -51,8 +51,10 @@ source directory. To use it, do the following steps.
 
 .. code-block:: shell
 
+   pushd nodepool/
    sudo cp etc/nodepool-launcher.service /etc/systemd/system/nodepool-launcher.service
    sudo chmod 0644 /etc/systemd/system/nodepool-launcher.service
+   popd
 
 If you are installing Nodepool on ``CentOS 7`` and copied the provided service
 file in previous step, please follow the steps below to use corresponding
@@ -60,7 +62,9 @@ systemd drop-in file so Nodepool service can be managed by systemd.
 
 .. code-block:: shell
 
+   pushd nodepool/
    sudo mkdir /etc/systemd/system/nodepool-launcher.service.d
    sudo cp etc/nodepool-launcher.service.d/centos.conf \
            /etc/systemd/system/nodepool-launcher.service.d/centos.conf
    sudo chmod 0644 /etc/systemd/system/nodepool-launcher.service.d/centos.conf
+   popd
