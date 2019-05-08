@@ -230,7 +230,7 @@ class AnsibleManager:
             raise Exception('Requested ansible version %s not found' % version)
         return ansible
 
-    @functools.lru_cache(maxsize=3)
+    @functools.lru_cache(maxsize=10)
     def getAraCallbackPlugin(self, version):
         result = None
         try:
