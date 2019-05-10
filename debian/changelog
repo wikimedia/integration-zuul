@@ -1,3 +1,10 @@
+zuul (2.5.1-wmf9) jessie-wikimedia; urgency=medium
+
+  * Rollback patch "Don-t-call-the-merger-for-non-live-item" since the logic
+    does not apply in Zuul v2.5 - T140297
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 10 May 2019 16:35:17 +0200
+
 zuul (2.5.1-wmf8) jessie-wikimedia; urgency=medium
 
   [ Antoine Musso (1) ]
