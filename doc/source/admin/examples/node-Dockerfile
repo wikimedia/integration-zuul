@@ -3,7 +3,6 @@ FROM rastasheep/ubuntu-sshd
 RUN apt-get update \
     && apt-get -y install \
         git \
-        python \
         python-tox \
         python3 \
         rsync \
