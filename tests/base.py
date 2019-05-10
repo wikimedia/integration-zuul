@@ -1329,11 +1329,12 @@ class ZuulTestCase(BaseTestCase):
         self.log.debug("Waiting until settled...")
         start = time.time()
         while True:
-            if time.time() - start > 10:
-                self.log.debug("Queue status:")
+            if time.time() - start > 30:
+                self.log.error("Timeout waiting for Zuul to settle")
+                self.log.error("Queue status:")
                 for queue in self.event_queues:
-                    self.log.debug("  %s: %s" % (queue, queue.empty()))
-                self.log.debug("All builds waiting: %s" %
+                    self.log.error("  %s: %s" % (queue, queue.empty()))
+                self.log.error("All builds waiting: %s" %
                                (self.areAllBuildsWaiting(),))
                 raise Exception("Timeout waiting for Zuul to settle")
             # Make sure no new events show up while we're checking
