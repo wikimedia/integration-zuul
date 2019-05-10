@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "125cdf43_82671e80",
+        "filename": "tox.ini",
+        "patchSetId": 1
+      },
+      "lineNbr": 11,
+      "author": {
+        "id": 6122
+      },
+      "writtenOn": "2019-05-10T14:28:51Z",
+      "side": 1,
+      "message": "2min instead of 0.5min, sounds reasonable",
+      "range": {
+        "startLine": 11,
+        "startChar": 25,
+        "endLine": 11,
+        "endChar": 28
+      },
+      "revId": "102b26b90cdcb233829c1b42eb1a21f6db14aa60",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
