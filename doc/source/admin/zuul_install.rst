@@ -54,12 +54,14 @@ directory. To use them, do the following steps.
 
 .. code-block:: console
 
+   $ pushd zuul/
    $ sudo cp etc/zuul-scheduler.service /etc/systemd/system/zuul-scheduler.service
    $ sudo cp etc/zuul-executor.service /etc/systemd/system/zuul-executor.service
    $ sudo cp etc/zuul-web.service /etc/systemd/system/zuul-web.service
    $ sudo chmod 0644 /etc/systemd/system/zuul-scheduler.service
    $ sudo chmod 0644 /etc/systemd/system/zuul-executor.service
    $ sudo chmod 0644 /etc/systemd/system/zuul-web.service
+   $ popd
 
 If you are installing Zuul on ``CentOS 7`` and copied the provided service
 files in previous step, please follow the steps below to use corresponding
@@ -67,6 +69,7 @@ systemd drop-in files so Zuul services can be managed by systemd.
 
 .. code-block:: console
 
+   $ pushd zuul/
    $ sudo mkdir /etc/systemd/system/zuul-scheduler.service.d
    $ sudo cp etc/zuul-scheduler.service.d/centos.conf \
        /etc/systemd/system/zuul-scheduler.service.d/centos.conf
@@ -79,3 +82,4 @@ systemd drop-in files so Zuul services can be managed by systemd.
    $ sudo cp etc/zuul-web.service.d/centos.conf \
        /etc/systemd/system/zuul-web.service.d/centos.conf
    $ sudo chmod 0644 /etc/systemd/system/zuul-web.service.d/centos.conf
+   $ popd
