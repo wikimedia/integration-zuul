@@ -15,6 +15,7 @@
 # under the License.
 
 import logging
+from uuid import uuid4
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -22,6 +23,7 @@ from apscheduler.triggers.cron import CronTrigger
 from zuul.driver import Driver, TriggerInterface
 from zuul.driver.timer import timertrigger
 from zuul.driver.timer.timermodel import TimerTriggerEvent
+from zuul.lib.logutil import get_annotated_logger
 
 
 class TimerDriver(Driver, TriggerInterface):
@@ -97,7 +99,9 @@ class TimerDriver(Driver, TriggerInterface):
                 event.project_name = project.name
                 event.ref = 'refs/heads/%s' % branch
                 event.branch = branch
-                self.log.debug("Adding event %s" % event)
+                event.zuul_event_id = str(uuid4().hex)
+                log = get_annotated_logger(self.log, event)
+                log.debug("Adding event")
                 self.sched.addEvent(event)
 
     def stop(self):
