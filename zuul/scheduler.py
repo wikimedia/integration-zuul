@@ -48,6 +48,7 @@ class ManagementEvent(object):
     def __init__(self):
         self._wait_event = threading.Event()
         self._exc_info = None
+        self.zuul_event_id = None
 
     def exception(self, exc_info):
         self._exc_info = exc_info

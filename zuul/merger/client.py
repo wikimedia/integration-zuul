@@ -21,6 +21,7 @@ import gear
 
 import zuul.model
 from zuul.lib.config import get_default
+from zuul.lib.logutil import get_annotated_logger
 
 
 def getJobData(job):
@@ -100,63 +101,92 @@ class MergeClient(object):
         return False
 
     def submitJob(self, name, data, build_set,
-                  precedence=zuul.model.PRECEDENCE_NORMAL):
+                  precedence=zuul.model.PRECEDENCE_NORMAL, event=None):
+        log = get_annotated_logger(self.log, event)
         uuid = str(uuid4().hex)
         job = MergeJob(name,
                        json.dumps(data),
                        unique=uuid)
         job.build_set = build_set
-        self.log.debug("Submitting job %s with data %s" % (job, data))
+        log.debug("Submitting job %s with data %s", job, data)
         self.jobs.add(job)
         self.gearman.submitJob(job, precedence=precedence,
                                timeout=300)
         return job
 
     def mergeChanges(self, items, build_set, files=None, dirs=None,
-                     repo_state=None, precedence=zuul.model.PRECEDENCE_NORMAL):
+                     repo_state=None, precedence=zuul.model.PRECEDENCE_NORMAL,
+                     event=None):
+        if event is not None:
+            zuul_event_id = event.zuul_event_id
+        else:
+            zuul_event_id = None
         data = dict(items=items,
                     files=files,
                     dirs=dirs,
-                    repo_state=repo_state)
-        self.submitJob('merger:merge', data, build_set, precedence)
+                    repo_state=repo_state,
+                    zuul_event_id=zuul_event_id)
+        self.submitJob('merger:merge', data, build_set, precedence,
+                       event=event)
 
     def getRepoState(self, items, build_set,
-                     precedence=zuul.model.PRECEDENCE_NORMAL):
-        data = dict(items=items)
-        self.submitJob('merger:refstate', data, build_set, precedence)
+                     precedence=zuul.model.PRECEDENCE_NORMAL,
+                     event=None):
+        if event is not None:
+            zuul_event_id = event.zuul_event_id
+        else:
+            zuul_event_id = None
+
+        data = dict(items=items, zuul_event_id=zuul_event_id)
+        self.submitJob('merger:refstate', data, build_set, precedence,
+                       event=event)
 
     def getFiles(self, connection_name, project_name, branch, files, dirs=[],
-                 precedence=zuul.model.PRECEDENCE_HIGH):
+                 precedence=zuul.model.PRECEDENCE_HIGH, event=None):
+        if event is not None:
+            zuul_event_id = event.zuul_event_id
+        else:
+            zuul_event_id = None
+
         data = dict(connection=connection_name,
                     project=project_name,
                     branch=branch,
                     files=files,
-                    dirs=dirs)
-        job = self.submitJob('merger:cat', data, None, precedence)
+                    dirs=dirs,
+                    zuul_event_id=zuul_event_id)
+        job = self.submitJob('merger:cat', data, None, precedence, event=event)
         return job
 
     def getFilesChanges(self, connection_name, project_name, branch,
                         tosha=None, precedence=zuul.model.PRECEDENCE_HIGH,
-                        build_set=None):
+                        build_set=None, event=None):
+        if event is not None:
+            zuul_event_id = event.zuul_event_id
+        else:
+            zuul_event_id = None
+
         data = dict(connection=connection_name,
                     project=project_name,
                     branch=branch,
-                    tosha=tosha)
+                    tosha=tosha,
+                    zuul_event_id=zuul_event_id)
         job = self.submitJob('merger:fileschanges', data, build_set,
-                             precedence)
+                             precedence, event=event)
         return job
 
     def onBuildCompleted(self, job):
         data = getJobData(job)
+        zuul_event_id = data.get('zuul_event_id')
+        log = get_annotated_logger(self.log, zuul_event_id)
+
         merged = data.get('merged', False)
         job.updated = data.get('updated', False)
         commit = data.get('commit')
         files = data.get('files', {})
         repo_state = data.get('repo_state', {})
         job.files = files
-        self.log.info("Merge %s complete, merged: %s, updated: %s, "
-                      "commit: %s" %
-                      (job, merged, job.updated, commit))
+        log.info("Merge %s complete, merged: %s, updated: %s, "
+                 "commit: %s", job, merged, job.updated, commit)
         job.setComplete()
         if job.build_set:
             if job.name == 'merger:fileschanges':

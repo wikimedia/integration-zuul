@@ -68,12 +68,12 @@ class TestMergerRepo(ZuulTestCase):
 
         self.assertEqual(
             os.path.join(self.upstream_root, 'org/project1'),
-            work_repo.createRepoObject().remotes[0].url,
+            work_repo.createRepoObject(None).remotes[0].url,
             message="Parent clone still point to upstream project1")
 
         self.assertEqual(
             os.path.join(self.upstream_root, 'org/project2'),
-            sub_repo.createRepoObject().remotes[0].url,
+            sub_repo.createRepoObject(None).remotes[0].url,
             message="Sub repository points to upstream project2")
 
     def test_set_refs(self):
@@ -121,7 +121,7 @@ class TestMergerRepo(ZuulTestCase):
         # test, we try cloning again.
         with testtools.ExpectedException(git.exc.GitCommandError,
                                          r'.*exit code\(-9\)'):
-            work_repo._ensure_cloned()
+            work_repo._ensure_cloned(None)
 
     def test_fetch_timeout(self):
         parent_path = os.path.join(self.upstream_root, 'org/project1')
@@ -197,7 +197,7 @@ class TestMergerRepo(ZuulTestCase):
         fn = os.path.join(cache_repo.local_path, 'commit_filename')
         with open(fn, 'a') as f:
             f.write("test")
-        repo = cache_repo.createRepoObject()
+        repo = cache_repo.createRepoObject(None)
         repo.index.add([fn])
         repo.index.commit('test commit')
 

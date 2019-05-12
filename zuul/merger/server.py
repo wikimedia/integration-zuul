@@ -137,23 +137,27 @@ class MergeServer(object):
 
     def merge(self, job):
         args = json.loads(job.arguments)
+        zuul_event_id = args.get('zuul_event_id')
         ret = self.merger.mergeChanges(
             args['items'], args.get('files'),
-            args.get('dirs'), args.get('repo_state'))
+            args.get('dirs'), args.get('repo_state'),
+            zuul_event_id=zuul_event_id)
         result = dict(merged=(ret is not None))
         if ret is None:
             result['commit'] = result['files'] = result['repo_state'] = None
         else:
             (result['commit'], result['files'], result['repo_state'],
              recent, orig_commit) = ret
+        result['zuul_event_id'] = zuul_event_id
         job.sendWorkComplete(json.dumps(result))
 
     def refstate(self, job):
         args = json.loads(job.arguments)
-
+        zuul_event_id = args.get('zuul_event_id')
         success, repo_state = self.merger.getRepoState(args['items'])
         result = dict(updated=success,
                       repo_state=repo_state)
+        result['zuul_event_id'] = zuul_event_id
         job.sendWorkComplete(json.dumps(result))
 
     def cat(self, job):
@@ -168,9 +172,13 @@ class MergeServer(object):
 
     def fileschanges(self, job):
         args = json.loads(job.arguments)
-        self.merger.updateRepo(args['connection'], args['project'])
+        zuul_event_id = args.get('zuul_event_id')
+        self.merger.updateRepo(args['connection'], args['project'],
+                               zuul_event_id=zuul_event_id)
         files = self.merger.getFilesChanges(
-            args['connection'], args['project'], args['branch'], args['tosha'])
+            args['connection'], args['project'], args['branch'], args['tosha'],
+            zuul_event_id=zuul_event_id)
         result = dict(updated=True,
                       files=files)
+        result['zuul_event_id'] = zuul_event_id
         job.sendWorkComplete(json.dumps(result))

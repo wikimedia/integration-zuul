@@ -2726,6 +2726,7 @@ class ExecutorServer(object):
 
     def fileschanges(self, job):
         args = json.loads(job.arguments)
+        zuul_event_id = args.get('zuul_event_id')
         task = self.update(args['connection'], args['project'])
         task.wait()
         lock = self.repo_locks.getRepoLock(
@@ -2734,29 +2735,35 @@ class ExecutorServer(object):
             files = self.merger.getFilesChanges(
                 args['connection'], args['project'],
                 args['branch'],
-                args['tosha'])
+                args['tosha'], zuul_event_id=zuul_event_id)
         result = dict(updated=True,
                       files=files)
+        result['zuul_event_id'] = zuul_event_id
         job.sendWorkComplete(json.dumps(result))
 
     def refstate(self, job):
         args = json.loads(job.arguments)
+        zuul_event_id = args.get('zuul_event_id')
         success, repo_state = self.merger.getRepoState(
             args['items'], repo_locks=self.repo_locks)
         result = dict(updated=success,
                       repo_state=repo_state)
+        result['zuul_event_id'] = zuul_event_id
         job.sendWorkComplete(json.dumps(result))
 
     def merge(self, job):
         args = json.loads(job.arguments)
+        zuul_event_id = args.get('zuul_event_id')
         ret = self.merger.mergeChanges(args['items'], args.get('files'),
                                        args.get('dirs', []),
                                        args.get('repo_state'),
-                                       repo_locks=self.repo_locks)
+                                       repo_locks=self.repo_locks,
+                                       zuul_event_id=zuul_event_id)
         result = dict(merged=(ret is not None))
         if ret is None:
             result['commit'] = result['files'] = result['repo_state'] = None
         else:
             (result['commit'], result['files'], result['repo_state'],
              recent, orig_commit) = ret
+        result['zuul_event_id'] = zuul_event_id
         job.sendWorkComplete(json.dumps(result))
