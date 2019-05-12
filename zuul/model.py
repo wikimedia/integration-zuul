@@ -409,8 +409,8 @@ class ChangeQueue(object):
             if not self.name:
                 self.name = project.name
 
-    def enqueueChange(self, change):
-        item = QueueItem(self, change)
+    def enqueueChange(self, change, event):
+        item = QueueItem(self, change, event)
         self.enqueueItem(item)
         item.enqueue_time = time.time()
         return item
@@ -2072,7 +2072,7 @@ class QueueItem(object):
     """
     log = logging.getLogger("zuul.QueueItem")
 
-    def __init__(self, queue, change):
+    def __init__(self, queue, change, event):
         self.pipeline = queue.pipeline
         self.queue = queue
         self.change = change  # a ref
@@ -2091,6 +2091,7 @@ class QueueItem(object):
         self.project_pipeline_config = None
         self.job_graph = None
         self._cached_sql_results = {}
+        self.event = event  # The trigger event that lead to this queue item
 
     def __repr__(self):
         if self.pipeline:

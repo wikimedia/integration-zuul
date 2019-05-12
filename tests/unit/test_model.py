@@ -200,7 +200,7 @@ class TestJob(BaseTestCase):
 
         change = model.Change(self.project)
         change.branch = 'master'
-        item = queue.enqueueChange(change)
+        item = queue.enqueueChange(change, None)
         item.layout = self.layout
 
         self.assertTrue(base.changeMatchesBranch(change))
@@ -214,7 +214,7 @@ class TestJob(BaseTestCase):
         self.assertEqual(job.timeout, 70)
 
         change.branch = 'stable/diablo'
-        item = queue.enqueueChange(change)
+        item = queue.enqueueChange(change, None)
         item.layout = self.layout
 
         self.assertTrue(base.changeMatchesBranch(change))
@@ -263,7 +263,7 @@ class TestJob(BaseTestCase):
         change = model.Change(self.project)
         change.branch = 'master'
         change.files = ['/COMMIT_MSG', 'ignored-file']
-        item = queue.enqueueChange(change)
+        item = queue.enqueueChange(change, None)
         item.layout = self.layout
 
         self.assertTrue(base.changeMatchesFiles(change))
@@ -332,7 +332,7 @@ class TestJob(BaseTestCase):
         change = model.Change(self.project)
         # Test master
         change.branch = 'master'
-        item = self.queue.enqueueChange(change)
+        item = self.queue.enqueueChange(change, None)
         item.layout = self.layout
         with testtools.ExpectedException(
                 Exception,

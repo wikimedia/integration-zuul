@@ -929,7 +929,7 @@ class Scheduler(threading.Thread):
             pipeline.manager.dequeueItem(item)
         for item in items_to_enqueue:
             pipeline.manager.addChange(
-                item.change,
+                item.change, event,
                 enqueue_time=item.enqueue_time,
                 quiet=True,
                 ignore_requirements=True)
@@ -969,7 +969,7 @@ class Scheduler(threading.Thread):
         change = project.source.getChange(event, project)
         self.log.debug("Event %s for change %s was directly assigned "
                        "to pipeline %s" % (event, change, self))
-        pipeline.manager.addChange(change, ignore_requirements=True)
+        pipeline.manager.addChange(change, event, ignore_requirements=True)
 
     def _areAllBuildsComplete(self):
         self.log.debug("Checking if all builds are complete")
@@ -1110,7 +1110,7 @@ class Scheduler(threading.Thread):
                     elif event.isChangeAbandoned():
                         pipeline.manager.removeAbandonedChange(change)
                     if pipeline.manager.eventMatches(event, change):
-                        pipeline.manager.addChange(change)
+                        pipeline.manager.addChange(change, event)
         finally:
             self.trigger_event_queue.task_done()
 

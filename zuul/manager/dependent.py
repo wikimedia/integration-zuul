@@ -101,7 +101,7 @@ class DependentPipelineManager(PipelineManager):
             return False
         return True
 
-    def enqueueChangesBehind(self, change, quiet, ignore_requirements,
+    def enqueueChangesBehind(self, change, event, quiet, ignore_requirements,
                              change_queue):
         self.log.debug("Checking for changes needing %s:" % change)
         if not hasattr(change, 'needed_by_changes'):
@@ -145,11 +145,11 @@ class DependentPipelineManager(PipelineManager):
             self.log.debug("  No changes need %s" % change)
 
         for other_change in to_enqueue:
-            self.addChange(other_change, quiet=quiet,
+            self.addChange(other_change, event, quiet=quiet,
                            ignore_requirements=ignore_requirements,
                            change_queue=change_queue)
 
-    def enqueueChangesAhead(self, change, quiet, ignore_requirements,
+    def enqueueChangesAhead(self, change, event, quiet, ignore_requirements,
                             change_queue, history=None):
         if history and change in history:
             # detected dependency cycle
@@ -168,7 +168,7 @@ class DependentPipelineManager(PipelineManager):
         self.log.debug("  Changes %s must be merged ahead of %s" %
                        (ret, change))
         for needed_change in ret:
-            r = self.addChange(needed_change, quiet=quiet,
+            r = self.addChange(needed_change, event, quiet=quiet,
                                ignore_requirements=ignore_requirements,
                                change_queue=change_queue, history=history)
             if not r:
