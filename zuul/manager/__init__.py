@@ -331,7 +331,8 @@ class PipelineManager(object):
                                       ignore_requirements, change_queue)
             zuul_driver = self.sched.connections.drivers['zuul']
             tenant = self.pipeline.tenant
-            zuul_driver.onChangeEnqueued(tenant, item.change, self.pipeline)
+            zuul_driver.onChangeEnqueued(
+                tenant, item.change, self.pipeline, event)
             return True
 
     def dequeueItem(self, item):
