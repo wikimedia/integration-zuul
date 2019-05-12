@@ -11,6 +11,7 @@
 # under the License.
 
 from zuul import model
+from zuul.lib.logutil import get_annotated_logger
 from zuul.manager import PipelineManager, DynamicChangeQueueContextManager
 
 
@@ -19,7 +20,9 @@ class SupercedentPipelineManager(PipelineManager):
 
     changes_merge = False
 
-    def getChangeQueue(self, change, existing=None):
+    def getChangeQueue(self, change, event, existing=None):
+        log = get_annotated_logger(self.log, event)
+
         # creates a new change queue for every project-ref
         # combination.
         if existing:
@@ -33,7 +36,7 @@ class SupercedentPipelineManager(PipelineManager):
                   hasattr(queue.queue[-1].change, 'branch') and
                   queue.queue[-1].change.branch == change.branch) or
                 queue.queue[-1].change.ref == change.ref)):
-                self.log.debug("Found existing queue %s", queue)
+                log.debug("Found existing queue %s", queue)
                 return DynamicChangeQueueContextManager(queue)
         change_queue = model.ChangeQueue(
             self.pipeline,
@@ -43,7 +46,7 @@ class SupercedentPipelineManager(PipelineManager):
             window_decrease_type='none')
         change_queue.addProject(change.project)
         self.pipeline.addQueue(change_queue)
-        self.log.debug("Dynamically created queue %s", change_queue)
+        log.debug("Dynamically created queue %s", change_queue)
         return DynamicChangeQueueContextManager(change_queue)
 
     def _pruneQueues(self):
