@@ -78,6 +78,7 @@ import zuul.zk
 import zuul.configloader
 from zuul.exceptions import MergeFailure
 from zuul.lib.config import get_default
+from zuul.lib.logutil import get_annotated_logger
 
 FIXTURE_DIR = os.path.join(os.path.dirname(__file__),
                            'fixtures')
@@ -727,12 +728,12 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         if message:
             change.setReported()
 
-    def query(self, number):
+    def query(self, number, event=None):
         if type(number) == int:
-            return self.queryChange(number)
+            return self.queryChange(number, event=event)
         raise Exception("Could not query %s %s" % (type(number, number)))
 
-    def queryChange(self, number):
+    def queryChange(self, number, event=None):
         change = self.changes.get(int(number))
         if change:
             return change.query()
@@ -761,8 +762,9 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
             l = [change.query() for change in self.changes.values()]
         return l
 
-    def simpleQuery(self, query):
-        self.log.debug("simpleQuery: %s" % query)
+    def simpleQuery(self, query, event=None):
+        log = get_annotated_logger(self.log, event)
+        log.debug("simpleQuery: %s", query)
         self.queries.append(query)
         results = []
         if query.startswith('(') and 'OR' in query:
