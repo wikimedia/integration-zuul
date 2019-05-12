@@ -41,6 +41,7 @@ import gear
 from zuul.connection import BaseConnection
 from zuul.web.handler import BaseWebController
 from zuul.lib.config import get_default
+from zuul.lib.logutil import get_annotated_logger
 from zuul.model import Ref, Branch, Tag, Project
 from zuul.exceptions import MergeFailure
 from zuul.driver.github.githubmodel import PullRequest, GithubTriggerEvent
@@ -196,20 +197,13 @@ class GithubGearmanWorker(object):
         self.gearman.shutdown()
 
 
-class GithubEventLogAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
-        msg, kwargs = super(GithubEventLogAdapter, self).process(msg, kwargs)
-        msg = '[delivery: %s] %s' % (kwargs['extra']['delivery'], msg)
-        return msg, kwargs
-
-
 class GithubEventProcessor(object):
     def __init__(self, connector, event_tuple):
         self.connector = connector
         self.connection = connector.connection
         self.ts, self.body, self.event_type, self.delivery = event_tuple
         logger = logging.getLogger("zuul.GithubEventConnector")
-        self.log = GithubEventLogAdapter(logger, {'delivery': self.delivery})
+        self.log = get_annotated_logger(logger, self.delivery)
 
     def run(self):
         self.log.debug("Starting event processing, queue length %s",

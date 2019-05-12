@@ -3042,6 +3042,8 @@ class TriggerEvent(object):
         # For events that arrive with a destination pipeline (eg, from
         # an admin command, etc):
         self.forced_pipeline = None
+        # For logging
+        self.zuul_event_id = None
 
     @property
     def canonical_project_name(self):

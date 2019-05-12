@@ -34,6 +34,7 @@ from urllib.parse import urlsplit
 from zuul.lib.ansible import AnsibleManager
 from zuul.lib.yamlutil import yaml
 from zuul.lib.config import get_default
+from zuul.lib.logutil import get_annotated_logger
 from zuul.lib.statsd import get_statsd
 from zuul.lib import filecomments
 
@@ -644,13 +645,6 @@ def make_inventory_dict(nodes, args, all_vars):
     return inventory
 
 
-class AnsibleJobLogAdapter(logging.LoggerAdapter):
-    def process(self, msg, kwargs):
-        msg, kwargs = super(AnsibleJobLogAdapter, self).process(msg, kwargs)
-        msg = '[build: %s] %s' % (kwargs['extra']['job'], msg)
-        return msg, kwargs
-
-
 class AnsibleJob(object):
     RESULT_NORMAL = 1
     RESULT_TIMED_OUT = 2
@@ -668,7 +662,8 @@ class AnsibleJob(object):
 
     def __init__(self, executor_server, job):
         logger = logging.getLogger("zuul.AnsibleJob")
-        self.log = AnsibleJobLogAdapter(logger, {'job': job.unique})
+        # TODO(tobiash): Add zuul event id when it's plumbed through
+        self.log = get_annotated_logger(logger, None, build=job.unique)
         self.executor_server = executor_server
         self.job = job
         self.arguments = json.loads(job.arguments)
