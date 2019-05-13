@@ -201,7 +201,7 @@ class Nodepool(object):
             self.log.debug("Removing autohold for %s", autohold_key)
             del self.sched.autohold_requests[autohold_key]
 
-    def useNodeSet(self, nodeset, build_set=None):
+    def useNodeSet(self, nodeset, build_set=None, event=None):
         self.log.info("Setting nodeset %s in use" % (nodeset,))
         resources = defaultdict(int)
         for node in nodeset.getNodes():

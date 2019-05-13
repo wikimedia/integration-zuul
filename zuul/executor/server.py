@@ -216,11 +216,13 @@ class Watchdog(object):
 
 
 class SshAgent(object):
-    log = logging.getLogger("zuul.ExecutorServer")
 
-    def __init__(self):
+    def __init__(self, zuul_event_id=None, build=None):
         self.env = {}
         self.ssh_agent = None
+        self.log = get_annotated_logger(
+            logging.getLogger("zuul.ExecutorServer"),
+            zuul_event_id, build=build)
 
     def start(self):
         if self.ssh_agent:
@@ -512,7 +514,8 @@ class JobDir(object):
 
 
 class UpdateTask(object):
-    def __init__(self, connection_name, project_name):
+    def __init__(self, connection_name, project_name, zuul_event_id=None,
+                 build=None):
         self.connection_name = connection_name
         self.project_name = project_name
         self.canonical_name = None
@@ -520,6 +523,10 @@ class UpdateTask(object):
         self.refs = None
         self.event = threading.Event()
         self.success = False
+
+        # These variables are used for log annotation
+        self.zuul_event_id = zuul_event_id
+        self.build = build
 
     def __eq__(self, other):
         if (other and other.connection_name == self.connection_name and
@@ -663,11 +670,12 @@ class AnsibleJob(object):
 
     def __init__(self, executor_server, job):
         logger = logging.getLogger("zuul.AnsibleJob")
-        # TODO(tobiash): Add zuul event id when it's plumbed through
-        self.log = get_annotated_logger(logger, None, build=job.unique)
+        self.arguments = json.loads(job.arguments)
+        self.zuul_event_id = self.arguments.get('zuul_event_id')
+        self.log = get_annotated_logger(
+            logger, self.zuul_event_id, build=job.unique)
         self.executor_server = executor_server
         self.job = job
-        self.arguments = json.loads(job.arguments)
         self.jobdir = None
         self.proc = None
         self.proc_lock = threading.Lock()
@@ -697,7 +705,8 @@ class AnsibleJob(object):
             self.executor_server.config,
             'executor',
             'winrm_read_timeout_sec')
-        self.ssh_agent = SshAgent()
+        self.ssh_agent = SshAgent(zuul_event_id=self.zuul_event_id,
+                                  build=self.job.unique)
 
         self.executor_variables_file = None
 
@@ -823,7 +832,9 @@ class AnsibleJob(object):
         for project in args['projects']:
             self.log.debug("Updating project %s" % (project,))
             tasks.append(self.executor_server.update(
-                project['connection'], project['name']))
+                project['connection'], project['name'],
+                zuul_event_id=self.zuul_event_id,
+                build=self.job.unique))
             projects.add((project['connection'], project['name']))
 
         # ...as well as all playbook and role projects.
@@ -838,7 +849,9 @@ class AnsibleJob(object):
             self.log.debug("Updating playbook or role %s" % (repo['project'],))
             key = (repo['connection'], repo['project'])
             if key not in projects:
-                tasks.append(self.executor_server.update(*key))
+                tasks.append(self.executor_server.update(
+                    *key, zuul_event_id=self.zuul_event_id,
+                    build=self.job.unique))
                 projects.add(key)
 
         for task in tasks:
@@ -2516,13 +2529,17 @@ class ExecutorServer(object):
         if task is None:
             # We are asked to stop
             raise StopException()
+        log = get_annotated_logger(
+            self.log, task.zuul_event_id, build=task.build)
         try:
             lock = self.repo_locks.getRepoLock(
                 task.connection_name, task.project_name)
             with lock:
-                self.log.info("Updating repo %s/%s",
-                              task.connection_name, task.project_name)
-                self.merger.updateRepo(task.connection_name, task.project_name)
+                log.info("Updating repo %s/%s",
+                         task.connection_name, task.project_name)
+                self.merger.updateRepo(
+                    task.connection_name, task.project_name,
+                    zuul_event_id=task.zuul_event_id, build=task.build)
                 repo = self.merger.getRepo(
                     task.connection_name, task.project_name)
                 source = self.connections.getSource(task.connection_name)
@@ -2530,18 +2547,20 @@ class ExecutorServer(object):
                 task.canonical_name = project.canonical_name
                 task.branches = repo.getBranches()
                 task.refs = [r.name for r in repo.getRefs()]
-                self.log.debug("Finished updating repo %s/%s",
-                               task.connection_name, task.project_name)
+                log.debug("Finished updating repo %s/%s",
+                          task.connection_name, task.project_name)
                 task.success = True
         except Exception:
-            self.log.exception('Got exception while updating repo %s/%s',
-                               task.connection_name, task.project_name)
+            log.exception('Got exception while updating repo %s/%s',
+                          task.connection_name, task.project_name)
         finally:
             task.setComplete()
 
-    def update(self, connection_name, project_name):
+    def update(self, connection_name, project_name, zuul_event_id=None,
+               build=None):
         # Update a repository in the main merger
-        task = UpdateTask(connection_name, project_name)
+        task = UpdateTask(connection_name, project_name,
+                          zuul_event_id=zuul_event_id, build=build)
         task = self.update_queue.put(task)
         return task
 

@@ -148,8 +148,8 @@ class Repo(object):
             # connection and DoS Gerrit.
             client.close()
 
-    def _ensure_cloned(self, zuul_event_id):
-        log = get_annotated_logger(self.log, zuul_event_id)
+    def _ensure_cloned(self, zuul_event_id, build=None):
+        log = get_annotated_logger(self.log, zuul_event_id, build=build)
         repo_is_cloned = os.path.exists(os.path.join(self.local_path, '.git'))
         if self._initialized and repo_is_cloned:
             try:
@@ -173,7 +173,7 @@ class Repo(object):
 
             log.debug("Cloning from %s to %s",
                       redact_url(clone_url), self.local_path)
-            self._git_clone(clone_url, zuul_event_id)
+            self._git_clone(clone_url, zuul_event_id, build=build)
 
         repo = git.Repo(self.local_path)
         repo.git.update_environment(**self.env)
@@ -197,8 +197,8 @@ class Repo(object):
     def isInitialized(self):
         return self._initialized
 
-    def _git_clone(self, url, zuul_event_id):
-        log = get_annotated_logger(self.log, zuul_event_id)
+    def _git_clone(self, url, zuul_event_id, build=None):
+        log = get_annotated_logger(self.log, zuul_event_id, build=build)
         mygit = git.cmd.Git(os.getcwd())
         mygit.update_environment(**self.env)
 
@@ -260,17 +260,17 @@ class Repo(object):
         with repo.remotes.origin.config_writer as config_writer:
             config_writer.set('url', url)
 
-    def createRepoObject(self, zuul_event_id):
-        self._ensure_cloned(zuul_event_id)
+    def createRepoObject(self, zuul_event_id, build=None):
+        self._ensure_cloned(zuul_event_id, build=build)
         repo = git.Repo(self.local_path)
         repo.git.update_environment(**self.env)
         return repo
 
-    def reset(self, zuul_event_id=None):
-        log = get_annotated_logger(self.log, zuul_event_id)
+    def reset(self, zuul_event_id=None, build=None):
+        log = get_annotated_logger(self.log, zuul_event_id, build=build)
         log.debug("Resetting repository %s", self.local_path)
-        self.update(zuul_event_id=zuul_event_id)
-        repo = self.createRepoObject(zuul_event_id)
+        self.update(zuul_event_id=zuul_event_id, build=build)
+        repo = self.createRepoObject(zuul_event_id, build=build)
         origin = repo.remotes.origin
         seen = set()
         head = None
@@ -445,9 +445,9 @@ class Repo(object):
         log.debug("Pushing %s:%s to %s", local, remote, self.remote_url)
         repo.remotes.origin.push('%s:%s' % (local, remote))
 
-    def update(self, zuul_event_id=None):
-        log = get_annotated_logger(self.log, zuul_event_id)
-        repo = self.createRepoObject(zuul_event_id)
+    def update(self, zuul_event_id=None, build=None):
+        log = get_annotated_logger(self.log, zuul_event_id, build=build)
+        repo = self.createRepoObject(zuul_event_id, build=build)
         log.debug("Updating repository %s" % self.local_path)
         if repo.git.version_info[:2] < (1, 9):
             # Before 1.9, 'git fetch --tags' did not include the
@@ -595,14 +595,15 @@ class Merger(object):
         return self._addProject(hostname, project_name, url, sshkey,
                                 zuul_event_id)
 
-    def updateRepo(self, connection_name, project_name, zuul_event_id=None):
-        log = get_annotated_logger(self.log, zuul_event_id)
+    def updateRepo(self, connection_name, project_name, zuul_event_id=None,
+                   build=None):
+        log = get_annotated_logger(self.log, zuul_event_id, build=build)
         repo = self.getRepo(connection_name, project_name,
                             zuul_event_id=zuul_event_id)
         try:
             log.info("Updating local repository %s/%s",
                      connection_name, project_name)
-            repo.reset()
+            repo.reset(zuul_event_id=zuul_event_id, build=build)
         except Exception:
             log.exception("Unable to update %s/%s",
                           connection_name, project_name)
