@@ -18,7 +18,9 @@ services:
   gerritconfig:
     image: zuul/zuul-executor
     environment:
-      no_proxy: "${no_proxy},gerrit"
+      - http_proxy
+      - https_proxy
+      - no_proxy=${no_proxy},gerrit
     depends_on:
       - gerrit
     volumes:
@@ -41,7 +43,9 @@ services:
       - zk
       - mysql
     environment:
-      no_proxy: "${no_proxy},gerrit"
+      - http_proxy
+      - https_proxy
+      - no_proxy=${no_proxy},gerrit
     command: "sh -c '/var/playbooks/wait-to-start.sh && zuul-scheduler -d'"
     # FIXME: The scheduler has no ansible anymore so use the executor image.
     #        This needs to be changes such that ansible is not required for startup.
@@ -65,7 +69,9 @@ services:
   executor:
     privileged: true
     environment:
-      no_proxy: "${no_proxy},gerrit"
+      - http_proxy
+      - https_proxy
+      - no_proxy=${no_proxy},gerrit,scheduler
     command: "zuul-executor -d"
     depends_on:
       - scheduler
@@ -82,7 +88,7 @@ services:
       args:
         http_proxy: "${http_proxy}"
         https_proxy: "${http_proxy}"
-        no_proxy: "${no_proxy}"
+        no_proxy: "${no_proxy},gerrit"
     volumes:
       - "nodessh:/root/.ssh:z"
   launcher:
