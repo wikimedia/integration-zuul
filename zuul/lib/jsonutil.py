@@ -17,7 +17,11 @@ import types
 class ZuulJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, types.MappingProxyType):
-            return dict(o)
+            d = dict(o)
+            # Always remove SafeLoader left-over
+            d.pop('_source_context', None)
+            d.pop('_start_mark', None)
+            return d
         return json.JSONEncoder.default(self, o)
 
 

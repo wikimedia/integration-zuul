@@ -17,7 +17,6 @@ import json
 import logging
 import threading
 import traceback
-import types
 
 import gear
 
@@ -25,13 +24,7 @@ from zuul import model
 from zuul.connection import BaseConnection
 from zuul.lib import encryption
 from zuul.lib.config import get_default
-
-
-class MappingProxyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, types.MappingProxyType):
-            return dict(obj)
-        return json.JSONEncoder.default(self, obj)
+from zuul.lib.jsonutil import ZuulJSONEncoder
 
 
 class RPCListener(object):
@@ -361,7 +354,7 @@ class RPCListener(object):
         output = []
         for job in jobs:
             output.append(job.toDict(tenant))
-        gear_job.sendWorkComplete(json.dumps(output, cls=MappingProxyEncoder))
+        gear_job.sendWorkComplete(json.dumps(output, cls=ZuulJSONEncoder))
 
     def handle_job_list(self, job):
         args = json.loads(job.arguments)
@@ -431,7 +424,7 @@ class RPCListener(object):
                 config['pipelines'].append(pipeline)
             result['configs'].append(config)
 
-        gear_job.sendWorkComplete(json.dumps(result, cls=MappingProxyEncoder))
+        gear_job.sendWorkComplete(json.dumps(result, cls=ZuulJSONEncoder))
 
     def handle_project_list(self, job):
         args = json.loads(job.arguments)
