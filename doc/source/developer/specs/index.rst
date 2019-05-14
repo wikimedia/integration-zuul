@@ -17,3 +17,4 @@ for those changes and help us work on them collaboratively.
    multiple-ansible-versions
    logs
    tenant-scoped-admin-web-API
+   kubernetes-operator
