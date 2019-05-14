@@ -154,6 +154,9 @@
             dependencies: project-merge
         - project1-project2-integration:
             dependencies: project-merge
+    post:
+      jobs:
+        - project-post
 
 - project:
     name: org/project2
