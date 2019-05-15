@@ -13,3 +13,9 @@
         - image-user:
             dependencies:
               - image-builder
+    tag:
+      jobs:
+        - image-builder
+        - image-user:
+            dependencies:
+              - image-builder

@@ -5376,6 +5376,51 @@ class TestProvidesRequiresBuildset(ZuulTestCase):
                 'project': 'org/project1',
                 'change': '1',
                 'patchset': '1',
+                'branch': 'master',
+                'job': 'image-builder',
+                'url': 'http://example.com/image',
+                'name': 'image',
+                'metadata': {
+                    'type': 'container_image',
+                }
+            }])
+
+    def test_provides_with_tag_requires_buildset(self):
+        self.executor_server.hold_jobs_in_build = True
+        event = self.fake_gerrit.addFakeTag('org/project1', 'master', 'foo')
+        self.executor_server.returnData(
+            'image-builder', event,
+            {'zuul':
+             {'artifacts': [
+                 {'name': 'image',
+                  'url': 'http://example.com/image',
+                  'metadata': {
+                      'type': 'container_image'
+                  }},
+             ]}}
+        )
+        self.fake_gerrit.addEvent(event)
+
+        self.waitUntilSettled()
+        self.assertEqual(len(self.builds), 1)
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='image-builder', result='SUCCESS', ref='refs/tags/foo'),
+            dict(name='image-user', result='SUCCESS', ref='refs/tags/foo'),
+        ])
+
+        build = self.getJobFromHistory('image-user', project='org/project1')
+        self.assertEqual(
+            build.parameters['zuul']['artifacts'],
+            [{
+                'project': 'org/project1',
+                'ref': 'refs/tags/foo',
+                'tag': 'foo',
+                'oldrev': event['refUpdate']['oldRev'],
+                'newrev': event['refUpdate']['newRev'],
                 'job': 'image-builder',
                 'url': 'http://example.com/image',
                 'name': 'image',

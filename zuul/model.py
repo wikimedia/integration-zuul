@@ -1427,11 +1427,23 @@ class Job(ConfigObject):
         artifact_data = self.artifact_data or []
         artifacts = get_artifacts_from_result_data(other_vars)
         for a in artifacts:
-            change = other_build.build_set.item.change
-            a.update({'project': change.project.name,
-                      'change': str(change.number),
-                      'patchset': change.patchset,
+            # Change here may be any ref type (tag, change, etc)
+            ref = other_build.build_set.item.change
+            a.update({'project': ref.project.name,
                       'job': other_build.job.name})
+            # Change is a Branch
+            if hasattr(ref, 'branch'):
+                a.update({'branch': ref.branch})
+                if hasattr(ref, 'number') and hasattr(ref, 'patchset'):
+                    a.update({'change': str(ref.number),
+                              'patchset': ref.patchset})
+            # Otherwise we are ref type
+            else:
+                a.update({'ref': ref.ref,
+                          'oldrev': ref.oldrev,
+                          'newrev': ref.newrev})
+                if hasattr(ref, 'tag'):
+                    a.update({'tag': ref.tag})
             if a not in artifact_data:
                 artifact_data.append(a)
         if artifact_data:
