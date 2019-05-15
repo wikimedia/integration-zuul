@@ -67,6 +67,7 @@ def get_artifacts_from_result_data(result_data, logger=None):
             d['url'] = url
             ret.append(d)
     else:
-        logger.debug("Result data did not pass artifact schema "
-                     "validation: %s", result_data)
+        if logger:
+            logger.debug("Result data did not pass artifact schema "
+                         "validation: %s", result_data)
     return ret
