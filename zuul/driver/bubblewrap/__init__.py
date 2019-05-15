@@ -216,6 +216,7 @@ class BubblewrapDriver(Driver, WrapperInterface):
                      '/etc/lsb-release.d',
                      '/etc/alternatives',
                      '/etc/ssl/certs',
+                     '/etc/subuid',
                      ]:
             if os.path.exists(path):
                 bwrap_command.extend(['--ro-bind', path, path])

@@ -157,7 +157,8 @@
 - project:
     check:
       jobs:
-        - zuul-build-image
+        - zuul-build-image:
+            voting: false
         - tox-docs
         - tox-pep8
         - tox-py35:
@@ -194,7 +195,8 @@
             voting: false
     gate:
       jobs:
-        - zuul-upload-image
+        - zuul-upload-image:
+            voting: false
         - tox-docs
         - tox-pep8
         - tox-py35:
