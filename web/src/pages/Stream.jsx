@@ -98,6 +98,7 @@ class StreamPage extends React.Component {
     term.setOption('scrollback', 1000000)
     term.setOption('disableStdin', true)
     term.setOption('convertEol', true)
+    term.setOption('theme', {selection: 'rgba(252, 252, 252)'})
 
     // Block all keys but page up/down. This needs to be done so ctrl+c can
     // be used to copy text from the terminal.
