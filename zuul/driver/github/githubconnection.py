@@ -1443,6 +1443,14 @@ class GithubConnection(BaseConnection):
                        state, sha, project)
         self.log_rate_limit(self.log, github)
 
+    def reviewPull(self, project, pr_number, sha, review, body):
+        github = self.getGithubClient(project)
+        owner, proj = project.split('/')
+        pull_request = github.pull_request(owner, proj, pr_number)
+        event = review.replace('-', '_')
+        event = event.upper()
+        pull_request.create_review(body=body, commit_id=sha, event=event)
+
     def labelPull(self, project, pr_number, label):
         github = self.getGithubClient(project)
         owner, proj = project.split('/')

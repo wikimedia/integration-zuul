@@ -16,6 +16,8 @@
 
 import github3.exceptions
 import re
+import time
+
 
 FAKE_BASE_URL = 'https://example.com/api/v3/'
 
@@ -58,6 +60,15 @@ class FakeStatus(object):
                 'login': self._user
             }
         }
+
+
+class FakeGHReview(object):
+
+    def __init__(self, data):
+        self.data = data
+
+    def as_dict(self):
+        return self.data
 
 
 class FakeCombinedStatus(object):
@@ -292,6 +303,18 @@ class FakePull(object):
 
     def reviews(self):
         return self._fake_pull_request.reviews
+
+    def create_review(self, body, commit_id, event):
+        review = FakeGHReview({
+            'state': event,
+            'user': {
+                'login': 'fakezuul',
+                'email': 'fakezuul@fake.test',
+            },
+            'submitted_at': time.gmtime(),
+        })
+        self._fake_pull_request.reviews.append(review)
+        return review
 
     @property
     def head(self):
