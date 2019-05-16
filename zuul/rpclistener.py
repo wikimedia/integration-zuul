@@ -63,6 +63,7 @@ class RPCListener(object):
     def register(self):
         self.worker.registerFunction("zuul:autohold")
         self.worker.registerFunction("zuul:autohold_list")
+        self.worker.registerFunction("zuul:allowed_labels_get")
         self.worker.registerFunction("zuul:dequeue")
         self.worker.registerFunction("zuul:enqueue")
         self.worker.registerFunction("zuul:enqueue_ref")
@@ -480,6 +481,17 @@ class RPCListener(object):
             })
 
         gear_job.sendWorkComplete(json.dumps(output))
+
+    def handle_allowed_labels_get(self, job):
+        args = json.loads(job.arguments)
+        tenant = self.sched.abide.tenants.get(args.get("tenant"))
+        if not tenant:
+            job.sendWorkComplete(json.dumps(None))
+            return
+        labels = tenant.allowed_labels
+        if not labels:
+            labels = []
+        job.sendWorkComplete(json.dumps(labels))
 
     def handle_pipeline_list(self, job):
         args = json.loads(job.arguments)
