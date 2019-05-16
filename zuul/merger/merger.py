@@ -370,14 +370,20 @@ class Repo(object):
 
     def checkout(self, ref):
         repo = self.createRepoObject()
-        self.log.debug("Checking out %s" % ref)
-        # Perform a hard reset to the correct ref before checking out so that
-        # we clean up anything that might be left over from a merge while still
-        # only preparing the working copy once.
-        repo.head.reference = ref
-        reset_repo_to_head(repo)
-        repo.git.clean('-x', '-f', '-d')
-        repo.git.checkout(ref)
+        # NOTE(pabelanger): We need to check for detached repo head, otherwise
+        # gitpython will raise an exception if we access the reference.
+        if not repo.head.is_detached and repo.head.reference == ref:
+            self.log.debug("Repo is already at %s" % ref)
+        else:
+            self.log.debug("Checking out %s" % ref)
+            # Perform a hard reset to the correct ref before checking out so
+            # that we clean up anything that might be left over from a merge
+            # while still only preparing the working copy once.
+            repo.head.reference = ref
+            reset_repo_to_head(repo)
+            repo.git.clean('-x', '-f', '-d')
+            repo.git.checkout(ref)
+
         return repo.head.commit
 
     def cherryPick(self, ref):
