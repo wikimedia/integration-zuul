@@ -1650,8 +1650,18 @@ class RecordingExecutorServer(zuul.executor.server.ExecutorServer):
         :arg dict data: The data to return
 
         """
+        # TODO(clarkb) We are incredibly change focused here and in FakeBuild
+        # above. This makes it very difficult to test non change items with
+        # return data. We currently rely on the hack that None is used as a
+        # key for the changes dict, but we should improve that to look up
+        # refnames or similar.
         changes = self.return_data.setdefault(name, {})
-        cid = ' '.join((str(change.number), str(change.latest_patchset)))
+        if hasattr(change, 'number'):
+            cid = ' '.join((str(change.number), str(change.latest_patchset)))
+        else:
+            # Not actually a change, but a ref update event for tags/etc
+            # In this case a key of None is used by writeReturnData
+            cid = None
         changes[cid] = data
 
     def release(self, regex=None):

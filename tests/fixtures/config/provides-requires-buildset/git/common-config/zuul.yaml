@@ -12,6 +12,14 @@
       gerrit:
         Verified: -1
 
+- pipeline:
+    name: tag
+    manager: independent
+    trigger:
+      gerrit:
+        - event: ref-updated
+          ref: ^refs/tags/.*$
+
 - job:
     name: base
     parent: null
