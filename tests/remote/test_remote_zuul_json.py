@@ -150,3 +150,44 @@ class TestZuulJSON26(TestZuulJSON25):
 
 class TestZuulJSON27(TestZuulJSON25):
     ansible_version = '2.7'
+
+
+class TestZuulJSON28(TestZuulJSON25):
+    ansible_version = '2.8'
+
+    def test_json_task_action(self):
+        job = self._run_job('no-log')
+        with self.jobLog(job):
+            build = self.history[-1]
+            self.assertEqual(build.result, 'SUCCESS')
+
+            text = self._get_json_as_text(build)
+            json_result = json.loads(text)
+            tasks = json_result[0]['plays'][0]['tasks']
+            # NOTE(pabelanger): In 2.8 gather_facts are now logged as an
+            # expected action.
+            expected_actions = [
+                'gather_facts', 'debug', 'debug', 'debug', 'copy', 'find',
+                'stat', 'debug'
+            ]
+            for i, expected in enumerate(expected_actions):
+                host_result = tasks[i]['hosts']['controller']
+                self.assertEquals(expected, host_result['action'])
+
+    def test_json_role_log(self):
+        job = self._run_job('json-role')
+        with self.jobLog(job):
+            build = self.history[-1]
+            self.assertEqual(build.result, 'SUCCESS')
+
+            text = self._get_json_as_text(build)
+            self.assertIn('json-role', text)
+
+            json_result = json.loads(text)
+            # NOTE(pabelanger): In 2.8 gather_facts are now logged as the
+            # first task.
+            role_name = json_result[0]['plays'][0]['tasks'][1]['role']['name']
+            self.assertEqual('json-role', role_name)
+
+            role_path = json_result[0]['plays'][0]['tasks'][1]['role']['path']
+            self.assertEqual('json-role', os.path.basename(role_path))
