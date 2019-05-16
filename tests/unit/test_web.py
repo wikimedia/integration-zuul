@@ -655,7 +655,42 @@ class TestWeb(BaseTestWeb):
                         'name': 'gate',
                         'queue_name': 'integrated',
                         'jobs': jobs,
-                    }]
+                    }, {'name': 'post',
+                        'queue_name': None,
+                        'jobs': [[
+                            {'abstract': False,
+                             'ansible_version': None,
+                             'attempts': 3,
+                             'branches': [],
+                             'dependencies': [],
+                             'description': None,
+                             'files': [],
+                             'final': False,
+                             'implied_branch': None,
+                             'irrelevant_files': [],
+                             'name': 'project-post',
+                             'parent': 'base',
+                             'post_review': None,
+                             'post_run': [],
+                             'pre_run': [],
+                             'protected': None,
+                             'provides': [],
+                             'required_projects': [],
+                             'requires': [],
+                             'roles': [],
+                             'run': [],
+                             'semaphore': None,
+                             'source_context': {'branch': 'master',
+                                                'path': 'zuul.yaml',
+                                                'project': 'common-config'},
+                             'tags': [],
+                             'timeout': None,
+                             'variables': {},
+                             'variant_description': '',
+                             'voting': True}
+                        ]],
+                    }
+                    ]
                 }]
             }, data)
 

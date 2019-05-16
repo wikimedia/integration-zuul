@@ -947,6 +947,8 @@ class Scheduler(threading.Thread):
                             % (item, project.name))
         for shared_queue in pipeline.queues:
             for item in shared_queue.queue:
+                if item.change.project != change.project:
+                    continue
                 if (isinstance(item.change, model.Change) and
                         item.change.number == change.number and
                         item.change.patchset == change.patchset) or\

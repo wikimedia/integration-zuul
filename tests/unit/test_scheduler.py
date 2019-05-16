@@ -3894,6 +3894,65 @@ class TestScheduler(ZuulTestCase):
         self.assertIn('project-post', job_names)
         self.assertEqual(r, True)
 
+    def test_client_dequeue_ref(self):
+        "Test that the RPC client can dequeue a ref"
+
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+
+        self.executor_server.hold_jobs_in_build = True
+
+        p = "review.example.com/org/project"
+        upstream = self.getUpstreamRepos([p])
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.setMerged()
+        A_commit = str(upstream[p].commit('master'))
+        self.log.debug("A commit: %s" % A_commit)
+
+        r = client.enqueue_ref(
+            tenant='tenant-one',
+            pipeline='post',
+            project='org/project',
+            trigger='gerrit',
+            ref='master',
+            oldrev='90f173846e3af9154517b88543ffbd1691f31366',
+            newrev=A_commit)
+
+        p = "review.example.com/org/project1"
+        upstream = self.getUpstreamRepos([p])
+        B = self.fake_gerrit.addFakeChange('org/project1', 'master', 'B')
+        B.setMerged()
+        B_commit = str(upstream[p].commit('master'))
+        self.log.debug("B commit: %s" % B_commit)
+
+        r = client.enqueue_ref(
+            tenant='tenant-one',
+            pipeline='post',
+            project='org/project1',
+            trigger='gerrit',
+            ref='master',
+            oldrev='90f173846e3af9154517b88543ffbd1691f31366',
+            newrev=B_commit)
+
+        self.waitUntilSettled()
+        r = client.dequeue(
+            tenant='tenant-one',
+            pipeline='post',
+            project='org/project1',
+            change=None,
+            ref='master')
+        self.executor_server.release('.*')
+        self.waitUntilSettled()
+        job_names = [x.name for x in self.history]
+        self.assertEqual(len(self.history), 2)
+        aborted_build = [
+            build for build in self.history if
+            build.result == 'ABORTED'][0]
+        self.assertEqual(aborted_build.newrev, B_commit)
+        self.assertIn('project-post', job_names)
+        self.assertEqual(r, True)
+
     def test_client_dequeue_dependent_change(self):
         "Test that the RPC client can dequeue a change"
         client = zuul.rpcclient.RPCClient('127.0.0.1',
