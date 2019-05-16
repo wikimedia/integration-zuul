@@ -3,11 +3,10 @@ body {
   padding: 0;
   font-family: sans-serif;
 }
-div.refresh {
+a.refresh {
   cursor: pointer;
   border-bottom-style: none;
   text-decoration: none;
-  color: #0088ce;
 }
 
 /* Notification bell color */
