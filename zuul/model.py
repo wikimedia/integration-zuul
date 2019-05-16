@@ -3086,6 +3086,18 @@ class TriggerEvent(object):
                                  id(self), self._repr())
 
 
+class FalseWithReason(object):
+    """Event filter result"""
+    def __init__(self, reason):
+        self.reason = reason
+
+    def __str__(self):
+        return self.reason
+
+    def __bool__(self):
+        return False
+
+
 class BaseFilter(ConfigObject):
     """Base Class for filtering which Changes and Events to process."""
     pass
