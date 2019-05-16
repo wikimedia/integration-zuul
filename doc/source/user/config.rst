@@ -1419,6 +1419,19 @@ pipeline.
          difficult to determine why Zuul did or did not run a certain
          job, the additional information this provides may help.
 
+      .. attr:: fail-fast
+         :default: false
+
+         If this is set to `true`, Zuul will report a build failure
+         immediately and abort all still running builds. This can be used
+         to save resources in resource constrained environments at the cost
+         of potentially requiring multiple attempts if more than one problem
+         is present.
+
+         Once this is defined it cannot be overridden afterwards. So this
+         can be forced to a specific value by e.g. defining it in a config
+         repo.
+
 .. _project-template:
 
 Project Template

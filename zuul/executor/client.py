@@ -449,6 +449,13 @@ class ExecutorClient(object):
             # track of which results are non-final.
             if build.retry:
                 result = None
+
+            # If the build was canceled, we did actively cancel the job so
+            # don't overwrite the result and don't retry.
+            if build.canceled:
+                result = build.result
+                build.retry = False
+
             self.sched.onBuildCompleted(build, result, result_data, warnings)
             # The test suite expects the build to be removed from the
             # internal dict after it's added to the report queue.

@@ -1831,6 +1831,12 @@ class Build(object):
                 (self.uuid, self.job.name, self.job.voting, self.worker))
 
     @property
+    def failed(self):
+        if self.result and self.result not in ['SUCCESS', 'SKIPPED']:
+            return True
+        return False
+
+    @property
     def pipeline(self):
         return self.build_set.item.pipeline
 
@@ -2478,7 +2484,7 @@ class QueueItem(object):
             build = build_set.getBuild(job.name)
             if build and (build.result == 'SUCCESS' or build.paused):
                 successful_job_names.add(job.name)
-            elif build and build.result in ('SKIPPED', 'FAILURE'):
+            elif build and build.result in ('SKIPPED', 'FAILURE', 'CANCELED'):
                 pass
             else:
                 nodeset = build_set.getJobNodeSet(job.name)
@@ -3151,6 +3157,7 @@ class ProjectPipelineConfig(ConfigObject):
         self.queue_name = None
         self.debug = False
         self.debug_messages = []
+        self.fail_fast = None
         self.variables = {}
 
     def addDebug(self, msg):
@@ -3163,6 +3170,8 @@ class ProjectPipelineConfig(ConfigObject):
             self.queue_name = other.queue_name
         if other.debug:
             self.debug = other.debug
+        if self.fail_fast is None:
+            self.fail_fast = other.fail_fast
         self.job_list.inheritFrom(other.job_list)
 
     def updateVariables(self, other):

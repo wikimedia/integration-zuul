@@ -7163,3 +7163,92 @@ class TestSchedulerBranchMatcher(ZuulTestCase):
                          "A should report start and success")
         self.assertIn('gate', A.messages[1],
                       "A should transit gate")
+
+
+class TestSchedulerFailFast(ZuulTestCase):
+    tenant_config_file = 'config/fail-fast/main.yaml'
+
+    def test_fail_fast(self):
+        """
+        Tests that a pipeline that is flagged with fail-fast
+        aborts jobs early.
+        """
+        self.executor_server.hold_jobs_in_build = True
+        self.fake_nodepool.pause()
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.executor_server.failJob('project-test1', A)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.waitUntilSettled()
+        self.assertEqual(len(self.builds), 1)
+        self.assertEqual(self.builds[0].name, 'project-merge')
+        self.executor_server.release('project-merge')
+        self.waitUntilSettled()
+
+        # Now project-test1, project-test2 and project-test6
+        # should be running
+        self.assertEqual(len(self.builds), 3)
+
+        # Release project-test1 which will fail
+        self.executor_server.release('project-test1')
+        self.waitUntilSettled()
+
+        self.fake_nodepool.unpause()
+        self.waitUntilSettled()
+
+        # Now project-test2 must be aborted
+        self.assertEqual(len(self.builds), 0)
+        self.assertEqual(A.reported, 1)
+        self.assertHistory([
+            dict(name='project-merge', result='SUCCESS', changes='1,1'),
+            dict(name='project-test1', result='FAILURE', changes='1,1'),
+            dict(name='project-test2', result='ABORTED', changes='1,1'),
+            dict(name='project-test6', result='ABORTED', changes='1,1'),
+        ], ordered=False)
+
+    def test_fail_fast_nonvoting(self):
+        """
+        Tests that a pipeline that is flagged with fail-fast
+        doesn't abort jobs due to a non-voting job.
+        """
+        self.executor_server.hold_jobs_in_build = True
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.executor_server.failJob('project-test6', A)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.waitUntilSettled()
+        self.assertEqual(len(self.builds), 2)
+        self.assertEqual(self.builds[0].name, 'project-merge')
+        self.executor_server.release('project-merge')
+        self.waitUntilSettled()
+
+        # Now project-test1, project-test2, project-test5 and project-test6
+        # should be running
+        self.assertEqual(len(self.builds), 4)
+
+        # Release project-test6 which will fail
+        self.executor_server.release('project-test6')
+        self.waitUntilSettled()
+
+        # Now project-test1, project-test2 and project-test5 should be running
+        self.assertEqual(len(self.builds), 3)
+
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 0)
+        self.assertEqual(A.reported, 1)
+        self.assertHistory([
+            dict(name='project-merge', result='SUCCESS', changes='1,1'),
+            dict(name='project-test1', result='SUCCESS', changes='1,1'),
+            dict(name='project-test2', result='SUCCESS', changes='1,1'),
+            dict(name='project-test3', result='SUCCESS', changes='1,1'),
+            dict(name='project-test4', result='SUCCESS', changes='1,1'),
+            dict(name='project-test5', result='SUCCESS', changes='1,1'),
+            dict(name='project-test6', result='FAILURE', changes='1,1'),
+        ], ordered=False)
