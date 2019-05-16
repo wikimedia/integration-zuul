@@ -506,7 +506,7 @@ class GerritConnection(BaseConnection):
     def _getNeededByFromCommit(self, change_id, change):
         records = []
         seen = set()
-        query = 'message:%s' % change_id
+        query = 'message:{%s}' % change_id
         self.log.debug("Updating %s: Running query %s "
                        "to find changes needed-by" %
                        (change, query,))
@@ -776,7 +776,7 @@ class GerritConnection(BaseConnection):
     def getProjectOpenChanges(self, project: Project) -> List[GerritChange]:
         # This is a best-effort function in case Gerrit is unable to return
         # a particular change.  It happens.
-        query = "project:%s status:open" % (project.name,)
+        query = "project:{%s} status:open" % (project.name,)
         self.log.debug("Running query %s to get project open changes" %
                        (query,))
         data = self.simpleQuery(query)

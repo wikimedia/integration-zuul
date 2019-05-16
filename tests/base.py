@@ -751,6 +751,9 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         elif query.startswith('message:'):
             # Query the content of a commit message
             msg = query[len('message:'):].strip()
+            # Remove quoting if it is there
+            if msg.startswith('{') and msg.endswith('}'):
+                msg = msg[1:-1]
             l = [change.query() for change in self.changes.values()
                  if msg in change.data['commitMessage']]
         else:
@@ -763,7 +766,7 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         self.queries.append(query)
         results = []
         if query.startswith('(') and 'OR' in query:
-            query = query[1:-2]
+            query = query[1:-1]
             for q in query.split(' OR '):
                 for r in self._simpleQuery(q):
                     if r not in results:
