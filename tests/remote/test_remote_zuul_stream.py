@@ -24,6 +24,7 @@ class TestZuulStream25(AnsibleZuulTestCase):
     ansible_version = '2.5'
 
     def setUp(self):
+        self.log_console_port = 19000 + int(self.ansible_version.split('.')[1])
         super().setUp()
         self.fake_nodepool.remote_ansible = True
 
@@ -44,6 +45,8 @@ class TestZuulStream25(AnsibleZuulTestCase):
                 name: {job_name}
                 run: playbooks/{job_name}.yaml
                 ansible-version: {version}
+                vars:
+                  test_console_port: {console_port}
                 roles:
                   - zuul: org/common-config
                 nodeset:
@@ -57,7 +60,10 @@ class TestZuulStream25(AnsibleZuulTestCase):
                 check:
                   jobs:
                     - {job_name}
-            """.format(job_name=job_name, version=self.ansible_version))
+            """.format(
+                job_name=job_name,
+                version=self.ansible_version,
+                console_port=self.log_console_port))
 
         file_dict = {'zuul.yaml': conf}
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',

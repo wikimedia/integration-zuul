@@ -53,6 +53,7 @@ BUFFER_LINES_FOR_SYNTAX = 200
 COMMANDS = ['stop', 'pause', 'unpause', 'graceful', 'verbose',
             'unverbose', 'keep', 'nokeep']
 DEFAULT_FINGER_PORT = 7900
+DEFAULT_STREAM_PORT = 19885
 BLACKLISTED_ANSIBLE_CONNECTION_TYPES = [
     'network_cli', 'kubectl', 'project', 'namespace']
 
@@ -1841,6 +1842,9 @@ class AnsibleJob(object):
             env_copy['ARA_LOG_CONFIG'] = self.jobdir.logging_json
         env_copy['ZUUL_JOB_LOG_CONFIG'] = self.jobdir.logging_json
         env_copy['ZUUL_JOBDIR'] = self.jobdir.root
+        if self.executor_server.log_console_port != DEFAULT_STREAM_PORT:
+            env_copy['ZUUL_CONSOLE_PORT'] = str(
+                self.executor_server.log_console_port)
         env_copy['TMP'] = self.jobdir.local_tmp
         pythonpath = env_copy.get('PYTHONPATH')
         if pythonpath:
@@ -2207,7 +2211,8 @@ class ExecutorServer(object):
     _job_class = AnsibleJob
 
     def __init__(self, config, connections={}, jobdir_root=None,
-                 keep_jobdir=False, log_streaming_port=DEFAULT_FINGER_PORT):
+                 keep_jobdir=False, log_streaming_port=DEFAULT_FINGER_PORT,
+                 log_console_port=DEFAULT_STREAM_PORT):
         self.config = config
         self.keep_jobdir = keep_jobdir
         self.jobdir_root = jobdir_root
@@ -2230,6 +2235,7 @@ class ExecutorServer(object):
             keep=self.keep,
             nokeep=self.nokeep,
         )
+        self.log_console_port = log_console_port
 
         statsd_extra_keys = {'hostname': self.hostname}
         self.statsd = get_statsd(config, statsd_extra_keys)
