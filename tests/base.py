@@ -2425,6 +2425,8 @@ class ZuulTestCase(BaseTestCase):
         infrastructure should insert dummy keys to save time during
         startup.  Defaults to False.
 
+    :cvar int log_console_port: The zuul_stream/zuul_console port.
+
     The following are instance variables that are useful within test
     methods:
 
@@ -2459,6 +2461,7 @@ class ZuulTestCase(BaseTestCase):
     create_project_keys = False
     use_ssl = False
     git_url_with_auth = False
+    log_console_port = 19885
 
     def _startMerger(self):
         self.merge_server = zuul.merger.server.MergeServer(self.config,
@@ -2577,7 +2580,8 @@ class ZuulTestCase(BaseTestCase):
             jobdir_root=self.test_root,
             _run_ansible=self.run_ansible,
             _test_root=self.test_root,
-            keep_jobdir=KEEP_TEMPDIRS)
+            keep_jobdir=KEEP_TEMPDIRS,
+            log_console_port=self.log_console_port)
         self.executor_server.start()
         self.history = self.executor_server.build_history
         self.builds = self.executor_server.running_builds
