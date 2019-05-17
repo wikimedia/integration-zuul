@@ -65,21 +65,19 @@ class CallbackModule(CallbackBase):
         self._playbook_name = None
 
     def _new_playbook(self, play):
-        # Get the hostvars from just one host - the vars we're looking for will
-        # be identical on all of them
-        hostvars = next(iter(play._variable_manager._hostvars.values()))
+        extra_vars = play._variable_manager._extra_vars
         self._playbook_name = None
 
         # TODO(mordred) For now, protect specific variable lookups to make it
         # not absurdly strange to run local tests with the callback plugin
         # enabled. Remove once we have a "run playbook like zuul runs playbook"
         # tool.
-        phase = hostvars.get('zuul_execution_phase')
-        index = hostvars.get('zuul_execution_phase_index')
-        playbook = hostvars.get('zuul_execution_canonical_name_and_path')
-        trusted = hostvars.get('zuul_execution_trusted')
+        phase = extra_vars.get('zuul_execution_phase')
+        index = extra_vars.get('zuul_execution_phase_index')
+        playbook = extra_vars.get('zuul_execution_canonical_name_and_path')
+        trusted = extra_vars.get('zuul_execution_trusted')
         trusted = True if trusted == "True" else False
-        branch = hostvars.get('zuul_execution_branch')
+        branch = extra_vars.get('zuul_execution_branch')
 
         self.playbook['playbook'] = playbook
         self.playbook['phase'] = phase
