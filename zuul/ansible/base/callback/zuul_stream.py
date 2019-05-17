@@ -172,6 +172,14 @@ class CallbackModule(default.CallbackModule):
         if "[Zuul] Task exit code" in line:
             return True
         elif self._streamers_stop and "[Zuul] Log not found" in line:
+            # When we got here it indicates that the task is already finished
+            # but the logfile didn't appear yet on the remote node. This can
+            # happen rarely on a contended remote node. In this case give
+            # the streamer some additional time to pick up the log. Otherwise
+            # we would discard the log.
+            if time.monotonic() < (self._streamers_stop_ts + 10):
+                # don't output this line
+                return False
             return True
         elif "[Zuul] Log not found" in line:
             # don't output this line
@@ -261,6 +269,7 @@ class CallbackModule(default.CallbackModule):
         self.v2_playbook_on_task_start(task, False)
 
     def _stop_streamers(self):
+        self._streamers_stop_ts = time.monotonic()
         self._streamers_stop = True
         while True:
             if not self._streamers:
