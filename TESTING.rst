@@ -14,11 +14,13 @@ Detailed information on testing can be found here: https://wiki.openstack.org/wi
 
 More information on pip here: http://www.pip-installer.org/en/latest/
 
-*Use pip to install tox*::
+*Use pip to install tox and tox-docker*::
 
-  pip install tox
+  pip install tox tox-docker
 
-As of zuul v3, a running zookeeper is required to execute tests.
+As of zuul v3, a running zookeeper is required to execute tests. Using the
+``-docker`` suffixed commands will ensure this is started automatically by tox,
+but if you do not wish to use this:
 
 *Install zookeeper*::
 
