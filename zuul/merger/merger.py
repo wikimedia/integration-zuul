@@ -112,6 +112,9 @@ class Repo(object):
         except Exception:
             self.log.exception("Unable to initialize repo for %s" % remote)
 
+    def __repr__(self):
+        return "<Repo {} {}>".format(hex(id(self)), self.local_path)
+
     def _setup_known_hosts(self):
         url = urlparse(self.remote_url)
         if 'ssh' not in url.scheme:
