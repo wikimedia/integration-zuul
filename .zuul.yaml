@@ -194,7 +194,8 @@
         - zuul-stream-functional-2.6
         - zuul-stream-functional-2.7
         - zuul-stream-functional-2.8
-        - zuul-tox-remote
+        - zuul-tox-remote:
+            timeout: 2700  # 45 minutes
         - zuul-quick-start:
             dependencies: zuul-build-image
         - nodepool-zuul-functional:
@@ -231,7 +232,8 @@
         - zuul-stream-functional-2.6
         - zuul-stream-functional-2.7
         - zuul-stream-functional-2.8
-        - zuul-tox-remote
+        - zuul-tox-remote:
+            timeout: 2700  # 45 minutes
         - zuul-quick-start:
             dependencies: zuul-upload-image
     post:
