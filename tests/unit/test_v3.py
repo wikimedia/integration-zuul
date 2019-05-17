@@ -5056,7 +5056,7 @@ class TestJobPause(AnsibleZuulTestCase):
         # the queue. waitUltilSettled can return either directly after the job
         # pause or after the child jobs are enqueued. So to make this
         # deterministic we wait for the child jobs here
-        for _ in iterate_timeout(30, 'waiting for child jobs'):
+        for _ in iterate_timeout(60, 'waiting for child jobs'):
             if len(self.builds) == 4:
                 break
         self.waitUntilSettled("child jobs are running")
@@ -5067,7 +5067,7 @@ class TestJobPause(AnsibleZuulTestCase):
         # Now resume resume the compile2 sub tree so we can later check if all
         # children restarted
         self.executor_server.release('compile2')
-        for _ in iterate_timeout(30, 'waiting for child jobs'):
+        for _ in iterate_timeout(60, 'waiting for child jobs'):
             if len(self.builds) == 5:
                 break
         self.waitUntilSettled("release compile2")
@@ -5089,7 +5089,7 @@ class TestJobPause(AnsibleZuulTestCase):
         self.waitUntilSettled("Stop job")
 
         # Only compile1 must be waiting
-        for _ in iterate_timeout(30, 'waiting for compile1 job'):
+        for _ in iterate_timeout(60, 'waiting for compile1 job'):
             if len(self.builds) == 1:
                 break
         self.waitUntilSettled("only compile1 is running")
@@ -5102,7 +5102,7 @@ class TestJobPause(AnsibleZuulTestCase):
         # The "pause" job might be paused during the waitUntilSettled
         # call and appear settled; it should automatically resume
         # though, so just wait for it.
-        for x in iterate_timeout(30, 'paused job'):
+        for x in iterate_timeout(60, 'paused job'):
             if not self.builds:
                 break
         self.waitUntilSettled()
@@ -5140,7 +5140,7 @@ class TestJobPause(AnsibleZuulTestCase):
         # The "pause" job might be paused during the waitUntilSettled
         # call and appear settled; it should automatically resume
         # though, so just wait for it.
-        for x in iterate_timeout(30, 'paused job'):
+        for x in iterate_timeout(60, 'paused job'):
             if not self.builds:
                 break
         self.waitUntilSettled()
