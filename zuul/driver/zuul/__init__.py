@@ -13,11 +13,12 @@
 # under the License.
 
 import logging
+from uuid import uuid4
 
 from zuul.driver import Driver, TriggerInterface
 from zuul.driver.zuul.zuulmodel import ZuulTriggerEvent
-
 from zuul.driver.zuul import zuultrigger
+from zuul.lib.logutil import get_annotated_logger
 
 PARENT_CHANGE_ENQUEUED = 'parent-change-enqueued'
 PROJECT_CHANGE_MERGED = 'project-change-merged'
@@ -58,17 +59,19 @@ class ZuulDriver(Driver, TriggerInterface):
                     "Unable to create project-change-merged events for "
                     "%s" % (change,))
 
-    def onChangeEnqueued(self, tenant, change, pipeline):
+    def onChangeEnqueued(self, tenant, change, pipeline, event):
+        log = get_annotated_logger(self.log, event)
+
         # Called each time a change is enqueued in a pipeline
         tenant_events = self.parent_change_enqueued_events.get(
             (tenant.name, pipeline.name))
-        self.log.debug("onChangeEnqueued %s", tenant_events)
+        log.debug("onChangeEnqueued %s", tenant_events)
         if tenant_events:
             try:
                 self._createParentChangeEnqueuedEvents(
-                    change, pipeline, tenant)
+                    change, pipeline, tenant, event)
             except Exception:
-                self.log.exception(
+                log.exception(
                     "Unable to create parent-change-enqueued events for "
                     "%s in %s" % (change, pipeline))
 
@@ -89,12 +92,16 @@ class ZuulDriver(Driver, TriggerInterface):
         event.change_url = change.url
         event.patch_number = change.patchset
         event.ref = change.ref
+        event.zuul_event_id = str(uuid4().hex)
         self.sched.addEvent(event)
 
-    def _createParentChangeEnqueuedEvents(self, change, pipeline, tenant):
-        self.log.debug("Checking for changes needing %s:" % change)
+    def _createParentChangeEnqueuedEvents(self, change, pipeline, tenant,
+                                          event):
+        log = get_annotated_logger(self.log, event)
+
+        log.debug("Checking for changes needing %s:" % change)
         if not hasattr(change, 'needed_by_changes'):
-            self.log.debug("  %s does not support dependencies" % type(change))
+            log.debug("  %s does not support dependencies" % type(change))
             return
 
         # This is very inefficient, especially on systems with large
@@ -102,10 +109,10 @@ class ZuulDriver(Driver, TriggerInterface):
         # with persistent storage of dependency information.
         needed_by_changes = set(change.needed_by_changes)
         for source in self.sched.connections.getSources():
-            self.log.debug("  Checking source: %s", source)
+            log.debug("  Checking source: %s", source)
             needed_by_changes.update(
                 source.getChangesDependingOn(change, None, tenant))
-        self.log.debug("  Following changes: %s", needed_by_changes)
+        log.debug("  Following changes: %s", needed_by_changes)
 
         for needs in needed_by_changes:
             self._createParentChangeEnqueuedEvent(needs, pipeline)
@@ -122,6 +129,7 @@ class ZuulDriver(Driver, TriggerInterface):
         event.change_url = change.url
         event.patch_number = change.patchset
         event.ref = change.ref
+        event.zuul_event_id = str(uuid4().hex)
         self.sched.addEvent(event)
 
     def getTrigger(self, connection_name, config=None):
