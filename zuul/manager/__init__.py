@@ -17,6 +17,7 @@ import urllib
 from zuul import exceptions
 from zuul import model
 from zuul.lib.dependson import find_dependency_headers
+from zuul.lib.logutil import get_annotated_logger
 
 
 class DynamicChangeQueueContextManager(object):
@@ -107,23 +108,24 @@ class PipelineManager(object):
         return allow_needs
 
     def eventMatches(self, event, change):
+        log = get_annotated_logger(self.log, event)
         if event.forced_pipeline:
             if event.forced_pipeline == self.pipeline.name:
-                self.log.debug("Event %s for change %s was directly assigned "
-                               "to pipeline %s" % (event, change, self))
+                log.debug("Event %s for change %s was directly assigned "
+                          "to pipeline %s" % (event, change, self))
                 return True
             else:
                 return False
         for ef in self.event_filters:
             match_result = ef.matches(event, change)
             if match_result:
-                self.log.debug("Event %s for change %s matched %s "
-                               "in pipeline %s" % (event, change, ef, self))
+                log.debug("Event %s for change %s matched %s "
+                          "in pipeline %s" % (event, change, ef, self))
                 return True
             else:
-                self.log.debug("Event %s for change %s does not match %s "
-                               "in pipeline %s because %s" % (
-                                   event, change, ef, self, str(match_result)))
+                log.debug("Event %s for change %s does not match %s "
+                          "in pipeline %s because %s" % (
+                              event, change, ef, self, str(match_result)))
         return False
 
     def getNodePriority(self, item):
@@ -187,7 +189,7 @@ class PipelineManager(object):
                              change_queue):
         return True
 
-    def checkForChangesNeededBy(self, change, change_queue):
+    def checkForChangesNeededBy(self, change, change_queue, event):
         return True
 
     def getFailingDependentItems(self, item):
@@ -225,7 +227,8 @@ class PipelineManager(object):
                 self.removeItem(item)
 
     def reEnqueueItem(self, item, last_head, old_item_ahead, item_ahead_valid):
-        with self.getChangeQueue(item.change, last_head.queue) as change_queue:
+        with self.getChangeQueue(item.change, item.event,
+                                 last_head.queue) as change_queue:
             if change_queue:
                 self.log.debug("Re-enqueing change %s in queue %s" %
                                (item.change, change_queue))
@@ -272,55 +275,53 @@ class PipelineManager(object):
     def addChange(self, change, event, quiet=False, enqueue_time=None,
                   ignore_requirements=False, live=True,
                   change_queue=None, history=None):
-        self.log.debug("Considering adding change %s" % change)
+        log = get_annotated_logger(self.log, event)
+        log.debug("Considering adding change %s" % change)
 
         # If we are adding a live change, check if it's a live item
         # anywhere in the pipeline.  Otherwise, we will perform the
         # duplicate check below on the specific change_queue.
         if live and self.isChangeAlreadyInPipeline(change):
-            self.log.debug("Change %s is already in pipeline, "
-                           "ignoring" % change)
+            log.debug("Change %s is already in pipeline, ignoring" % change)
             return True
 
         if not ignore_requirements:
             for f in self.ref_filters:
                 if f.connection_name != change.project.connection_name:
-                    self.log.debug("Filter %s skipped for change %s due "
-                                   "to mismatched connections" % (f, change))
+                    log.debug("Filter %s skipped for change %s due "
+                              "to mismatched connections" % (f, change))
                     continue
                 match_result = f.matches(change)
                 if not match_result:
-                    self.log.debug("Change %s does not match pipeline "
-                                   "requirement %s because %s" % (
-                                       change, f, str(match_result)))
+                    log.debug("Change %s does not match pipeline "
+                              "requirement %s because %s" % (
+                                  change, f, str(match_result)))
                     return False
 
         if not self.isChangeReadyToBeEnqueued(change):
-            self.log.debug("Change %s is not ready to be enqueued, ignoring" %
-                           change)
+            log.debug("Change %s is not ready to be enqueued, ignoring" %
+                      change)
             return False
 
-        with self.getChangeQueue(change, change_queue) as change_queue:
+        with self.getChangeQueue(change, event, change_queue) as change_queue:
             if not change_queue:
-                self.log.debug("Unable to find change queue for "
-                               "change %s in project %s" %
-                               (change, change.project))
+                log.debug("Unable to find change queue for "
+                          "change %s in project %s" %
+                          (change, change.project))
                 return False
 
             if not self.enqueueChangesAhead(change, event, quiet,
                                             ignore_requirements,
                                             change_queue, history=history):
-                self.log.debug("Failed to enqueue changes "
-                               "ahead of %s" % change)
+                log.debug("Failed to enqueue changes ahead of %s" % change)
                 return False
 
             if self.isChangeAlreadyInQueue(change, change_queue):
-                self.log.debug("Change %s is already in queue, "
-                               "ignoring" % change)
+                log.debug("Change %s is already in queue, ignoring" % change)
                 return True
 
-            self.log.info("Adding change %s to queue %s in %s" %
-                          (change, change_queue, self.pipeline))
+            log.info("Adding change %s to queue %s in %s" %
+                     (change, change_queue, self.pipeline))
             item = change_queue.enqueueChange(change, event)
             if enqueue_time:
                 item.enqueue_time = enqueue_time
@@ -348,14 +349,16 @@ class PipelineManager(object):
         self.dequeueItem(item)
         self.reportStats(item)
 
-    def updateCommitDependencies(self, change, change_queue):
+    def updateCommitDependencies(self, change, change_queue, event):
+        log = get_annotated_logger(self.log, event)
+
         # Search for Depends-On headers and find appropriate changes
-        self.log.debug("  Updating commit dependencies for %s", change)
+        log.debug("  Updating commit dependencies for %s", change)
         change.refresh_deps = False
         dependencies = []
         seen = set()
         for match in find_dependency_headers(change.message):
-            self.log.debug("  Found Depends-On header: %s", match)
+            log.debug("  Found Depends-On header: %s", match)
             if match in seen:
                 continue
             seen.add(match)
@@ -367,10 +370,10 @@ class PipelineManager(object):
                 url.hostname)
             if not source:
                 continue
-            self.log.debug("  Found source: %s", source)
+            log.debug("  Found source: %s", source)
             dep = source.getChangeByURL(match)
             if dep and (not dep.is_merged) and dep not in dependencies:
-                self.log.debug("  Adding dependency: %s", dep)
+                log.debug("  Adding dependency: %s", dep)
                 dependencies.append(dep)
         change.commit_needs_changes = dependencies
 
@@ -612,8 +615,9 @@ class PipelineManager(object):
             return self._loadDynamicLayout(item)
 
     def scheduleMerge(self, item, files=None, dirs=None):
-        self.log.debug("Scheduling merge for item %s (files: %s, dirs: %s)" %
-                       (item, files, dirs))
+        log = get_annotated_logger(self.log, item.event)
+        log.debug("Scheduling merge for item %s (files: %s, dirs: %s)" %
+                  (item, files, dirs))
         build_set = item.current_build_set
         build_set.merge_state = build_set.PENDING
         if isinstance(item.change, model.Change):
@@ -627,7 +631,8 @@ class PipelineManager(object):
         return False
 
     def scheduleFilesChanges(self, item):
-        self.log.debug("Scheduling fileschanged for item %s", item)
+        log = get_annotated_logger(self.log, item.event)
+        log.debug("Scheduling fileschanged for item %s", item)
         build_set = item.current_build_set
         build_set.files_state = build_set.PENDING
 
@@ -660,6 +665,7 @@ class PipelineManager(object):
         return ready
 
     def prepareJobs(self, item):
+        log = get_annotated_logger(self.log, item.event)
         # This only runs once the item is in the pipeline's action window
         # Returns True if the item is ready, false otherwise
         if not item.live:
@@ -674,18 +680,18 @@ class PipelineManager(object):
 
         if not item.job_graph:
             try:
-                self.log.debug("Freezing job graph for %s" % (item,))
+                log.debug("Freezing job graph for %s" % (item,))
                 item.freezeJobGraph()
             except Exception as e:
                 # TODOv3(jeblair): nicify this exception as it will be reported
-                self.log.exception("Error freezing job graph for %s" %
-                                   (item,))
+                log.exception("Error freezing job graph for %s" % (item,))
                 item.setConfigError("Unable to freeze job graph: %s" %
                                     (str(e)))
                 return False
         return True
 
     def _processOneItem(self, item, nnfi):
+        log = get_annotated_logger(self.log, item.event)
         changed = False
         ready = False
         dequeued = False
@@ -696,10 +702,11 @@ class PipelineManager(object):
             item_ahead = None
         change_queue = item.queue
 
-        if self.checkForChangesNeededBy(item.change, change_queue) is not True:
+        if self.checkForChangesNeededBy(item.change, change_queue,
+                                        item.event) is not True:
             # It's not okay to enqueue this change, we should remove it.
-            self.log.info("Dequeuing change %s because "
-                          "it can no longer merge" % item.change)
+            log.info("Dequeuing change %s because "
+                     "it can no longer merge" % item.change)
             self.cancelJobs(item)
             self.dequeueItem(item)
             item.setDequeuedNeedingChange()
@@ -727,9 +734,9 @@ class PipelineManager(object):
                 # Our current base is different than what we expected,
                 # and it's not because our current base merged.  Something
                 # ahead must have failed.
-                self.log.info("Resetting builds for change %s because the "
-                              "item ahead, %s, is not the nearest non-failing "
-                              "item, %s" % (item.change, item_ahead, nnfi))
+                log.info("Resetting builds for change %s because the "
+                         "item ahead, %s, is not the nearest non-failing "
+                         "item, %s" % (item.change, item_ahead, nnfi))
                 change_queue.moveItem(item, nnfi)
                 changed = True
                 self.cancelJobs(item)
@@ -764,9 +771,9 @@ class PipelineManager(object):
             except exceptions.MergeFailure:
                 failing_reasons.append("it did not merge")
                 for item_behind in item.items_behind:
-                    self.log.info("Resetting builds for change %s because the "
-                                  "item ahead, %s, failed to merge" %
-                                  (item_behind.change, item))
+                    log.info("Resetting builds for change %s because the "
+                             "item ahead, %s, failed to merge" %
+                             (item_behind.change, item))
                     self.cancelJobs(item_behind)
             self.dequeueItem(item)
             changed = dequeued = True
@@ -774,8 +781,8 @@ class PipelineManager(object):
             nnfi = item
         item.current_build_set.failing_reasons = failing_reasons
         if failing_reasons:
-            self.log.debug("%s is a failing item because %s" %
-                           (item, failing_reasons))
+            log.debug("%s is a failing item because %s" %
+                      (item, failing_reasons))
         if item.live and not dequeued and self.sched.use_relative_priority:
             priority = item.getNodePriority()
             for node_request in item.current_build_set.node_requests.values():

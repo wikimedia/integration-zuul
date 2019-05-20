@@ -11,6 +11,7 @@
 # under the License.
 
 from zuul import model
+from zuul.lib.logutil import get_annotated_logger
 from zuul.manager import PipelineManager, StaticChangeQueueContextManager
 from zuul.manager import DynamicChangeQueueContextManager
 
@@ -74,7 +75,9 @@ class DependentPipelineManager(PipelineManager):
             self.log.debug("Added project %s to queue: %s" %
                            (project, change_queue))
 
-    def getChangeQueue(self, change, existing=None):
+    def getChangeQueue(self, change, event, existing=None):
+        log = get_annotated_logger(self.log, event)
+
         if existing:
             return StaticChangeQueueContextManager(existing)
         queue = self.pipeline.getQueue(change.project)
@@ -86,11 +89,11 @@ class DependentPipelineManager(PipelineManager):
             change_queue = model.ChangeQueue(self.pipeline, dynamic=True)
             change_queue.addProject(change.project)
             self.pipeline.addQueue(change_queue)
-            self.log.debug("Dynamically created queue %s", change_queue)
+            log.debug("Dynamically created queue %s", change_queue)
             return DynamicChangeQueueContextManager(change_queue)
 
     def getNodePriority(self, item):
-        with self.getChangeQueue(item.change) as change_queue:
+        with self.getChangeQueue(item.change, item.event) as change_queue:
             items = change_queue.queue
             return items.index(item)
 
@@ -103,9 +106,11 @@ class DependentPipelineManager(PipelineManager):
 
     def enqueueChangesBehind(self, change, event, quiet, ignore_requirements,
                              change_queue):
-        self.log.debug("Checking for changes needing %s:" % change)
+        log = get_annotated_logger(self.log, event)
+
+        log.debug("Checking for changes needing %s:" % change)
         if not hasattr(change, 'needed_by_changes'):
-            self.log.debug("  %s does not support dependencies" % type(change))
+            log.debug("  %s does not support dependencies" % type(change))
             return
 
         # for project in change_queue, project.source get changes, then dedup.
@@ -116,7 +121,7 @@ class DependentPipelineManager(PipelineManager):
         seen = set(change.needed_by_changes)
         needed_by_changes = change.needed_by_changes[:]
         for source in sources:
-            self.log.debug("  Checking source: %s", source)
+            log.debug("  Checking source: %s", source)
             for c in source.getChangesDependingOn(change,
                                                   change_queue.projects,
                                                   self.pipeline.tenant):
@@ -124,25 +129,26 @@ class DependentPipelineManager(PipelineManager):
                     seen.add(c)
                     needed_by_changes.append(c)
 
-        self.log.debug("  Following changes: %s", needed_by_changes)
+        log.debug("  Following changes: %s", needed_by_changes)
 
         to_enqueue = []
         for other_change in needed_by_changes:
-            with self.getChangeQueue(other_change) as other_change_queue:
+            with self.getChangeQueue(other_change,
+                                     event) as other_change_queue:
                 if other_change_queue != change_queue:
-                    self.log.debug("  Change %s in project %s can not be "
-                                   "enqueued in the target queue %s" %
-                                   (other_change, other_change.project,
-                                    change_queue))
+                    log.debug("  Change %s in project %s can not be "
+                              "enqueued in the target queue %s" %
+                              (other_change, other_change.project,
+                               change_queue))
                     continue
             source = other_change.project.source
             if source.canMerge(other_change, self.getSubmitAllowNeeds()):
-                self.log.debug("  Change %s needs %s and is ready to merge" %
-                               (other_change, change))
+                log.debug("  Change %s needs %s and is ready to merge",
+                          other_change, change)
                 to_enqueue.append(other_change)
 
         if not to_enqueue:
-            self.log.debug("  No changes need %s" % change)
+            log.debug("  No changes need %s" % change)
 
         for other_change in to_enqueue:
             self.addChange(other_change, event, quiet=quiet,
@@ -151,9 +157,11 @@ class DependentPipelineManager(PipelineManager):
 
     def enqueueChangesAhead(self, change, event, quiet, ignore_requirements,
                             change_queue, history=None):
+        log = get_annotated_logger(self.log, event)
+
         if history and change in history:
             # detected dependency cycle
-            self.log.warn("Dependency cycle detected")
+            log.warn("Dependency cycle detected")
             return False
         if hasattr(change, 'number'):
             history = history or []
@@ -162,11 +170,10 @@ class DependentPipelineManager(PipelineManager):
             # Don't enqueue dependencies ahead of a non-change ref.
             return True
 
-        ret = self.checkForChangesNeededBy(change, change_queue)
+        ret = self.checkForChangesNeededBy(change, change_queue, event)
         if ret in [True, False]:
             return ret
-        self.log.debug("  Changes %s must be merged ahead of %s" %
-                       (ret, change))
+        log.debug("  Changes %s must be merged ahead of %s", ret, change)
         for needed_change in ret:
             r = self.addChange(needed_change, event, quiet=quiet,
                                ignore_requirements=ignore_requirements,
@@ -175,53 +182,54 @@ class DependentPipelineManager(PipelineManager):
                 return False
         return True
 
-    def checkForChangesNeededBy(self, change, change_queue):
+    def checkForChangesNeededBy(self, change, change_queue, event):
+        log = get_annotated_logger(self.log, event)
+
         # Return true if okay to proceed enqueing this change,
         # false if the change should not be enqueued.
-        self.log.debug("Checking for changes needed by %s:" % change)
+        log.debug("Checking for changes needed by %s:" % change)
         if (hasattr(change, 'commit_needs_changes') and
             (change.refresh_deps or change.commit_needs_changes is None)):
-            self.updateCommitDependencies(change, change_queue)
+            self.updateCommitDependencies(change, change_queue, event)
         if not hasattr(change, 'needs_changes'):
-            self.log.debug("  %s does not support dependencies" % type(change))
+            log.debug("  %s does not support dependencies", type(change))
             return True
         if not change.needs_changes:
-            self.log.debug("  No changes needed")
+            log.debug("  No changes needed")
             return True
         changes_needed = []
         # Ignore supplied change_queue
-        with self.getChangeQueue(change) as change_queue:
+        with self.getChangeQueue(change, event) as change_queue:
             for needed_change in change.needs_changes:
-                self.log.debug("  Change %s needs change %s:" % (
+                log.debug("  Change %s needs change %s:" % (
                     change, needed_change))
                 if needed_change.is_merged:
-                    self.log.debug("  Needed change is merged")
+                    log.debug("  Needed change is merged")
                     continue
-                with self.getChangeQueue(needed_change) as needed_change_queue:
+                with self.getChangeQueue(needed_change,
+                                         event) as needed_change_queue:
                     if needed_change_queue != change_queue:
-                        self.log.debug("  Change %s in project %s does not "
-                                       "share a change queue with %s "
-                                       "in project %s" %
-                                       (needed_change, needed_change.project,
-                                        change, change.project))
+                        log.debug("  Change %s in project %s does not "
+                                  "share a change queue with %s "
+                                  "in project %s",
+                                  needed_change, needed_change.project,
+                                  change, change.project)
                         return False
                 if not needed_change.is_current_patchset:
-                    self.log.debug("  Needed change is not the "
-                                   "current patchset")
+                    log.debug("  Needed change is not the current patchset")
                     return False
                 if self.isChangeAlreadyInQueue(needed_change, change_queue):
-                    self.log.debug("  Needed change is already ahead "
-                                   "in the queue")
+                    log.debug("  Needed change is already ahead in the queue")
                     continue
                 if needed_change.project.source.canMerge(
                         needed_change, self.getSubmitAllowNeeds()):
-                    self.log.debug("  Change %s is needed" % needed_change)
+                    log.debug("  Change %s is needed", needed_change)
                     if needed_change not in changes_needed:
                         changes_needed.append(needed_change)
                         continue
                 # The needed change can't be merged.
-                self.log.debug("  Change %s is needed but can not be merged" %
-                               needed_change)
+                log.debug("  Change %s is needed but can not be merged",
+                          needed_change)
                 return False
         if changes_needed:
             return changes_needed

@@ -11,6 +11,7 @@
 # under the License.
 
 from zuul import model
+from zuul.lib.logutil import get_annotated_logger
 from zuul.manager import PipelineManager, DynamicChangeQueueContextManager
 
 
@@ -22,7 +23,9 @@ class IndependentPipelineManager(PipelineManager):
     def _postConfig(self, layout):
         super(IndependentPipelineManager, self)._postConfig(layout)
 
-    def getChangeQueue(self, change, existing=None):
+    def getChangeQueue(self, change, event, existing=None):
+        log = get_annotated_logger(self.log, event)
+
         # We ignore any shared change queues on the pipeline and
         # instead create a new change queue for every change.
         if existing:
@@ -30,14 +33,16 @@ class IndependentPipelineManager(PipelineManager):
         change_queue = model.ChangeQueue(self.pipeline)
         change_queue.addProject(change.project)
         self.pipeline.addQueue(change_queue)
-        self.log.debug("Dynamically created queue %s", change_queue)
+        log.debug("Dynamically created queue %s", change_queue)
         return DynamicChangeQueueContextManager(change_queue)
 
     def enqueueChangesAhead(self, change, event, quiet, ignore_requirements,
                             change_queue, history=None):
+        log = get_annotated_logger(self.log, event)
+
         if history and change in history:
             # detected dependency cycle
-            self.log.warn("Dependency cycle detected")
+            log.warn("Dependency cycle detected")
             return False
         if hasattr(change, 'number'):
             history = history or []
@@ -46,11 +51,10 @@ class IndependentPipelineManager(PipelineManager):
             # Don't enqueue dependencies ahead of a non-change ref.
             return True
 
-        ret = self.checkForChangesNeededBy(change, change_queue)
+        ret = self.checkForChangesNeededBy(change, change_queue, event)
         if ret in [True, False]:
             return ret
-        self.log.debug("  Changes %s must be merged ahead of %s" %
-                       (ret, change))
+        log.debug("  Changes %s must be merged ahead of %s" % (ret, change))
         for needed_change in ret:
             # This differs from the dependent pipeline by enqueuing
             # changes ahead as "not live", that is, not intended to
@@ -65,32 +69,34 @@ class IndependentPipelineManager(PipelineManager):
                 return False
         return True
 
-    def checkForChangesNeededBy(self, change, change_queue):
+    def checkForChangesNeededBy(self, change, change_queue, event):
+        log = get_annotated_logger(self.log, event)
+
         if self.pipeline.ignore_dependencies:
             return True
-        self.log.debug("Checking for changes needed by %s:" % change)
+        log.debug("Checking for changes needed by %s:" % change)
         # Return true if okay to proceed enqueing this change,
         # false if the change should not be enqueued.
         if (hasattr(change, 'commit_needs_changes') and
             (change.refresh_deps or change.commit_needs_changes is None)):
-            self.updateCommitDependencies(change, None)
+            self.updateCommitDependencies(change, None, event)
         if not hasattr(change, 'needs_changes'):
-            self.log.debug("  %s does not support dependencies" % type(change))
+            log.debug("  %s does not support dependencies" % type(change))
             return True
         if not change.needs_changes:
-            self.log.debug("  No changes needed")
+            log.debug("  No changes needed")
             return True
         changes_needed = []
         for needed_change in change.needs_changes:
-            self.log.debug("  Change %s needs change %s:" % (
+            log.debug("  Change %s needs change %s:" % (
                 change, needed_change))
             if needed_change.is_merged:
-                self.log.debug("  Needed change is merged")
+                log.debug("  Needed change is merged")
                 continue
             if self.isChangeAlreadyInQueue(needed_change, change_queue):
-                self.log.debug("  Needed change is already ahead in the queue")
+                log.debug("  Needed change is already ahead in the queue")
                 continue
-            self.log.debug("  Change %s is needed" % needed_change)
+            log.debug("  Change %s is needed" % needed_change)
             if needed_change not in changes_needed:
                 changes_needed.append(needed_change)
                 continue
