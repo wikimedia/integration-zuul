@@ -33,7 +33,7 @@ class IndependentPipelineManager(PipelineManager):
         self.log.debug("Dynamically created queue %s", change_queue)
         return DynamicChangeQueueContextManager(change_queue)
 
-    def enqueueChangesAhead(self, change, quiet, ignore_requirements,
+    def enqueueChangesAhead(self, change, event, quiet, ignore_requirements,
                             change_queue, history=None):
         if history and change in history:
             # detected dependency cycle
@@ -57,7 +57,7 @@ class IndependentPipelineManager(PipelineManager):
             # have jobs run.  Also, pipeline requirements are always
             # ignored (which is safe because the changes are not
             # live).
-            r = self.addChange(needed_change, quiet=True,
+            r = self.addChange(needed_change, event, quiet=True,
                                ignore_requirements=True,
                                live=False, change_queue=change_queue,
                                history=history)

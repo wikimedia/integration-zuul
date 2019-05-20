@@ -466,7 +466,7 @@ class RPCListener(object):
         change = model.Branch(project)
         change.branch = args.get("branch", "master")
         queue = model.ChangeQueue(pipeline)
-        item = model.QueueItem(queue, change)
+        item = model.QueueItem(queue, change, None)
         item.layout = tenant.layout
         item.freezeJobGraph(skip_file_matcher=True)
 

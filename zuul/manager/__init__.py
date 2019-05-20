@@ -179,11 +179,11 @@ class PipelineManager(object):
     def isChangeReadyToBeEnqueued(self, change):
         return True
 
-    def enqueueChangesAhead(self, change, quiet, ignore_requirements,
+    def enqueueChangesAhead(self, change, event, quiet, ignore_requirements,
                             change_queue, history=None):
         return True
 
-    def enqueueChangesBehind(self, change, quiet, ignore_requirements,
+    def enqueueChangesBehind(self, change, event, quiet, ignore_requirements,
                              change_queue):
         return True
 
@@ -269,7 +269,7 @@ class PipelineManager(object):
                                item.change.project)
                 return False
 
-    def addChange(self, change, quiet=False, enqueue_time=None,
+    def addChange(self, change, event, quiet=False, enqueue_time=None,
                   ignore_requirements=False, live=True,
                   change_queue=None, history=None):
         self.log.debug("Considering adding change %s" % change)
@@ -307,7 +307,8 @@ class PipelineManager(object):
                                (change, change.project))
                 return False
 
-            if not self.enqueueChangesAhead(change, quiet, ignore_requirements,
+            if not self.enqueueChangesAhead(change, event, quiet,
+                                            ignore_requirements,
                                             change_queue, history=history):
                 self.log.debug("Failed to enqueue changes "
                                "ahead of %s" % change)
@@ -320,14 +321,14 @@ class PipelineManager(object):
 
             self.log.info("Adding change %s to queue %s in %s" %
                           (change, change_queue, self.pipeline))
-            item = change_queue.enqueueChange(change)
+            item = change_queue.enqueueChange(change, event)
             if enqueue_time:
                 item.enqueue_time = enqueue_time
             item.live = live
             self.reportStats(item)
             item.quiet = quiet
-            self.enqueueChangesBehind(change, quiet, ignore_requirements,
-                                      change_queue)
+            self.enqueueChangesBehind(change, event, quiet,
+                                      ignore_requirements, change_queue)
             zuul_driver = self.sched.connections.drivers['zuul']
             tenant = self.pipeline.tenant
             zuul_driver.onChangeEnqueued(tenant, item.change, self.pipeline)
