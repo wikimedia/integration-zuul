@@ -18,7 +18,12 @@ from zuul.model import TriggerEvent
 
 
 def get_annotated_logger(logger, event, build=None):
-    extra = {}
+    # Note(tobiash): When running with python 3.5 log adapters cannot be
+    # stacked. We need to detect this case and modify the original one.
+    if isinstance(logger, EventIdLogAdapter):
+        extra = logger.extra
+    else:
+        extra = {}
 
     if event is not None:
         if isinstance(event, TriggerEvent):
@@ -28,6 +33,9 @@ def get_annotated_logger(logger, event, build=None):
 
     if build is not None:
         extra['build'] = build
+
+    if isinstance(logger, EventIdLogAdapter):
+        return logger
 
     return EventIdLogAdapter(logger, extra)
 

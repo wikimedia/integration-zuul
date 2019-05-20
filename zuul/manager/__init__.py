@@ -623,11 +623,13 @@ class PipelineManager(object):
         if isinstance(item.change, model.Change):
             self.sched.merger.mergeChanges(build_set.merger_items,
                                            item.current_build_set, files, dirs,
-                                           precedence=self.pipeline.precedence)
+                                           precedence=self.pipeline.precedence,
+                                           event=item.event)
         else:
             self.sched.merger.getRepoState(build_set.merger_items,
                                            item.current_build_set,
-                                           precedence=self.pipeline.precedence)
+                                           precedence=self.pipeline.precedence,
+                                           event=item.event)
         return False
 
     def scheduleFilesChanges(self, item):
@@ -638,7 +640,8 @@ class PipelineManager(object):
 
         self.sched.merger.getFilesChanges(
             item.change.project.connection_name, item.change.project.name,
-            item.change.ref, item.change.branch, build_set=build_set)
+            item.change.ref, item.change.branch, build_set=build_set,
+            event=item.event)
         return False
 
     def prepareItem(self, item):

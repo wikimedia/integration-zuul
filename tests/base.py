@@ -1588,10 +1588,11 @@ class RecordingMergeClient(zuul.merger.client.MergeClient):
         self.history = {}
 
     def submitJob(self, name, data, build_set,
-                  precedence=zuul.model.PRECEDENCE_NORMAL):
+                  precedence=zuul.model.PRECEDENCE_NORMAL, event=None):
         self.history.setdefault(name, [])
         self.history[name].append((data, build_set))
-        return super().submitJob(name, data, build_set, precedence)
+        return super().submitJob(
+            name, data, build_set, precedence, event=event)
 
 
 class RecordingExecutorServer(zuul.executor.server.ExecutorServer):
