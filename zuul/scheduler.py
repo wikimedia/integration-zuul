@@ -35,6 +35,7 @@ from zuul.lib import commandsocket
 from zuul.lib.ansible import AnsibleManager
 from zuul.lib.config import get_default
 from zuul.lib.gear_utils import getGearmanFunctions
+from zuul.lib.logutil import get_annotated_logger
 from zuul.lib.statsd import get_statsd
 import zuul.lib.queue
 from zuul.model import Build
@@ -1056,7 +1057,8 @@ class Scheduler(threading.Thread):
     def process_event_queue(self):
         self.log.debug("Fetching trigger event")
         event = self.trigger_event_queue.get()
-        self.log.debug("Processing trigger event %s" % event)
+        log = get_annotated_logger(self.log, event.zuul_event_id)
+        log.debug("Processing trigger event %s" % event)
         try:
             full_project_name = ('/'.join([event.project_hostname,
                                            event.project_name]))
@@ -1067,9 +1069,8 @@ class Scheduler(threading.Thread):
                 try:
                     change = project.source.getChange(event)
                 except exceptions.ChangeNotFound as e:
-                    self.log.debug("Unable to get change %s from "
-                                   "source %s",
-                                   e.change, project.source)
+                    log.debug("Unable to get change %s from source %s",
+                              e.change, project.source)
                     continue
                 reconfigure_tenant = False
                 if ((event.branch_updated and
@@ -1398,7 +1399,7 @@ class Scheduler(threading.Thread):
             pipelines.append(pipeline.formatStatusJSON(websocket_url))
         return json.dumps(data)
 
-    def onChangeUpdated(self, change):
+    def onChangeUpdated(self, change, event):
         """Remove stale dependency references on change update.
 
         When a change is updated with a new patchset, other changes in
@@ -1408,9 +1409,9 @@ class Scheduler(threading.Thread):
         them to be refreshed the next time the queue processor
         examines them.
         """
-
-        self.log.debug("Change %s has been updated, clearing dependent "
-                       "change caches", change)
+        log = get_annotated_logger(self.log, event)
+        log.debug("Change %s has been updated, clearing dependent "
+                  "change caches", change)
         for source in self.connections.getSources():
             for other_change in source.getCachedChanges():
                 if other_change.commit_needs_changes is None:

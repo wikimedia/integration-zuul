@@ -14,6 +14,8 @@
 
 import abc
 
+from zuul.lib.logutil import get_annotated_logger
+
 
 class BaseConnection(object, metaclass=abc.ABCMeta):
     """Base class for connections.
@@ -42,10 +44,10 @@ class BaseConnection(object, metaclass=abc.ABCMeta):
         self.connection_config = connection_config
 
     def logEvent(self, event):
-        self.log.debug(
-            'Scheduling event from {connection}: {event}'.format(
-                connection=self.connection_name,
-                event=event))
+        log = get_annotated_logger(self.log, event.zuul_event_id)
+        log.debug('Scheduling event from {connection}: {event}'.format(
+            connection=self.connection_name,
+            event=event))
         try:
             if self.sched.statsd:
                 self.sched.statsd.incr(
