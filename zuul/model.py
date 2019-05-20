@@ -30,6 +30,7 @@ import itertools
 from zuul import change_matcher
 from zuul.lib.config import get_default
 from zuul.lib.artifacts import get_artifacts_from_result_data
+from zuul.lib.logutil import get_annotated_logger
 
 MERGER_MERGE = 1          # "git merge"
 MERGER_MERGE_RESOLVE = 2  # "git merge -s resolve"
@@ -3704,6 +3705,7 @@ class Layout(object):
         return None
 
     def getProjectPipelineConfig(self, item):
+        log = get_annotated_logger(self.log, item.event)
         # Create a project-pipeline config for the given item, taking
         # its branch (if any) into consideration.  If the project does
         # not participate in the pipeline at all (in this branch),
@@ -3719,11 +3721,11 @@ class Layout(object):
             if not pc.changeMatches(item.change):
                 msg = "Project %s did not match" % (pc,)
                 ppc.addDebug(msg)
-                self.log.debug("%s item %s" % (msg, item))
+                log.debug("%s item %s", msg, item)
                 continue
             msg = "Project %s matched" % (pc,)
             ppc.addDebug(msg)
-            self.log.debug("%s item %s" % (msg, item))
+            log.debug("%s item %s", msg, item)
             for template_name in pc.templates:
                 templates = self.getProjectTemplates(template_name)
                 for template in templates:
@@ -3733,12 +3735,12 @@ class Layout(object):
                             msg = "Project template %s did not match" % (
                                 template,)
                             ppc.addDebug(msg)
-                            self.log.debug("%s item %s" % (msg, item))
+                            log.debug("%s item %s", msg, item)
                             continue
                         msg = "Project template %s matched" % (
                             template,)
                         ppc.addDebug(msg)
-                        self.log.debug("%s item %s" % (msg, item))
+                        log.debug("%s item %s", msg, item)
                         project_in_pipeline = True
                         ppc.update(template_ppc)
                         ppc.updateVariables(template.variables)
@@ -3767,6 +3769,7 @@ class Layout(object):
 
     def _collectJobVariants(self, item, jobname, change, path, jobs, stack,
                             override_checkouts, indent):
+        log = get_annotated_logger(self.log, item.event)
         matched = False
         local_override_checkouts = override_checkouts.copy()
         override_branch = None
@@ -3784,13 +3787,12 @@ class Layout(object):
             if not variant.changeMatchesBranch(
                     change,
                     override_branch=override_branch):
-                self.log.debug("Variant %s did not match %s", repr(variant),
-                               change)
+                log.debug("Variant %s did not match %s", repr(variant), change)
                 item.debug("Variant {variant} did not match".format(
                     variant=repr(variant)), indent=indent)
                 continue
             else:
-                self.log.debug("Variant %s matched %s", repr(variant), change)
+                log.debug("Variant %s matched %s", repr(variant), change)
                 item.debug("Variant {variant} matched".format(
                     variant=repr(variant)), indent=indent)
             if not variant.isBase():
@@ -3812,6 +3814,7 @@ class Layout(object):
 
     def collectJobs(self, item, jobname, change, path=None, jobs=None,
                     stack=None, override_checkouts=None):
+        log = get_annotated_logger(self.log, item.event)
         # Stack is the recursion stack of job parent names.  Each time
         # we go up a level, we add to stack, and it's popped as we
         # descend.
@@ -3837,20 +3840,21 @@ class Layout(object):
         matched = False
         indent = len(path) + 1
         msg = "Collecting job variants for {jobname}".format(jobname=jobname)
-        self.log.debug(msg)
+        log.debug(msg)
         item.debug(msg, indent=indent)
         matched = self._collectJobVariants(
             item, jobname, change, path, jobs, stack, override_checkouts,
             indent)
         if not matched:
-            self.log.debug("No matching parents for job %s and change %s",
-                           jobname, change)
+            log.debug("No matching parents for job %s and change %s",
+                      jobname, change)
             item.debug("No matching parents for {jobname}".format(
                 jobname=repr(jobname)), indent=indent)
             raise NoMatchingParentError()
         return jobs
 
     def _createJobGraph(self, item, ppc, job_graph, skip_file_matcher):
+        log = get_annotated_logger(self.log, item.event)
         job_list = ppc.job_list
         change = item.change
         pipeline = item.pipeline
@@ -3858,7 +3862,7 @@ class Layout(object):
         for jobname in job_list.jobs:
             # This is the final job we are constructing
             frozen_job = None
-            self.log.debug("Collecting jobs %s for %s", jobname, change)
+            log.debug("Collecting jobs %s for %s", jobname, change)
             item.debug("Freezing job {jobname}".format(
                 jobname=jobname), indent=1)
             # Create the initial list of override_checkouts, which are
@@ -3874,7 +3878,7 @@ class Layout(object):
                     override_checkouts=override_checkouts)
             except NoMatchingParentError:
                 variants = None
-            self.log.debug("Collected jobs %s for %s", jobname, change)
+            log.debug("Collected jobs %s for %s", jobname, change)
             if not variants:
                 # A change must match at least one defined job variant
                 # (that is to say that it must match more than just
@@ -3890,7 +3894,7 @@ class Layout(object):
                     frozen_job.applyVariant(variant, item.layout)
                     frozen_job.name = variant.name
             frozen_job.name = jobname
-            self.log.debug("Froze job %s for %s", jobname, change)
+            log.debug("Froze job %s for %s", jobname, change)
             # Whether the change matches any of the project pipeline
             # variants
             matched = False
@@ -3898,13 +3902,13 @@ class Layout(object):
                 if variant.changeMatchesBranch(change):
                     frozen_job.applyVariant(variant, item.layout)
                     matched = True
-                    self.log.debug("Pipeline variant %s matched %s",
-                                   repr(variant), change)
+                    log.debug("Pipeline variant %s matched %s",
+                              repr(variant), change)
                     item.debug("Pipeline variant {variant} matched".format(
                         variant=repr(variant)), indent=2)
                 else:
-                    self.log.debug("Pipeline variant %s did not match %s",
-                                   repr(variant), change)
+                    log.debug("Pipeline variant %s did not match %s",
+                              repr(variant), change)
                     item.debug("Pipeline variant {variant} did not match".
                                format(variant=repr(variant)), indent=2)
             if not matched:
@@ -3915,8 +3919,8 @@ class Layout(object):
                 continue
             if not skip_file_matcher and \
                not frozen_job.changeMatchesFiles(change):
-                self.log.debug("Job %s did not match files in %s",
-                               repr(frozen_job), change)
+                log.debug("Job %s did not match files in %s",
+                          repr(frozen_job), change)
                 item.debug("Job {jobname} did not match files".
                            format(jobname=jobname), indent=2)
                 continue
