@@ -1571,8 +1571,8 @@ class Job(ConfigObject):
                 secret = layout.secrets.get(secret_use.name)
                 decrypted_secret = secret.decrypt(
                     other.source_context.project.private_secrets_key)
-            decrypted_secret.name = secret_use.alias
-            decrypted_secrets.append(decrypted_secret)
+                decrypted_secret.name = secret_use.alias
+                decrypted_secrets.append(decrypted_secret)
             # Add the secrets to any existing playbooks.  If any of
             # them are in an untrusted project, then we've just given
             # a secret to a playbook which can run in dynamic config,
