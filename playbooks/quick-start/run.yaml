@@ -7,12 +7,14 @@
       use_upstream_docker: false
     - use-buildset-registry
   tasks:
-    - name: Install docker-compose and git-review
+    - name: Install docker-compose
       package:
         name:
           - docker-compose
-          - git-review
         state: present
+      become: true
+    - name: Install git-review
+      command: python3 -m pip install git-review
       become: true
     - name: Create workspace directory
       file:
