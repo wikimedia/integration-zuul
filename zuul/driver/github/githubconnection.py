@@ -72,6 +72,19 @@ class UTC(datetime.tzinfo):
 utc = UTC()
 
 
+class GithubRequestLogger:
+
+    def __init__(self, zuul_event_id):
+        log = logging.getLogger("zuul.GithubRequest")
+        self.log = get_annotated_logger(log, zuul_event_id)
+
+    def log_request(self, response, *args, **kwargs):
+        self.log.debug('%s %s result: %s, size: %s, duration: %s',
+                       response.request.method, response.url,
+                       response.status_code, len(response.content),
+                       int(response.elapsed.microseconds / 1000))
+
+
 class GithubShaCache(object):
     def __init__(self):
         self.projects = {}
@@ -203,7 +216,8 @@ class GithubEventProcessor(object):
         self.connection = connector.connection
         self.ts, self.body, self.event_type, self.delivery = event_tuple
         logger = logging.getLogger("zuul.GithubEventConnector")
-        self.log = get_annotated_logger(logger, self.delivery)
+        self.zuul_event_id = self.delivery
+        self.log = get_annotated_logger(logger, self.zuul_event_id)
 
     def run(self):
         self.log.debug("Starting event processing, queue length %s",
@@ -400,7 +414,7 @@ class GithubEventProcessor(object):
             return
         project = self.body.get('name')
         pr_body = self.connection.getPullBySha(
-            self.body['sha'], project, self.log)
+            self.body['sha'], project, self.zuul_event_id)
         if pr_body is None:
             return
 
@@ -419,7 +433,7 @@ class GithubEventProcessor(object):
         number = body.get('issue').get('number')
         project_name = body.get('repository').get('full_name')
         pr_body, pr_obj = self.connection.getPull(
-            project_name, number, self.log)
+            project_name, number, self.zuul_event_id)
         if pr_body is None:
             self.log.debug('Pull request #%s not found in project %s' %
                            (number, project_name))
@@ -632,7 +646,7 @@ class GithubConnection(BaseConnection):
             self.github_event_connector.stop()
             self.github_event_connector.join()
 
-    def _createGithubClient(self):
+    def _createGithubClient(self, zuul_event_id=None):
         if self.server != 'github.com':
             url = 'https://%s/' % self.server
             if not self.verify_ssl:
@@ -646,6 +660,10 @@ class GithubConnection(BaseConnection):
         # anything going through requests to http/s goes through cache
         github.session.mount('http://', self.cache_adapter)
         github.session.mount('https://', self.cache_adapter)
+
+        request_logger = GithubRequestLogger(zuul_event_id)
+        github.session.hooks['response'].append(request_logger.log_request)
+
         # Add properties to store project and user for logging later
         github._zuul_project = None
         github._zuul_user_id = None
@@ -826,11 +844,12 @@ class GithubConnection(BaseConnection):
 
     def getGithubClient(self,
                         project=None,
-                        user_id=None):
+                        user_id=None,
+                        zuul_event_id=None):
         # if you're authenticating for a project and you're an integration then
         # you need to use the installation specific token.
         if project and self.app_id:
-            github = self._createGithubClient()
+            github = self._createGithubClient(zuul_event_id)
             github.login(token=self._get_installation_key(project, user_id))
             github._zuul_project = project
             github._zuul_user_id = user_id
@@ -838,7 +857,7 @@ class GithubConnection(BaseConnection):
 
         # if we're using api_key authentication then this is already token
         # authenticated, if not then anonymous is the best we have.
-        return self._github
+        return self._createGithubClient(zuul_event_id)
 
     def maintainCache(self, relevant):
         remove = set()
@@ -979,7 +998,7 @@ class GithubConnection(BaseConnection):
         log = get_annotated_logger(self.log, event)
         log.info("Updating %s" % (change,))
         change.pr, pr_obj = self.getPull(
-            change.project.name, change.number, log=log)
+            change.project.name, change.number, event=event)
         change.ref = "refs/pull/%s/head" % change.number
         change.branch = change.pr.get('base').get('ref')
 
@@ -1145,9 +1164,8 @@ class GithubConnection(BaseConnection):
     def getPullUrl(self, project, number):
         return '%s/pull/%s' % (self.getGitwebUrl(project), number)
 
-    def getPull(self, project_name, number, log=None):
-        if log is None:
-            log = self.log
+    def getPull(self, project_name, number, event=None):
+        log = get_annotated_logger(self.log, event)
         github = self.getGithubClient(project_name)
         owner, proj = project_name.split('/')
         for retry in range(5):
@@ -1211,13 +1229,14 @@ class GithubConnection(BaseConnection):
 
         return True
 
-    def getPullBySha(self, sha, project_name, log):
+    def getPullBySha(self, sha, project_name, event):
+        log = get_annotated_logger(self.log, event)
         cached_pr_numbers = self._sha_pr_cache.get(project_name, sha)
         if len(cached_pr_numbers) > 1:
             raise Exception('Multiple pulls found with head sha %s' % sha)
         if len(cached_pr_numbers) == 1:
             for pr in cached_pr_numbers:
-                pr_body, pr_obj = self.getPull(project_name, pr, log)
+                pr_body, pr_obj = self.getPull(project_name, pr, event)
                 return pr_body
 
         pulls = []
@@ -1427,7 +1446,7 @@ class GithubConnection(BaseConnection):
 
     def getCommitStatuses(self, project, sha, zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
-        github = self.getGithubClient(project)
+        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
         owner, proj = project.split('/')
         repository = github.repository(owner, proj)
 
