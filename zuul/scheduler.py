@@ -1425,6 +1425,7 @@ class Scheduler(threading.Thread):
 
     def cancelJob(self, buildset, job, build=None, final=False):
         item = buildset.item
+        log = get_annotated_logger(self.log, item.event)
         job_name = job.name
         try:
             # Cancel node request if needed
@@ -1440,9 +1441,9 @@ class Scheduler(threading.Thread):
                 try:
                     was_running = self.executor.cancel(build)
                 except Exception:
-                    self.log.exception(
-                        "Exception while canceling build %s for change %s" % (
-                            build, item.change))
+                    log.exception(
+                        "Exception while canceling build %s for change %s",
+                        build, item.change)
 
                 # In the unlikely case that a build is removed and
                 # later added back, make sure we clear out the nodeset
@@ -1450,9 +1451,9 @@ class Scheduler(threading.Thread):
                 try:
                     buildset.removeJobNodeSet(job_name)
                 except Exception:
-                    self.log.exception(
+                    log.exception(
                         "Exception while removing nodeset from build %s "
-                        "for change %s" % (build, build.build_set.item.change))
+                        "for change %s", build, build.build_set.item.change)
 
                 if not was_running:
                     nodeset = buildset.getJobNodeSet(job_name)

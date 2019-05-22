@@ -370,39 +370,41 @@ class ExecutorClient(object):
         return build
 
     def cancel(self, build):
+        log = get_annotated_logger(self.log, build.zuul_event_id,
+                                   build=build.uuid)
         # Returns whether a running build was canceled
-        self.log.info("Cancel build %s for job %s" % (build, build.job))
+        log.info("Cancel build %s for job %s", build, build.job)
 
         build.canceled = True
         try:
             job = build.__gearman_job  # noqa
         except AttributeError:
-            self.log.debug("Build %s has no associated gearman job" % build)
+            log.debug("Build has no associated gearman job")
             return False
 
         # TODOv3(jeblair): make a nicer way of recording build start.
         if build.url is not None:
-            self.log.debug("Build %s has already started" % build)
+            log.debug("Build has already started")
             self.cancelRunningBuild(build)
-            self.log.debug("Canceled running build %s" % build)
+            log.debug("Canceled running build")
             return True
         else:
-            self.log.debug("Build %s has not started yet" % build)
+            log.debug("Build has not started yet")
 
-        self.log.debug("Looking for build %s in queue" % build)
+        log.debug("Looking for build in queue")
         if self.cancelJobInQueue(build):
-            self.log.debug("Removed build %s from queue" % build)
+            log.debug("Removed build from queue")
             return False
 
         time.sleep(1)
 
-        self.log.debug("Still unable to find build %s to cancel" % build)
+        log.debug("Still unable to find build to cancel")
         if build.url:
-            self.log.debug("Build %s has just started" % build)
-            self.log.debug("Canceled running build %s" % build)
+            log.debug("Build has just started")
             self.cancelRunningBuild(build)
+            log.debug("Canceled running build")
             return True
-        self.log.debug("Unable to cancel build %s" % build)
+        log.debug("Unable to cancel build")
 
     def onBuildCompleted(self, job, result=None):
         if job.unique in self.meta_jobs:
