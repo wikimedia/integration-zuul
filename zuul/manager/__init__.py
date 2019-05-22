@@ -378,19 +378,21 @@ class PipelineManager(object):
         change.commit_needs_changes = dependencies
 
     def provisionNodes(self, item):
+        log = get_annotated_logger(self.log, item.event)
         jobs = item.findJobsToRequest(item.pipeline.tenant.semaphore_handler)
         if not jobs:
             return False
         build_set = item.current_build_set
-        self.log.debug("Requesting nodes for change %s" % item.change)
+        log.debug("Requesting nodes for change %s", item.change)
         if self.sched.use_relative_priority:
             priority = item.getNodePriority()
         else:
             priority = 0
         for job in jobs:
-            req = self.sched.nodepool.requestNodes(build_set, job, priority)
-            self.log.debug("Adding node request %s for job %s to item %s" %
-                           (req, job, item))
+            req = self.sched.nodepool.requestNodes(
+                build_set, job, priority, event=item.event)
+            log.debug("Adding node request %s for job %s to item %s",
+                      req, job, item)
             build_set.setJobNodeRequest(job.name, req)
         return True
 
@@ -928,21 +930,22 @@ class PipelineManager(object):
     def onNodesProvisioned(self, event):
         # TODOv3(jeblair): handle provisioning failure here
         request = event.request
+        log = get_annotated_logger(self.log, request.event_id)
+
         build_set = request.build_set
         build_set.jobNodeRequestComplete(request.job.name,
                                          request.nodeset)
         if request.failed or not request.fulfilled:
-            self.log.info("Node request %s: failure for %s" %
-                          (request, request.job.name,))
+            log.info("Node request %s: failure for %s",
+                     request, request.job.name)
             build_set.item.setNodeRequestFailure(request.job)
             self._resumeBuilds(request.build_set)
             tenant = build_set.item.pipeline.tenant
             tenant.semaphore_handler.release(build_set.item, request.job)
 
-        self.log.info("Completed node request %s for job %s of item %s "
-                      "with nodes %s" %
-                      (request, request.job, build_set.item,
-                       request.nodeset))
+        log.info("Completed node request %s for job %s of item %s "
+                 "with nodes %s",
+                 request, request.job, build_set.item, request.nodeset)
 
     def reportItem(self, item):
         if not item.reported:
