@@ -1295,17 +1295,15 @@ class TestTenantScopedWebApi(BaseTestWeb):
                                           self.gearman_server.port)
         self.addCleanup(client.shutdown)
         autohold_requests = client.autohold_list()
-        self.assertNotEqual({}, autohold_requests)
-        self.assertEqual(1, len(autohold_requests.keys()))
-        key = list(autohold_requests.keys())[0]
-        tenant, project, job, ref_filter = key.split(',')
-        self.assertEqual('tenant-one', tenant)
-        self.assertIn('org/project', project)
-        self.assertEqual('project-test2', job)
-        self.assertEqual(".*", ref_filter)
-        # Note: the value is converted from set to list by json.
-        self.assertEqual([1, "some reason", None], autohold_requests[key],
-                         autohold_requests[key])
+        self.assertNotEqual([], autohold_requests)
+        self.assertEqual(1, len(autohold_requests))
+        request = autohold_requests[0]
+        self.assertEqual('tenant-one', request['tenant'])
+        self.assertIn('org/project', request['project'])
+        self.assertEqual('project-test2', request['job'])
+        self.assertEqual(".*", request['ref_filter'])
+        self.assertEqual("some reason", request['reason'])
+        self.assertEqual(1, request['max_count'])
 
     def test_enqueue(self):
         """Test that the admin web interface can enqueue a change"""

@@ -4644,6 +4644,65 @@ class WebInfo(object):
         return d
 
 
+class HoldRequest(object):
+    def __init__(self):
+        self.lock = None
+        self.id = None
+        self.tenant = None
+        self.project = None
+        self.job = None
+        self.ref_filter = None
+        self.reason = None
+        self.node_expiration = None
+        # When max_count == current_count, hold request can no longer be used.
+        self.max_count = 1
+        self.current_count = 0
+
+    def __str__(self):
+        return "<HoldRequest %s: tenant=%s project=%s job=%s ref_filter=%s>" \
+            % (self.id, self.tenant, self.project, self.job, self.ref_filter)
+
+    @staticmethod
+    def fromDict(data):
+        '''
+        Return a new object from the given data dictionary.
+        '''
+        obj = HoldRequest()
+        obj.tenant = data.get('tenant')
+        obj.project = data.get('project')
+        obj.job = data.get('job')
+        obj.ref_filter = data.get('ref_filter')
+        obj.max_count = data.get('max_count')
+        obj.current_count = data.get('current_count')
+        obj.reason = data.get('reason')
+        obj.node_expiration = data.get('node_expiration')
+        return obj
+
+    def toDict(self):
+        '''
+        Return a dictionary representation of the object.
+        '''
+        d = dict()
+        d['id'] = self.id
+        d['tenant'] = self.tenant
+        d['project'] = self.project
+        d['job'] = self.job
+        d['ref_filter'] = self.ref_filter
+        d['max_count'] = self.max_count
+        d['current_count'] = self.current_count
+        d['reason'] = self.reason
+        d['node_expiration'] = self.node_expiration
+        return d
+
+    def serialize(self):
+        '''
+        Return a representation of the object as a string.
+
+        Used for storing the object data in ZooKeeper.
+        '''
+        return json.dumps(self.toDict()).encode('utf8')
+
+
 # AuthZ models
 
 class AuthZRule(object):

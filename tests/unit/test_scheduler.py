@@ -1632,6 +1632,18 @@ class TestScheduler(ZuulTestCase):
                             "", "", "reason text", 1)
         self.assertTrue(r)
 
+        # There should be a record in ZooKeeper
+        request_list = self.zk.getHoldRequests()
+        self.assertEqual(1, len(request_list))
+        request = self.zk.getHoldRequest(request_list[0])
+        self.assertIsNotNone(request)
+        self.assertEqual('tenant-one', request.tenant)
+        self.assertEqual('review.example.com/org/project', request.project)
+        self.assertEqual('project-test2', request.job)
+        self.assertEqual('reason text', request.reason)
+        self.assertEqual(1, request.max_count)
+        self.assertEqual(0, request.current_count)
+
         # First check that successful jobs do not autohold
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
@@ -1680,6 +1692,10 @@ class TestScheduler(ZuulTestCase):
         )
         self.assertEqual(held_node['comment'], "reason text")
 
+        # The hold request current_count should have incremented
+        request2 = self.zk.getHoldRequest(request.id)
+        self.assertEqual(request.current_count + 1, request2.current_count)
+
         # Another failed change should not hold any more nodes
         C = self.fake_gerrit.addFakeChange('org/project', 'master', 'C')
         self.executor_server.failJob('project-test2', C)
@@ -1695,6 +1711,30 @@ class TestScheduler(ZuulTestCase):
             if node['state'] == zuul.model.STATE_HOLD:
                 held_nodes += 1
         self.assertEqual(held_nodes, 1)
+
+        # request current_count should not have changed
+        request3 = self.zk.getHoldRequest(request2.id)
+        self.assertEqual(request2.current_count, request3.current_count)
+
+    @simple_layout('layouts/autohold.yaml')
+    def test_autohold_delete(self):
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+        r = client.autohold('tenant-one', 'org/project', 'project-test2',
+                            "", "", "reason text", 1)
+        self.assertTrue(r)
+
+        # There should be a record in ZooKeeper
+        request_list = self.zk.getHoldRequests()
+        self.assertEqual(1, len(request_list))
+        request = self.zk.getHoldRequest(request_list[0])
+        self.assertIsNotNone(request)
+
+        # Delete and verify no more requests
+        self.assertTrue(client.autohold_delete(request.id))
+        request_list = self.zk.getHoldRequests()
+        self.assertEqual([], request_list)
 
     def _test_autohold_scoped(self, change_obj, change, ref):
         client = zuul.rpcclient.RPCClient('127.0.0.1',
@@ -1920,20 +1960,15 @@ class TestScheduler(ZuulTestCase):
         self.assertTrue(r)
 
         autohold_requests = client.autohold_list()
-        self.assertNotEqual({}, autohold_requests)
-        self.assertEqual(1, len(autohold_requests.keys()))
+        self.assertNotEqual([], autohold_requests)
+        self.assertEqual(1, len(autohold_requests))
 
-        # The single dict key should be a CSV string value
-        key = list(autohold_requests.keys())[0]
-        tenant, project, job, ref_filter = key.split(',')
-
-        self.assertEqual('tenant-one', tenant)
-        self.assertIn('org/project', project)
-        self.assertEqual('project-test2', job)
-        self.assertEqual(".*", ref_filter)
-
-        # Note: the value is converted from set to list by json.
-        self.assertEqual([1, "reason text", None], autohold_requests[key])
+        request = autohold_requests[0]
+        self.assertEqual('tenant-one', request['tenant'])
+        self.assertIn('org/project', request['project'])
+        self.assertEqual('project-test2', request['job'])
+        self.assertEqual(".*", request['ref_filter'])
+        self.assertEqual("reason text", request['reason'])
 
     @simple_layout('layouts/three-projects.yaml')
     def test_dependent_behind_dequeue(self):

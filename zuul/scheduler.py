@@ -40,7 +40,7 @@ from zuul.lib.logutil import get_annotated_logger
 from zuul.lib.statsd import get_statsd
 import zuul.lib.queue
 import zuul.lib.repl
-from zuul.model import Build
+from zuul.model import Build, HoldRequest
 
 COMMANDS = ['full-reconfigure', 'stop', 'repl', 'norepl']
 
@@ -326,7 +326,6 @@ class Scheduler(threading.Thread):
             self.zuul_version = zuul_version.release_string
         self.last_reconfigured = None
         self.tenant_last_reconfigured = {}
-        self.autohold_requests = {}
         self.use_relative_priority = False
         if self.config.has_option('scheduler', 'relative_priority'):
             if self.config.getboolean('scheduler', 'relative_priority'):
@@ -555,12 +554,57 @@ class Scheduler(threading.Thread):
     def autohold(self, tenant_name, project_name, job_name, ref_filter,
                  reason, count, node_hold_expiration):
         key = (tenant_name, project_name, job_name, ref_filter)
-        if count == 0 and key in self.autohold_requests:
-            self.log.debug("Removing autohold for %s", key)
-            del self.autohold_requests[key]
-        else:
-            self.log.debug("Autohold requested for %s", key)
-            self.autohold_requests[key] = (count, reason, node_hold_expiration)
+        self.log.debug("Autohold requested for %s", key)
+
+        request = HoldRequest()
+        request.tenant = tenant_name
+        request.project = project_name
+        request.job = job_name
+        request.ref_filter = ref_filter
+        request.reason = reason
+        request.max_count = count
+        request.node_expiration = node_hold_expiration
+
+        # No need to lock it since we are creating a new one.
+        self.zk.storeHoldRequest(request)
+
+    def autohold_list(self):
+        '''
+        Return current hold requests as a list of dicts.
+        '''
+        data = []
+        for request_id in self.zk.getHoldRequests():
+            request = self.zk.getHoldRequest(request_id)
+            if not request:
+                continue
+            data.append(request.toDict())
+        return data
+
+    def autohold_delete(self, hold_request_id):
+        '''
+        Delete an autohold request.
+
+        :param str hold_request_id: The unique ID of the request to delete.
+        '''
+        try:
+            hold_request = self.zk.getHoldRequest(hold_request_id)
+        except Exception:
+            self.log.exception(
+                "Error retrieving autohold ID %s:", hold_request_id)
+
+        if not hold_request:
+            self.log.info("Ignored request to remove invalid autohold ID %s",
+                          hold_request_id)
+            return
+
+        # (TODO): Release any nodes held for this request here
+
+        self.log.debug("Removing autohold %s", hold_request)
+        try:
+            self.zk.deleteHoldRequest(hold_request)
+        except Exception:
+            self.log.exception(
+                "Error removing autohold request %s:", hold_request)
 
     def promote(self, tenant_name, pipeline_name, change_ids):
         event = PromoteEvent(tenant_name, pipeline_name, change_ids)
@@ -1232,7 +1276,7 @@ class Scheduler(threading.Thread):
             return
         pipeline.manager.onBuildPaused(event.build)
 
-    def _getAutoholdRequestKey(self, build):
+    def _getAutoholdRequest(self, build):
         change = build.build_set.item.change
 
         autohold_key_base = (build.pipeline.tenant.name,
@@ -1254,16 +1298,6 @@ class Scheduler(threading.Thread):
             CHANGE = 2
             REF = 3
 
-        def autohold_key_base_issubset(base, request_key):
-            """check whether the given key is a subset of the build key"""
-            index = 0
-            base_len = len(base)
-            while index < base_len:
-                if base[index] != request_key[index]:
-                    return False
-                index += 1
-            return True
-
         # Do a partial match of the autohold key against all autohold
         # requests, ignoring the last element of the key (ref filter),
         # and finally do a regex match between ref filter from
@@ -1271,13 +1305,23 @@ class Scheduler(threading.Thread):
         # if it matches. Lastly, make sure that we match the most
         # specific autohold request by comparing "scopes"
         # of requests - the most specific is selected.
-        autohold_key = None
+        autohold = None
         scope = Scope.NONE
         self.log.debug("Checking build autohold key %s", autohold_key_base)
-        for request in self.autohold_requests:
-            ref_filter = request[-1]
-            if not autohold_key_base_issubset(autohold_key_base, request) \
-                or not re.match(ref_filter, change.ref):
+        for request_id in self.zk.getHoldRequests():
+            request = self.zk.getHoldRequest(request_id)
+            if not request:
+                continue
+            ref_filter = request.ref_filter
+
+            if request.current_count >= request.max_count:
+                # This request has been used the max number of times
+                continue
+            elif not (request.tenant == autohold_key_base[0] and
+                      request.project == autohold_key_base[1] and
+                      request.job == autohold_key_base[2]):
+                continue
+            elif not re.match(ref_filter, change.ref):
                 continue
 
             if ref_filter == ".*":
@@ -1291,9 +1335,9 @@ class Scheduler(threading.Thread):
                            autohold_key_base, candidate_scope)
             if candidate_scope > scope:
                 scope = candidate_scope
-                autohold_key = request
+                autohold = request
 
-        return autohold_key
+        return autohold
 
     def _processAutohold(self, build):
         # We explicitly only want to hold nodes for jobs if they have
@@ -1302,10 +1346,10 @@ class Scheduler(threading.Thread):
         if build.result not in hold_list:
             return
 
-        autohold_key = self._getAutoholdRequestKey(build)
-        self.log.debug("Got autohold key %s", autohold_key)
-        if autohold_key is not None:
-            self.nodepool.holdNodeSet(build.nodeset, autohold_key)
+        request = self._getAutoholdRequest(build)
+        self.log.debug("Got autohold %s", request)
+        if request is not None:
+            self.nodepool.holdNodeSet(build.nodeset, request)
 
     def _doBuildCompletedEvent(self, event):
         build = event.build

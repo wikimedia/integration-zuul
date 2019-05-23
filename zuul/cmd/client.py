@@ -207,6 +207,13 @@ class Client(zuul.cmd.ZuulApp):
                                   required=False, type=int, default=0)
         cmd_autohold.set_defaults(func=self.autohold)
 
+        cmd_autohold_delete = subparsers.add_parser(
+            'autohold-delete', help='delete autohold request')
+        cmd_autohold_delete.set_defaults(func=self.autohold_delete)
+        cmd_autohold_delete.add_argument('--id',
+                                         help='request ID',
+                                         required=True)
+
         cmd_autohold_list = subparsers.add_parser(
             'autohold-list', help='list autohold requests')
         cmd_autohold_list.add_argument('--tenant', help='tenant name',
@@ -435,28 +442,35 @@ class Client(zuul.cmd.ZuulApp):
             node_hold_expiration=node_hold_expiration)
         return r
 
+    def autohold_delete(self):
+        client = self.get_client()
+        return client.autohold_delete(self.args.id)
+
     def autohold_list(self):
         client = self.get_client()
         autohold_requests = client.autohold_list(tenant=self.args.tenant)
 
-        if len(autohold_requests.keys()) == 0:
+        if not autohold_requests:
             print("No autohold requests found")
             return True
 
         table = prettytable.PrettyTable(
             field_names=[
-                'Tenant', 'Project', 'Job', 'Ref Filter', 'Count', 'Reason'
+                'ID', 'Tenant', 'Project', 'Job', 'Ref Filter',
+                'Max Count', 'Reason'
             ])
 
-        for key, value in autohold_requests.items():
-            # The key comes to us as a CSV string because json doesn't like
-            # non-str keys.
-            tenant_name, project_name, job_name, ref_filter = key.split(',')
-            count, reason, node_hold_expiration = value
-
+        for request in autohold_requests:
             table.add_row([
-                tenant_name, project_name, job_name, ref_filter, count, reason
+                request['id'],
+                request['tenant'],
+                request['project'],
+                request['job'],
+                request['ref_filter'],
+                request['max_count'],
+                request['reason'],
             ])
+
         print(table)
         return True
 
