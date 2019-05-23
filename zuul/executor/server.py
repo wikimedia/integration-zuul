@@ -143,7 +143,7 @@ class DiskAccountant(object):
                     continue
                 size = int(size)
                 if size > self.limit:
-                    self.log.info(
+                    self.log.warning(
                         "{job} is using {size}MB (limit={limit})"
                         .format(size=size, job=dirname, limit=self.limit))
                     self.func(dirname)
