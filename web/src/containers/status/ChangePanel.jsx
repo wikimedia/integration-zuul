@@ -234,21 +234,25 @@ class ChangePanel extends React.Component {
 
   renderJob (job) {
     const { tenant } = this.props
+    let job_name = job.name
+    if (job.tries > 1) {
+      job_name = job_name + ' (' + job.tries + ')'
+    }
     let name = ''
     if (job.result !== null) {
-      name = <a className='zuul-job-name' href={job.report_url}>{job.name}</a>
+      name = <a className='zuul-job-name' href={job.report_url}>{job_name}</a>
     } else if (job.url !== null) {
       let url = job.url
       if (job.url.match('stream/')) {
         const to = (
           tenant.linkPrefix + '/' + job.url
         )
-        name = <Link className='zuul-job-name' to={to}>{job.name}</Link>
+        name = <Link className='zuul-job-name' to={to}>{job_name}</Link>
       } else {
-        name = <a className='zuul-job-name' href={url}>{job.name}</a>
+        name = <a className='zuul-job-name' href={url}>{job_name}</a>
       }
     } else {
-      name = <span className='zuul-job-name'>{job.name}</span>
+      name = <span className='zuul-job-name'>{job_name}</span>
     }
     let resultBar
     let result = job.result ? job.result.toLowerCase() : null
