@@ -1020,7 +1020,7 @@ class ProjectParser(object):
             'vars': ansible_vars_dict,
             'templates': [str],
             'merge-mode': vs.Any('merge', 'merge-resolve',
-                                 'cherry-pick'),
+                                 'cherry-pick', 'squash-merge'),
             'default-branch': str,
             str: pipeline_contents,
             '_source_context': model.SourceContext,

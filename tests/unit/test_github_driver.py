@@ -1126,6 +1126,36 @@ class TestGithubDriver(ZuulTestCase):
         self.assertFalse(A.is_merged)
         self.assertIn('Merge Failed', A.comments[1])
 
+    @simple_layout('layouts/gate-github-squash-merge.yaml', driver='github')
+    def test_merge_method_squash_merge(self):
+        """
+        Tests that the merge mode gets forwarded to the reporter and the
+        merge fails because cherry-pick is not supported by github.
+        """
+        github = self.fake_github.getGithubClient()
+        github._data.required_contexts[('org/project', 'master')] = [
+            'tenant-one/check',
+            'tenant-one/gate']
+
+        A = self.fake_github.openFakePullRequest('org/project', 'master', 'A')
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        repo = github.repo_from_project('org/project')
+        repo.create_status(A.head_sha, 'success', 'example.com', 'description',
+                           'tenant-one/check')
+
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        # the change should have entered the gate
+        self.assertEqual(2, len(self.history))
+
+        # now check if the merge was done via rebase
+        merges = [report for report in self.fake_github.reports
+                  if report[2] == 'merge']
+        assert(len(merges) == 1 and merges[0][3] == 'squash')
+
 
 class TestGithubUnprotectedBranches(ZuulTestCase):
     config_file = 'zuul-github-driver.conf'

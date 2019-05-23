@@ -1369,6 +1369,11 @@ pipeline.
          Cherry-picks each change onto the branch rather than
          performing any merges. This is not supported by Github.
 
+      .. value:: squash-merge
+
+         Squash merges each change onto the branch. This maps to the
+         merge mode ``squash`` in Github.
+
    .. attr:: vars
       :default: None
 

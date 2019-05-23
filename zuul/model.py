@@ -35,11 +35,13 @@ from zuul.lib.logutil import get_annotated_logger
 MERGER_MERGE = 1          # "git merge"
 MERGER_MERGE_RESOLVE = 2  # "git merge -s resolve"
 MERGER_CHERRY_PICK = 3    # "git cherry-pick"
+MERGER_SQUASH_MERGE = 4    # "git merge --squash"
 
 MERGER_MAP = {
     'merge': MERGER_MERGE,
     'merge-resolve': MERGER_MERGE_RESOLVE,
     'cherry-pick': MERGER_CHERRY_PICK,
+    'squash-merge': MERGER_SQUASH_MERGE,
 }
 
 PRECEDENCE_NORMAL = 0

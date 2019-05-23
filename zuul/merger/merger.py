@@ -420,6 +420,18 @@ class Repo(object):
         repo.git.merge(*args)
         return repo.head.commit
 
+    def squash_merge(self, item, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        repo = self.createRepoObject(zuul_event_id)
+        args = ['--squash', 'FETCH_HEAD']
+        ref = item['ref']
+        self.fetch(ref, zuul_event_id=zuul_event_id)
+        log.debug("Squash-Merging %s with args %s", ref, args)
+        repo.git.merge(*args)
+        repo.index.commit(
+            'Merge change %s,%s' % (item['number'], item['patchset']))
+        return repo.head.commit
+
     def fetch(self, ref, zuul_event_id=None):
         repo = self.createRepoObject(zuul_event_id)
         # NOTE: The following is currently not applicable, but if we
@@ -676,6 +688,9 @@ class Merger(object):
             elif mode == zuul.model.MERGER_CHERRY_PICK:
                 commit = repo.cherryPick(item['ref'],
                                          zuul_event_id=zuul_event_id)
+            elif mode == zuul.model.MERGER_SQUASH_MERGE:
+                commit = repo.squash_merge(
+                    item, zuul_event_id=zuul_event_id)
             else:
                 raise Exception("Unsupported merge mode: %s" % mode)
         except git.GitCommandError:
