@@ -64,6 +64,7 @@ class MQTTReporter(BaseReporter):
                     'execute_time': build.execute_time,
                     'log_url': url,
                     'result': result,
+                    'dependencies': [j.name for j in job.dependencies],
                 })
             message['buildset']['builds'].append(job_informations)
         topic = None
