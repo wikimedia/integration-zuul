@@ -835,15 +835,16 @@ class GerritConnection(BaseConnection):
         self.event_queue.task_done()
 
     def review(self, change, message, action={},
-               file_comments={}):
+               file_comments={}, zuul_event_id=None):
         if self.session:
             meth = self.review_http
         else:
             meth = self.review_ssh
-        return meth(change, message, action, file_comments)
+        return meth(change, message, action=action,
+                    file_comments=file_comments, zuul_event_id=zuul_event_id)
 
     def review_ssh(self, change, message, action={},
-                   file_comments={}):
+                   file_comments={}, zuul_event_id=None):
         project = change.project.name
         cmd = 'gerrit review --project %s' % project
         if message:
@@ -855,11 +856,12 @@ class GerritConnection(BaseConnection):
                 cmd += ' --label %s=%s' % (key, val)
         changeid = '%s,%s' % (change.number, change.patchset)
         cmd += ' %s' % changeid
-        out, err = self._ssh(cmd)
+        out, err = self._ssh(cmd, zuul_event_id=zuul_event_id)
         return err
 
     def review_http(self, change, message, action={},
-                    file_comments={}):
+                    file_comments={}, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
         data = dict(message=message,
                     strict_labels=False)
         submit = False
@@ -886,15 +888,13 @@ class GerritConnection(BaseConnection):
                           data)
                 break
             except Exception:
-                self.log.exception(
-                    "Error submitting data to gerrit, attempt %s", x)
+                log.exception("Error submitting data to gerrit, attempt %s", x)
                 time.sleep(x * 10)
         if change.is_current_patchset and submit:
             try:
                 self.post('changes/%s/submit' % (changeid,), {})
             except Exception:
-                self.log.exception(
-                    "Error submitting data to gerrit, attempt %s", x)
+                log.exception("Error submitting data to gerrit, attempt %s", x)
                 time.sleep(x * 10)
 
     def query(self, query, event=None):
@@ -998,12 +998,13 @@ class GerritConnection(BaseConnection):
             self.client = None
             raise
 
-    def _ssh(self, command, stdin_data=None):
+    def _ssh(self, command, stdin_data=None, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
         if not self.client:
             self._open()
 
         try:
-            self.log.debug("SSH command:\n%s" % command)
+            log.debug("SSH command:\n%s", command)
             stdin, stdout, stderr = self.client.exec_command(command)
         except Exception:
             self._open()
@@ -1016,14 +1017,14 @@ class GerritConnection(BaseConnection):
         self.iolog.debug("SSH received stdout:\n%s" % out)
 
         ret = stdout.channel.recv_exit_status()
-        self.log.debug("SSH exit status: %s" % ret)
+        log.debug("SSH exit status: %s", ret)
 
         err = stderr.read().decode('utf-8')
         if err.strip():
-            self.log.debug("SSH received stderr:\n%s" % err)
+            log.debug("SSH received stderr:\n%s", err)
 
         if ret:
-            self.log.debug("SSH received stdout:\n%s" % out)
+            log.debug("SSH received stdout:\n%s", out)
             raise Exception("Gerrit error executing %s" % command)
         return (out, err)
 

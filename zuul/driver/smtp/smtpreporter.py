@@ -15,6 +15,7 @@
 import logging
 import voluptuous as v
 
+from zuul.lib.logutil import get_annotated_logger
 from zuul.reporter import BaseReporter
 
 
@@ -26,10 +27,11 @@ class SMTPReporter(BaseReporter):
 
     def report(self, item):
         """Send the compiled report message via smtp."""
+        log = get_annotated_logger(self.log, item.event)
         message = self._formatItemReport(item)
 
-        self.log.debug("Report change %s, params %s, message: %s" %
-                       (item.change, self.config, message))
+        log.debug("Report change %s, params %s, message: %s",
+                  item.change, self.config, message)
 
         from_email = self.config['from'] \
             if 'from' in self.config else None
@@ -42,7 +44,8 @@ class SMTPReporter(BaseReporter):
         else:
             subject = "Report for change %s" % item.change
 
-        self.connection.sendMail(subject, message, from_email, to_email)
+        self.connection.sendMail(subject, message, from_email, to_email,
+                                 zuul_event_id=item.event)
 
 
 def getSchema():

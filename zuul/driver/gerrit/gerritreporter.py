@@ -16,6 +16,7 @@ import logging
 import voluptuous as v
 
 from zuul.driver.gerrit.gerritsource import GerritSource
+from zuul.lib.logutil import get_annotated_logger
 from zuul.reporter import BaseReporter
 
 
@@ -39,6 +40,7 @@ class GerritReporter(BaseReporter):
 
     def report(self, item):
         """Send a message to gerrit."""
+        log = get_annotated_logger(self.log, item.event)
 
         # If the source is no GerritSource we cannot report anything here.
         if not isinstance(item.change.project.source, GerritSource):
@@ -54,14 +56,13 @@ class GerritReporter(BaseReporter):
         self.filterComments(item, comments)
         message = self._formatItemReport(item)
 
-        self.log.debug("Report change %s, params %s,"
-                       " message: %s, comments: %s" %
-                       (item.change, self.config, message, comments))
+        log.debug("Report change %s, params %s, message: %s, comments: %s",
+                  item.change, self.config, message, comments)
         item.change._ref_sha = item.change.project.source.getRefSha(
             item.change.project, 'refs/heads/' + item.change.branch)
 
         return self.connection.review(item.change, message, self.config,
-                                      comments)
+                                      comments, zuul_event_id=item.event)
 
     def getSubmitAllowNeeds(self):
         """Get a list of code review labels that are allowed to be

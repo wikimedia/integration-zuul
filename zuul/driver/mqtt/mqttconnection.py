@@ -19,6 +19,7 @@ import paho.mqtt.client as mqtt
 
 from zuul.connection import BaseConnection
 from zuul.exceptions import ConfigurationError
+from zuul.lib.logutil import get_annotated_logger
 
 
 class MQTTConnection(BaseConnection):
@@ -80,12 +81,13 @@ class MQTTConnection(BaseConnection):
         self.client.disconnect()
         self.connected = False
 
-    def publish(self, topic, message, qos):
+    def publish(self, topic, message, qos, zuul_event_id):
+        log = get_annotated_logger(self.log, zuul_event_id)
         if not self.connected:
-            self.log.warn("MQTT reporter (%s) is disabled" % self)
+            log.warning("MQTT reporter (%s) is disabled", self)
             return
         try:
             self.client.publish(topic, payload=json.dumps(message), qos=qos)
         except Exception:
-            self.log.exception(
+            log.exception(
                 "Could not publish message to topic '%s' via mqtt", topic)
