@@ -338,14 +338,16 @@ class PipelineManager(object):
             return True
 
     def dequeueItem(self, item):
-        self.log.debug("Removing change %s from queue" % item.change)
+        log = get_annotated_logger(self.log, item.event)
+        log.debug("Removing change %s from queue", item.change)
         item.queue.dequeueItem(item)
 
     def removeItem(self, item):
+        log = get_annotated_logger(self.log, item.event)
         # Remove an item from the queue, probably because it has been
         # superseded by another change.
-        self.log.debug("Canceling builds behind change: %s "
-                       "because it is being removed." % item.change)
+        log.debug("Canceling builds behind change: %s "
+                  "because it is being removed.", item.change)
         self.cancelJobs(item)
         self.dequeueItem(item)
         self.reportStats(item)
@@ -436,7 +438,8 @@ class PipelineManager(object):
             self._executeJobs(item, jobs)
 
     def cancelJobs(self, item, prime=True):
-        self.log.debug("Cancel jobs for change %s" % item.change)
+        log = get_annotated_logger(self.log, item.event)
+        log.debug("Cancel jobs for change %s", item.change)
         canceled = False
         old_build_set = item.current_build_set
         jobs_to_cancel = item.getJobs()
@@ -448,8 +451,8 @@ class PipelineManager(object):
             self.sched.cancelJob(old_build_set, job)
 
         for item_behind in item.items_behind:
-            self.log.debug("Canceling jobs for change %s, behind change %s" %
-                           (item_behind.change, item.change))
+            log.debug("Canceling jobs for change %s, behind change %s",
+                      item_behind.change, item.change)
             if self.cancelJobs(item_behind, prime=prime):
                 canceled = True
         return canceled

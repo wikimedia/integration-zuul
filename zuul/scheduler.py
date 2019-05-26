@@ -1278,7 +1278,8 @@ class Scheduler(threading.Thread):
         except Exception:
             log.exception("Unable to process autohold for %s" % build)
         try:
-            self.nodepool.returnNodeSet(build.nodeset, build)
+            self.nodepool.returnNodeSet(build.nodeset, build=build,
+                                        zuul_event_id=zuul_event_id)
         except Exception:
             log.exception("Unable to return nodeset %s" % build.nodeset)
 
@@ -1335,7 +1336,8 @@ class Scheduler(threading.Thread):
             log.warning("Build set %s is not current "
                         "for node request %s", build_set, request)
             if request.fulfilled:
-                self.nodepool.returnNodeSet(request.nodeset)
+                self.nodepool.returnNodeSet(request.nodeset,
+                                            zuul_event_id=request.event_id)
             return
         if request.job.name not in [x.name for x in build_set.item.getJobs()]:
             log.warning("Item %s does not contain job %s "
@@ -1343,14 +1345,16 @@ class Scheduler(threading.Thread):
                         build_set.item, request.job.name, request)
             build_set.removeJobNodeRequest(request.job.name)
             if request.fulfilled:
-                self.nodepool.returnNodeSet(request.nodeset)
+                self.nodepool.returnNodeSet(request.nodeset,
+                                            zuul_event_id=request.event_id)
             return
         pipeline = build_set.item.pipeline
         if not pipeline:
             log.warning("Build set %s is not associated with a pipeline "
                         "for node request %s", build_set, request)
             if request.fulfilled:
-                self.nodepool.returnNodeSet(request.nodeset)
+                self.nodepool.returnNodeSet(request.nodeset,
+                                            zuul_event_id=request.event_id)
             return
         pipeline.manager.onNodesProvisioned(event)
 
@@ -1456,12 +1460,14 @@ class Scheduler(threading.Thread):
                 if not was_running:
                     nodeset = buildset.getJobNodeSet(job_name)
                     if nodeset:
-                        self.nodepool.returnNodeSet(nodeset, build)
+                        self.nodepool.returnNodeSet(
+                            nodeset, build=build, zuul_event_id=item.event)
                 build.result = 'CANCELED'
             else:
                 nodeset = buildset.getJobNodeSet(job_name)
                 if nodeset:
-                    self.nodepool.returnNodeSet(nodeset)
+                    self.nodepool.returnNodeSet(
+                        nodeset, zuul_event_id=item.event)
 
                 if final:
                     # If final is set make sure that the job is not resurrected
