@@ -825,12 +825,14 @@ class PipelineManager(object):
         return changed
 
     def onBuildStarted(self, build):
-        self.log.debug("Build %s started" % build)
+        log = get_annotated_logger(self.log, build.zuul_event_id)
+        log.debug("Build %s started", build)
         return True
 
     def onBuildPaused(self, build):
+        log = get_annotated_logger(self.log, build.zuul_event_id)
         item = build.build_set.item
-        self.log.debug("Build %s of %s paused", build, item.change)
+        log.debug("Build %s of %s paused", build, item.change)
         item.setResult(build)
 
         # We need to resume builds because we could either have no children

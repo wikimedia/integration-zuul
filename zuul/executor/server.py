@@ -2618,21 +2618,25 @@ class ExecutorServer(object):
             if not self._running:
                 job.sendWorkFail()
                 return
+
+            args = json.loads(job.arguments)
+            zuul_event_id = args.get('zuul_event_id')
+            log = get_annotated_logger(self.log, zuul_event_id)
+
             function_name = 'executor:execute'
             if self.zone:
                 function_name += ':%s' % self.zone
             if job.name == (function_name):
-                self.log.debug("Got %s job: %s" %
-                               (function_name, job.unique))
+                log.debug("Got %s job: %s", function_name, job.unique)
                 self.executeJob(job)
             elif job.name.startswith('executor:resume'):
-                self.log.debug("Got resume job: %s" % job.unique)
+                log.debug("Got resume job: %s", job.unique)
                 self.resumeJob(job)
             elif job.name.startswith('executor:stop'):
-                self.log.debug("Got stop job: %s" % job.unique)
+                log.debug("Got stop job: %s", job.unique)
                 self.stopJob(job)
             else:
-                self.log.error("Unable to handle job %s" % job.name)
+                log.error("Unable to handle job %s", job.name)
                 job.sendWorkFail()
 
     def executeJob(self, job):
@@ -2698,42 +2702,46 @@ class ExecutorServer(object):
     def resumeJob(self, job):
         try:
             args = json.loads(job.arguments)
-            self.log.debug("Resume job with arguments: %s" % (args,))
+            zuul_event_id = args.get('zuul_event_id')
+            log = get_annotated_logger(self.log, zuul_event_id)
+            log.debug("Resume job with arguments: %s", args)
             unique = args['uuid']
-            self.resumeJobByUnique(unique)
+            self.resumeJobByUnique(unique, zuul_event_id=zuul_event_id)
         finally:
             job.sendWorkComplete()
 
     def stopJob(self, job):
         try:
             args = json.loads(job.arguments)
-            self.log.debug("Stop job with arguments: %s" % (args,))
+            zuul_event_id = args.get('zuul_event_id')
+            log = get_annotated_logger(self.log, zuul_event_id)
+            log.debug("Stop job with arguments: %s", args)
             unique = args['uuid']
-            self.stopJobByUnique(unique)
+            self.stopJobByUnique(unique, zuul_event_id=zuul_event_id)
         finally:
             job.sendWorkComplete()
 
-    def resumeJobByUnique(self, unique):
+    def resumeJobByUnique(self, unique, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
         job_worker = self.job_workers.get(unique)
         if not job_worker:
-            self.log.debug("Unable to find worker for job %s" % (unique,))
+            log.debug("Unable to find worker for job %s", unique)
             return
         try:
             job_worker.resume()
         except Exception:
-            self.log.exception("Exception sending resume command "
-                               "to worker:")
+            log.exception("Exception sending resume command to worker:")
 
-    def stopJobByUnique(self, unique, reason=None):
+    def stopJobByUnique(self, unique, reason=None, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
         job_worker = self.job_workers.get(unique)
         if not job_worker:
-            self.log.debug("Unable to find worker for job %s" % (unique,))
+            log.debug("Unable to find worker for job %s", unique)
             return
         try:
             job_worker.stop(reason)
         except Exception:
-            self.log.exception("Exception sending stop command "
-                               "to worker:")
+            log.exception("Exception sending stop command to worker:")
 
     def cat(self, job):
         args = json.loads(job.arguments)
