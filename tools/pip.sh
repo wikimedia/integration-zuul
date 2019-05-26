@@ -32,6 +32,7 @@ then
 fi
 if [[ ! -f zuul/web/static/status.html ]]
 then
+    mkdir -p zuul/web/static
     pushd web/
         yarn install
         yarn build
