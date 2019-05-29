@@ -2855,6 +2855,93 @@ class TestPostPlaybooks(AnsibleZuulTestCase):
         self.assertFalse(os.path.exists(post_end))
 
 
+class TestCleanupPlaybooks(AnsibleZuulTestCase):
+    tenant_config_file = 'config/cleanup-playbook/main.yaml'
+
+    def test_cleanup_playbook_success(self):
+        # Test that the cleanup run is performed
+        self.executor_server.verbose = True
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+
+        for _ in iterate_timeout(60, 'job started'):
+            if len(self.builds):
+                break
+        build = self.builds[0]
+
+        post_start = os.path.join(self.test_root, build.uuid +
+                                  '.post_start.flag')
+        for _ in iterate_timeout(60, 'job post running'):
+            if os.path.exists(post_start):
+                break
+        with open(os.path.join(self.test_root, build.uuid, 'test_wait'),
+                  "w") as of:
+            of.write("continue")
+        self.waitUntilSettled()
+
+        build = self.getJobFromHistory('python27')
+        self.assertEqual('SUCCESS', build.result)
+        cleanup_flag = os.path.join(self.test_root, build.uuid +
+                                    '.cleanup.flag')
+        self.assertTrue(os.path.exists(cleanup_flag))
+
+    def test_cleanup_playbook_failure(self):
+        # Test that the cleanup run is performed
+        self.executor_server.verbose = True
+
+        in_repo_conf = textwrap.dedent(
+            """
+            - project:
+                check:
+                  jobs:
+                    - python27-failure
+            """)
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files={'.zuul.yaml': in_repo_conf})
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        for _ in iterate_timeout(60, 'job started'):
+            if len(self.builds):
+                break
+        self.waitUntilSettled()
+
+        build = self.getJobFromHistory('python27-failure')
+        self.assertEqual('FAILURE', build.result)
+        cleanup_flag = os.path.join(self.test_root, build.uuid +
+                                    '.cleanup.flag')
+        self.assertTrue(os.path.exists(cleanup_flag))
+
+    def test_cleanup_playbook_abort(self):
+        # Test that when we abort a job the cleanup run is performed
+        self.executor_server.verbose = True
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+
+        for _ in iterate_timeout(60, 'job started'):
+            if len(self.builds):
+                break
+        build = self.builds[0]
+
+        post_start = os.path.join(self.test_root, build.uuid +
+                                  '.post_start.flag')
+        for _ in iterate_timeout(60, 'job post running'):
+            if os.path.exists(post_start):
+                break
+        # The post playbook has started, abort the job
+        self.fake_gerrit.addEvent(A.getChangeAbandonedEvent())
+        self.waitUntilSettled()
+
+        build = self.getJobFromHistory('python27')
+        self.assertEqual('ABORTED', build.result)
+
+        post_end = os.path.join(self.test_root, build.uuid +
+                                '.post_end.flag')
+        cleanup_flag = os.path.join(self.test_root, build.uuid +
+                                    '.cleanup.flag')
+        self.assertTrue(os.path.exists(cleanup_flag))
+        self.assertTrue(os.path.exists(post_start))
+        self.assertFalse(os.path.exists(post_end))
+
+
 class TestBrokenTrustedConfig(ZuulTestCase):
     # Test we can deal with a broken config only with trusted projects. This
     # is different then TestBrokenConfig, as it does not have a missing

@@ -1505,6 +1505,8 @@ class FakeBuild(object):
 
 
 class RecordingAnsibleJob(zuul.executor.server.AnsibleJob):
+    result = None
+
     def doMergeChanges(self, merger, items, repo_state):
         # Get a merger in order to update the repos involved in this job.
         commit = super(RecordingAnsibleJob, self).doMergeChanges(
@@ -1514,8 +1516,12 @@ class RecordingAnsibleJob(zuul.executor.server.AnsibleJob):
         return commit
 
     def recordResult(self, result):
-        build = self.executor_server.job_builds[self.job.unique]
         self.executor_server.lock.acquire()
+        build = self.executor_server.job_builds.get(self.job.unique)
+        if not build:
+            self.executor_server.lock.release()
+            # Already recorded
+            return
         self.executor_server.build_history.append(
             BuildHistory(name=build.name, result=result, changes=build.changes,
                          node=build.node, uuid=build.unique,
@@ -1532,12 +1538,19 @@ class RecordingAnsibleJob(zuul.executor.server.AnsibleJob):
         build = self.executor_server.job_builds[self.job.unique]
         build.jobdir = self.jobdir
 
-        result = super(RecordingAnsibleJob, self).runPlaybooks(args)
-        self.recordResult(result)
-        return result
+        self.result = super(RecordingAnsibleJob, self).runPlaybooks(args)
+        if self.result is None:
+            # Record result now because cleanup won't be performed
+            self.recordResult(None)
+        return self.result
+
+    def runCleanupPlaybooks(self):
+        super(RecordingAnsibleJob, self).runCleanupPlaybooks()
+        if self.result is not None:
+            self.recordResult(self.result)
 
     def runAnsible(self, cmd, timeout, playbook, ansible_version,
-                   wrapped=True):
+                   wrapped=True, cleanup=False):
         build = self.executor_server.job_builds[self.job.unique]
 
         if self.executor_server._run_ansible:
@@ -1547,7 +1560,7 @@ class RecordingAnsibleJob(zuul.executor.server.AnsibleJob):
                 build.run()
 
             result = super(RecordingAnsibleJob, self).runAnsible(
-                cmd, timeout, playbook, ansible_version, wrapped)
+                cmd, timeout, playbook, ansible_version, wrapped, cleanup)
         else:
             if playbook.path:
                 result = build.run()

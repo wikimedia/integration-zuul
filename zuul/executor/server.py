@@ -687,6 +687,9 @@ class AnsibleJob(object):
         self.paused = False
         self.aborted = False
         self.aborted_reason = None
+        self.cleaned = False
+        self.cleanup_lock = threading.Lock()
+        self.cleanup_started = False
         self._resume_event = threading.Event()
         self.thread = None
         self.project_info = {}
@@ -960,6 +963,10 @@ class AnsibleJob(object):
 
         result = self.runPlaybooks(args)
 
+        if result is not None:
+            # Only run cleanup when playbooks ran (e.g. result is not None)
+            self.runCleanupPlaybooks()
+
         # Stop the persistent SSH connections.
         setup_status, setup_code = self.runAnsibleCleanup(
             self.jobdir.setup_playbook)
@@ -1158,6 +1165,8 @@ class AnsibleJob(object):
                 key, (time.monotonic() - self.time_starting_build) * 1000)
 
         self.started = True
+        # Record ansible version being used for the cleanup phase
+        self.ansible_version = ansible_version
         time_started = time.time()
         # timeout value is "total" job timeout which accounts for
         # pre-run and run playbooks. post-run is different because
@@ -1250,6 +1259,29 @@ class AnsibleJob(object):
             return None
 
         return result
+
+    def runCleanupPlaybooks(self):
+        if not self.jobdir.cleanup_playbooks:
+            return
+
+        # TODO: make this configurable
+        cleanup_timeout = 300
+
+        with open(self.jobdir.job_output_file, 'a') as job_output:
+            job_output.write("{now} | Running Ansible cleanup...\n".format(
+                now=datetime.datetime.now()
+            ))
+
+        with self.cleanup_lock:
+            if self.cleaned:
+                # Cleanup phase may already ran when multiple aborts got issued
+                return
+            self.cleanup_started = True
+            for index, playbook in enumerate(self.jobdir.cleanup_playbooks):
+                self.runAnsiblePlaybook(
+                    playbook, cleanup_timeout, self.ansible_version,
+                    phase='cleanup', index=index)
+            self.cleaned = True
 
     def _logFinalPlaybookError(self):
         # Failures in the final post playbook can include failures
@@ -1836,19 +1868,24 @@ class AnsibleJob(object):
 
     def abortRunningProc(self):
         with self.proc_lock:
-            if not self.proc:
+            if self.proc and not self.cleanup_started:
+                self.log.debug("Abort: sending kill signal to job "
+                               "process group")
+                try:
+                    pgid = os.getpgid(self.proc.pid)
+                    os.killpg(pgid, signal.SIGKILL)
+                except Exception:
+                    self.log.exception(
+                        "Exception while killing ansible process:")
+            elif self.proc and self.cleanup_started:
+                self.log.debug("Abort: cleanup is in progress")
+            else:
                 self.log.debug("Abort: no process is running")
-                return
-            self.log.debug("Abort: sending kill signal to job "
-                           "process group")
-            try:
-                pgid = os.getpgid(self.proc.pid)
-                os.killpg(pgid, signal.SIGKILL)
-            except Exception:
-                self.log.exception("Exception while killing ansible process:")
+        if self.started and not self.cleaned:
+            self.runCleanupPlaybooks()
 
     def runAnsible(self, cmd, timeout, playbook, ansible_version,
-                   wrapped=True):
+                   wrapped=True, cleanup=False):
         config_file = playbook.ansible_config
         env_copy = os.environ.copy()
         env_copy.update(self.ssh_agent.env)
@@ -1917,7 +1954,7 @@ class AnsibleJob(object):
         env_copy['HOME'] = self.jobdir.work_root
 
         with self.proc_lock:
-            if self.aborted:
+            if self.aborted and not cleanup:
                 return (self.RESULT_ABORTED, None)
             self.log.debug("Ansible command: ANSIBLE_CONFIG=%s ZUUL_JOBDIR=%s "
                            "ZUUL_JOB_LOG_CONFIG=%s PYTHONPATH=%s TMP=%s %s",
@@ -2058,6 +2095,9 @@ class AnsibleJob(object):
                         now=datetime.datetime.now(),
                         line=line.decode('utf-8').rstrip()))
 
+        if self.aborted:
+            return (self.RESULT_ABORTED, None)
+
         return (self.RESULT_NORMAL, ret)
 
     def runAnsibleSetup(self, playbook, ansible_version):
@@ -2177,7 +2217,8 @@ class AnsibleJob(object):
 
         self.emitPlaybookBanner(playbook, 'START', phase)
 
-        result, code = self.runAnsible(cmd, timeout, playbook, ansible_version)
+        result, code = self.runAnsible(cmd, timeout, playbook, ansible_version,
+                                       cleanup=phase == 'cleanup')
         self.log.debug("Ansible complete, result %s code %s" % (
             self.RESULT_MAP[result], code))
         if self.executor_server.statsd:
