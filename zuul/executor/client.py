@@ -230,6 +230,8 @@ class ExecutorClient(object):
             params['playbooks'] = [make_playbook(x) for x in job.run]
             params['pre_playbooks'] = [make_playbook(x) for x in job.pre_run]
             params['post_playbooks'] = [make_playbook(x) for x in job.post_run]
+            params['cleanup_playbooks'] = [make_playbook(x)
+                                           for x in job.cleanup_run]
 
         nodes = []
         for node in nodeset.getNodes():

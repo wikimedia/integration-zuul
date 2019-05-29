@@ -345,6 +345,7 @@ class TestWeb(BaseTestWeb):
                 'run': run,
                 'pre_run': [],
                 'post_run': [],
+                'cleanup_run': [],
                 'semaphore': None,
                 'source_context': source_ctx,
                 'tags': [],
@@ -384,6 +385,7 @@ class TestWeb(BaseTestWeb):
                 'run': run,
                 'pre_run': [],
                 'post_run': [],
+                'cleanup_run': [],
                 'semaphore': None,
                 'source_context': source_ctx,
                 'tags': [],
@@ -421,6 +423,7 @@ class TestWeb(BaseTestWeb):
                 'run': run,
                 'pre_run': [],
                 'post_run': [],
+                'cleanup_run': [],
                 'semaphore': None,
                 'source_context': source_ctx,
                 'tags': [],
@@ -461,6 +464,9 @@ class TestWeb(BaseTestWeb):
             expected_pb("playbooks/post-run-01.yaml"),
             expected_pb("playbooks/post-run-02.yaml")
         ], data[0]['post_run'])
+        self.assertEqual([
+            expected_pb("playbooks/cleanup-run.yaml")
+        ], data[0]['cleanup_run'])
 
     def test_web_nodes_list(self):
         # can we fetch the nodes list
@@ -531,6 +537,7 @@ class TestWeb(BaseTestWeb):
                   'run': [],
                   'pre_run': [],
                   'post_run': [],
+                  'cleanup_run': [],
                   'semaphore': None,
                   'source_context': {
                       'branch': 'master',
@@ -563,6 +570,7 @@ class TestWeb(BaseTestWeb):
                   'run': [],
                   'pre_run': [],
                   'post_run': [],
+                  'cleanup_run': [],
                   'semaphore': None,
                   'source_context': {
                       'branch': 'master',
@@ -595,6 +603,7 @@ class TestWeb(BaseTestWeb):
                   'run': [],
                   'pre_run': [],
                   'post_run': [],
+                  'cleanup_run': [],
                   'semaphore': None,
                   'source_context': {
                       'branch': 'master',
@@ -627,6 +636,7 @@ class TestWeb(BaseTestWeb):
                   'run': [],
                   'pre_run': [],
                   'post_run': [],
+                  'cleanup_run': [],
                   'semaphore': None,
                   'source_context': {
                       'branch': 'master',
@@ -672,6 +682,7 @@ class TestWeb(BaseTestWeb):
                              'parent': 'base',
                              'post_review': None,
                              'post_run': [],
+                             'cleanup_run': [],
                              'pre_run': [],
                              'protected': None,
                              'provides': [],

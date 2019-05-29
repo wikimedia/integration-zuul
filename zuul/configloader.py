@@ -605,6 +605,7 @@ class JobParser(object):
                       'pre-run': to_list(str),
                       'post-run': to_list(str),
                       'run': to_list(str),
+                      'cleanup-run': to_list(str),
                       'ansible-version': vs.Any(str, float),
                       '_source_context': model.SourceContext,
                       '_start_mark': ZuulMark,
@@ -766,6 +767,11 @@ class JobParser(object):
                                              post_run_name, job.roles,
                                              secrets)
             job.post_run = (post_run,) + job.post_run
+        for cleanup_run_name in reversed(as_list(conf.get('cleanup-run'))):
+            cleanup_run = model.PlaybookContext(job.source_context,
+                                                cleanup_run_name, job.roles,
+                                                secrets)
+            job.cleanup_run = (cleanup_run,) + job.cleanup_run
 
         if 'run' in conf:
             for run_name in as_list(conf.get('run')):

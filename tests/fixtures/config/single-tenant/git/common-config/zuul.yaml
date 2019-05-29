@@ -217,3 +217,4 @@
     post-run:
       - playbooks/post-run-01.yaml
       - playbooks/post-run-02.yaml
+    cleanup-run: playbooks/cleanup-run.yaml

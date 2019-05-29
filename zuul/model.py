@@ -1162,6 +1162,7 @@ class Job(ConfigObject):
             workspace=None,
             pre_run=(),
             post_run=(),
+            cleanup_run=(),
             run=(),
             ansible_version=None,
             semaphore=None,
@@ -1245,6 +1246,8 @@ class Job(ConfigObject):
         d['run'] = list(map(lambda x: x.toSchemaDict(), self.run))
         d['pre_run'] = list(map(lambda x: x.toSchemaDict(), self.pre_run))
         d['post_run'] = list(map(lambda x: x.toSchemaDict(), self.post_run))
+        d['cleanup_run'] = list(map(lambda x: x.toSchemaDict(),
+                                    self.cleanup_run))
         d['post_review'] = self.post_review
         if self.isBase():
             d['parent'] = None
@@ -1318,6 +1321,8 @@ class Job(ConfigObject):
             self.pre_run = self.freezePlaybooks(self.pre_run, layout)
         if self._get('post_run') is not None:
             self.post_run = self.freezePlaybooks(self.post_run, layout)
+        if self._get('cleanup_run') is not None:
+            self.cleanup_run = self.freezePlaybooks(self.cleanup_run, layout)
 
     def getNodeSet(self, layout):
         if isinstance(self.nodeset, str):
@@ -1345,7 +1350,7 @@ class Job(ConfigObject):
                     job=self.name,
                     maxnodes=layout.tenant.max_nodes_per_job))
 
-        for pb in self.pre_run + self.run + self.post_run:
+        for pb in self.pre_run + self.run + self.post_run + self.cleanup_run:
             pb.validateReferences(layout)
 
     def addRoles(self, roles):
@@ -1534,8 +1539,8 @@ class Job(ConfigObject):
                                         "protected and cannot be inherited "
                                         "from other projects."
                                         % (repr(self), this_origin))
-                if k not in set(['pre_run', 'run', 'post_run', 'roles',
-                                 'variables', 'extra_variables',
+                if k not in set(['pre_run', 'run', 'post_run', 'cleanup_run',
+                                 'roles', 'variables', 'extra_variables',
                                  'host_variables', 'group_variables',
                                  'required_projects', 'allowed_projects']):
                     setattr(self, k, other._get(k))
@@ -1587,7 +1592,8 @@ class Job(ConfigObject):
             # pre-review.  The only way pass-to-parent can work with
             # pre-review pipeline is if all playbooks are in the
             # trusted context.
-            for pb in itertools.chain(self.pre_run, self.run, self.post_run):
+            for pb in itertools.chain(
+                    self.pre_run, self.run, self.post_run, self.cleanup_run):
                 pb.addSecrets(decrypted_secrets)
                 if not pb.source_context.trusted:
                     self.post_review = True
@@ -1601,6 +1607,9 @@ class Job(ConfigObject):
         if other._get('post_run') is not None:
             other_post_run = self.freezePlaybooks(other.post_run, layout)
             self.post_run = other_post_run + self.post_run
+        if other._get('cleanup_run') is not None:
+            other_cleanup_run = self.freezePlaybooks(other.cleanup_run, layout)
+            self.cleanup_run = other_cleanup_run + self.cleanup_run
         self.updateVariables(other.variables, other.extra_variables,
                              other.host_variables, other.group_variables)
         if other._get('required_projects') is not None:
