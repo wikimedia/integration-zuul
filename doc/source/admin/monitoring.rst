@@ -311,7 +311,7 @@ These metrics are emitted by the Zuul :ref:`scheduler`:
             :type: counter, gauge
 
             Counter with the summed usage by project as <resource> seconds and
-            gauge with the currently used resources by tenant.
+            gauge with the currently used resources by project.
 
 
 .. stat:: zuul.mergers
