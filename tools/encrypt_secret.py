@@ -105,7 +105,12 @@ def main():
         else:
             req = Request("%s/api/tenant/%s/key/%s.pub" % (
                 args.url.rstrip('/'), args.tenant, args.project))
-    pubkey = urlopen(req, context=ssl_ctx)
+    try:
+        pubkey = urlopen(req, context=ssl_ctx)
+    except Exception:
+        sys.stderr.write(
+            "ERROR: Couldn't retrieve project key via %s\n" % req.full_url)
+        raise
 
     if args.infile:
         with open(args.infile) as f:
