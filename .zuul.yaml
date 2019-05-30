@@ -72,6 +72,7 @@
       javascript_content_dir: "../zuul/web/static"
       zuul_work_dir: "{{ zuul.project.src_dir }}/web"
       zuul_api_url: https://zuul.openstack.org
+      node_version: 10
     run: playbooks/dashboard/run.yaml
 
 - job:
@@ -79,6 +80,7 @@
     parent: zuul-build-dashboard
     vars:
       zuul_api_url: https://softwarefactory-project.io/zuul
+      node_version: 10
 
 # This job is run on changes to both Zuul and Nodepool; any changes to
 # the other project will be picked up via image builds which appear in

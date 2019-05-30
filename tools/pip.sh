@@ -23,7 +23,7 @@ then
     pip install nodeenv
     # Initialize nodeenv and tell it to re-use the currently active virtualenv
     # TODO(jeblair): remove node version pin.  upath 1.0.4 objects to node >9.
-    nodeenv --python-virtualenv -n 8.11.1
+    nodeenv --python-virtualenv -n 10.16.0
     # Use -g because inside of the virtualenv '-g' means 'install into the'
     # virtualenv - as opposed to installing into the local node_modules.
     # Avoid writing a package-lock.json file since we don't use it.
