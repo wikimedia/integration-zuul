@@ -18,7 +18,6 @@ import logging
 import os
 import textwrap
 import gc
-import time
 from unittest import skip
 
 import paramiko
@@ -2831,17 +2830,16 @@ class TestPostPlaybooks(AnsibleZuulTestCase):
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
 
-        while not len(self.builds):
-            time.sleep(0.1)
+        for _ in iterate_timeout(60, 'job started'):
+            if len(self.builds):
+                break
         build = self.builds[0]
 
         post_start = os.path.join(self.test_root, build.uuid +
                                   '.post_start.flag')
-        start = time.time()
-        while time.time() < start + 90:
+        for _ in iterate_timeout(60, 'job post running'):
             if os.path.exists(post_start):
                 break
-            time.sleep(0.1)
         # The post playbook has started, abort the job
         self.fake_gerrit.addEvent(A.getChangeAbandonedEvent())
         self.waitUntilSettled()
