@@ -884,6 +884,16 @@ Here is an example of two job definitions:
       playbooks are run before the parent's.  See :ref:`job` for more
       information.
 
+   .. attr:: cleanup-run
+
+      The name of a playbook or list of playbooks to run after a job
+      execution. The full path to the playbook in the repo
+      where the job is defined is expected.
+
+      The cleanup phase is performed unconditionally of the job's result,
+      even when the job is canceled. Cleanup results are not taken into
+      account.
+
    .. attr:: run
 
       The name of a playbook or list of playbooks for this job.  If it
