@@ -66,6 +66,14 @@ class RPCClient(object):
         data = {'request_id': request_id}
         return not self.submitJob('zuul:autohold_delete', data).failure
 
+    def autohold_info(self, request_id):
+        data = {'request_id': request_id}
+        job = self.submitJob('zuul:autohold_info', data)
+        if job.failure:
+            return False
+        else:
+            return json.loads(job.data[0])
+
     # todo allow filtering per tenant, like in the REST API
     def autohold_list(self, *args, **kwargs):
         data = {}

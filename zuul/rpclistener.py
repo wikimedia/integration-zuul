@@ -35,6 +35,7 @@ class RPCListener(object):
         functions = [
             'autohold',
             'autohold_delete',
+            'autohold_info',
             'autohold_list',
             'allowed_labels_get',
             'dequeue',
@@ -92,6 +93,16 @@ class RPCListener(object):
             job.sendWorkException(str(e).encode('utf8'))
             return
         job.sendWorkComplete()
+
+    def handle_autohold_info(self, job):
+        args = json.loads(job.arguments)
+        request_id = args['request_id']
+        try:
+            data = self.sched.autohold_info(request_id)
+        except Exception as e:
+            job.sendWorkException(str(e).encode('utf8'))
+            return
+        job.sendWorkComplete(json.dumps(data))
 
     def handle_autohold_delete(self, job):
         args = json.loads(job.arguments)

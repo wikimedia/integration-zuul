@@ -580,6 +580,23 @@ class Scheduler(threading.Thread):
             data.append(request.toDict())
         return data
 
+    def autohold_info(self, hold_request_id):
+        '''
+        Get autohold request details.
+
+        :param str hold_request_id: The unique ID of the request to delete.
+        '''
+        try:
+            hold_request = self.zk.getHoldRequest(hold_request_id)
+        except Exception:
+            self.log.exception(
+                "Error retrieving autohold ID %s:", hold_request_id)
+            return {}
+
+        if hold_request is None:
+            return {}
+        return hold_request.toDict()
+
     def autohold_delete(self, hold_request_id):
         '''
         Delete an autohold request.
