@@ -4658,6 +4658,7 @@ class HoldRequest(object):
         # When max_count == current_count, hold request can no longer be used.
         self.max_count = 1
         self.current_count = 0
+        self.nodes = []
 
     def __str__(self):
         return "<HoldRequest %s: tenant=%s project=%s job=%s ref_filter=%s>" \
@@ -4677,6 +4678,7 @@ class HoldRequest(object):
         obj.current_count = data.get('current_count')
         obj.reason = data.get('reason')
         obj.node_expiration = data.get('node_expiration')
+        obj.nodes = data.get('nodes', [])
         return obj
 
     def toDict(self):
@@ -4693,6 +4695,7 @@ class HoldRequest(object):
         d['current_count'] = self.current_count
         d['reason'] = self.reason
         d['node_expiration'] = self.node_expiration
+        d['nodes'] = self.nodes
         return d
 
     def updateFromDict(self, d):

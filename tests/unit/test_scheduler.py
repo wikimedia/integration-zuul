@@ -1643,6 +1643,7 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual('reason text', request.reason)
         self.assertEqual(1, request.max_count)
         self.assertEqual(0, request.current_count)
+        self.assertEqual([], request.nodes)
 
         # First check that successful jobs do not autohold
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
@@ -1693,8 +1694,10 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(held_node['comment'], "reason text")
 
         # The hold request current_count should have incremented
+        # and we should have recorded the held node ID.
         request2 = self.zk.getHoldRequest(request.id)
         self.assertEqual(request.current_count + 1, request2.current_count)
+        self.assertEqual(1, len(request2.nodes))
 
         # Another failed change should not hold any more nodes
         C = self.fake_gerrit.addFakeChange('org/project', 'master', 'C')

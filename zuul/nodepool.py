@@ -191,6 +191,7 @@ class Nodepool(object):
                 node.hold_expiration = request.node_expiration
             self.sched.zk.storeNode(node)
 
+        request.nodes += [node.id for node in nodes]
         request.current_count += 1
 
         # Give ourselves a few seconds to try to obtain the lock rather than
@@ -203,6 +204,8 @@ class Nodepool(object):
             # If we fail to update the request count, we won't consider it
             # a real autohold error by passing the exception up. It will
             # just get used more than the original count specified.
+            # It's possible to leak some held nodes, though, which would
+            # require manual node deletes.
             self.log.exception("Unable to update hold request %s:", request)
         finally:
             # Although any exceptions thrown here are handled higher up in
