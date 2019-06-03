@@ -2556,7 +2556,7 @@ class TestAnsible25(AnsibleZuulTestCase):
 
     def test_playbook(self):
         # This test runs a bit long and needs extra time.
-        self.wait_timeout = 240
+        self.wait_timeout = 300
         # Keep the jobdir around so we can inspect contents if an
         # assert fails.
         self.executor_server.keep_jobdir = True
@@ -2707,7 +2707,13 @@ class TestAnsible25(AnsibleZuulTestCase):
             ('file_local_good', 'SUCCESS'),
             ('file_local_bad', 'FAILURE'),
             ('zuul_return', 'SUCCESS'),
+            ('password_create_good', 'SUCCESS'),
+            ('password_null_good', 'SUCCESS'),
+            ('password_read_good', 'SUCCESS'),
+            ('password_create_bad', 'FAILURE'),
+            ('password_read_bad', 'FAILURE'),
         ]
+
         for job_name, result in plugin_tests:
             count += 1
             self._add_job(job_name)
