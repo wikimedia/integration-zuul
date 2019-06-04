@@ -29,7 +29,6 @@ def _build_javascript():
         if r:
             raise RuntimeError("Yarn install failed")
     if not os.path.exists('zuul/web/static/index.html'):
-        os.makedirs('zuul/web/static', exist_ok=True)
         r = subprocess.Popen(['yarn', 'build'], cwd="web/").wait()
         if r:
             raise RuntimeError("Yarn build failed")
