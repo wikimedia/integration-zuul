@@ -184,6 +184,7 @@ class GitConnection(BaseConnection):
         refs = {}
         client = git.cmd.Git()
         output = client.ls_remote(
+            "--heads", "--tags",
             os.path.join(self.baseurl, project))
         for line in output.splitlines():
             sha, ref = line.split('\t')
