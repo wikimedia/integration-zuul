@@ -2953,7 +2953,7 @@ class ZuulTestCase(BaseTestCase):
         self.merge_client = RecordingMergeClient(self.config, self.sched)
         self.merge_server = None
         self.nodepool = zuul.nodepool.Nodepool(self.sched)
-        self.zk = zuul.zk.ZooKeeper()
+        self.zk = zuul.zk.ZooKeeper(enable_cache=True)
         self.zk.connect(self.zk_config, timeout=30.0)
 
         self.fake_nodepool = FakeNodepool(
@@ -3371,8 +3371,10 @@ class ZuulTestCase(BaseTestCase):
                      'socketserver_Thread',
                      'GerritWebServer',
                      ]
+        # Ignore Kazoo TreeCache threads that start with "Thread-"
         threads = [t for t in threading.enumerate()
-                   if t.name not in whitelist]
+                   if t.name not in whitelist
+                   and not t.name.startswith("Thread-")]
         if len(threads) > 1:
             log_str = ""
             for thread_id, stack_frame in sys._current_frames().items():

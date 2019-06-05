@@ -136,7 +136,7 @@ class Scheduler(zuul.cmd.ZuulDaemonApp):
         merger = zuul.merger.client.MergeClient(self.config, self.sched)
         nodepool = zuul.nodepool.Nodepool(self.sched)
 
-        zookeeper = zuul.zk.ZooKeeper()
+        zookeeper = zuul.zk.ZooKeeper(enable_cache=True)
         zookeeper_hosts = get_default(self.config, 'zookeeper', 'hosts', None)
         if not zookeeper_hosts:
             raise Exception("The zookeeper hosts config value is required")

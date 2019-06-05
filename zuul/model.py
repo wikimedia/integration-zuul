@@ -4647,6 +4647,7 @@ class WebInfo(object):
 class HoldRequest(object):
     def __init__(self):
         self.lock = None
+        self.stat = None
         self.id = None
         self.tenant = None
         self.project = None
@@ -4693,6 +4694,19 @@ class HoldRequest(object):
         d['reason'] = self.reason
         d['node_expiration'] = self.node_expiration
         return d
+
+    def updateFromDict(self, d):
+        '''
+        Update current object with data from the given dictionary.
+        '''
+        self.tenant = d.get('tenant')
+        self.project = d.get('project')
+        self.job = d.get('job')
+        self.ref_filter = d.get('ref_filter')
+        self.max_count = d.get('max_count', 1)
+        self.current_count = d.get('current_count', 0)
+        self.reason = d.get('reason')
+        self.node_expiration = d.get('node_expiration')
 
     def serialize(self):
         '''
