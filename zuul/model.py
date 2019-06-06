@@ -4649,6 +4649,7 @@ class HoldRequest(object):
         self.lock = None
         self.stat = None
         self.id = None
+        self.expired = None
         self.tenant = None
         self.project = None
         self.job = None
@@ -4670,6 +4671,7 @@ class HoldRequest(object):
         Return a new object from the given data dictionary.
         '''
         obj = HoldRequest()
+        obj.expired = data.get('expired')
         obj.tenant = data.get('tenant')
         obj.project = data.get('project')
         obj.job = data.get('job')
@@ -4687,6 +4689,7 @@ class HoldRequest(object):
         '''
         d = dict()
         d['id'] = self.id
+        d['expired'] = self.expired
         d['tenant'] = self.tenant
         d['project'] = self.project
         d['job'] = self.job
@@ -4702,6 +4705,7 @@ class HoldRequest(object):
         '''
         Update current object with data from the given dictionary.
         '''
+        self.expired = d.get('expired')
         self.tenant = d.get('tenant')
         self.project = d.get('project')
         self.job = d.get('job')

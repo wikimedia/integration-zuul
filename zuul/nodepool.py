@@ -11,6 +11,7 @@
 # under the License.
 
 import logging
+import time
 
 from collections import defaultdict
 from zuul import model
@@ -193,6 +194,11 @@ class Nodepool(object):
 
         request.nodes += [node.id for node in nodes]
         request.current_count += 1
+
+        # Request has been used at least the maximum number of times so set
+        # the expiration time so that it can be auto-deleted.
+        if request.current_count >= request.max_count and not request.expired:
+            request.expired = time.time()
 
         # Give ourselves a few seconds to try to obtain the lock rather than
         # immediately give up.
