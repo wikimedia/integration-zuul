@@ -62,6 +62,11 @@ a.refresh {
     padding: 2px 8px;
 }
 
+/* Force_break_very_long_non_hyphenated_repo_names */
+.change_project {
+    word-break: break-all;
+}
+
 .zuul-job-name {
     font-size: small;
 }
