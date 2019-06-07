@@ -2101,6 +2101,10 @@ class QueueItem(object):
         self._cached_sql_results = {}
         self.event = event  # The trigger event that lead to this queue item
 
+    def annotateLogger(self, logger):
+        """Return an annotated logger with the trigger event"""
+        return get_annotated_logger(logger, self.event)
+
     def __repr__(self):
         if self.pipeline:
             pipeline = self.pipeline.name
@@ -3712,7 +3716,7 @@ class Layout(object):
         return None
 
     def getProjectPipelineConfig(self, item):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         # Create a project-pipeline config for the given item, taking
         # its branch (if any) into consideration.  If the project does
         # not participate in the pipeline at all (in this branch),
@@ -3776,7 +3780,7 @@ class Layout(object):
 
     def _collectJobVariants(self, item, jobname, change, path, jobs, stack,
                             override_checkouts, indent):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         matched = False
         local_override_checkouts = override_checkouts.copy()
         override_branch = None
@@ -3821,7 +3825,7 @@ class Layout(object):
 
     def collectJobs(self, item, jobname, change, path=None, jobs=None,
                     stack=None, override_checkouts=None):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         # Stack is the recursion stack of job parent names.  Each time
         # we go up a level, we add to stack, and it's popped as we
         # descend.
@@ -3861,7 +3865,7 @@ class Layout(object):
         return jobs
 
     def _createJobGraph(self, item, ppc, job_graph, skip_file_matcher):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         job_list = ppc.job_list
         change = item.change
         pipeline = item.pipeline

@@ -378,7 +378,7 @@ class PipelineManager(object):
         change.commit_needs_changes = dependencies
 
     def provisionNodes(self, item):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         jobs = item.findJobsToRequest(item.pipeline.tenant.semaphore_handler)
         if not jobs:
             return False
@@ -618,7 +618,7 @@ class PipelineManager(object):
             return self._loadDynamicLayout(item)
 
     def scheduleMerge(self, item, files=None, dirs=None):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         log.debug("Scheduling merge for item %s (files: %s, dirs: %s)" %
                   (item, files, dirs))
         build_set = item.current_build_set
@@ -636,7 +636,7 @@ class PipelineManager(object):
         return False
 
     def scheduleFilesChanges(self, item):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         log.debug("Scheduling fileschanged for item %s", item)
         build_set = item.current_build_set
         build_set.files_state = build_set.PENDING
@@ -671,7 +671,7 @@ class PipelineManager(object):
         return ready
 
     def prepareJobs(self, item):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         # This only runs once the item is in the pipeline's action window
         # Returns True if the item is ready, false otherwise
         if not item.live:
@@ -697,7 +697,7 @@ class PipelineManager(object):
         return True
 
     def _processOneItem(self, item, nnfi):
-        log = get_annotated_logger(self.log, item.event)
+        log = item.annotateLogger(self.log)
         changed = False
         ready = False
         dequeued = False
