@@ -1783,7 +1783,6 @@ class TestScheduler(ZuulTestCase):
                 held_node = node
                 break
         self.assertIsNotNone(held_node)
-
         # Validate node has recorded the failed job
         self.assertEqual(
             held_node['hold_job'],
@@ -1818,6 +1817,12 @@ class TestScheduler(ZuulTestCase):
         # request current_count should not have changed
         request3 = self.zk.getHoldRequest(request2.id)
         self.assertEqual(request2.current_count, request3.current_count)
+
+        # Deleting hold request should set held nodes to used
+        self.zk.deleteHoldRequest(request3)
+        node_states = [n['state'] for n in self.fake_nodepool.getNodes()]
+        self.assertEqual(3, len(node_states))
+        self.assertEqual([zuul.model.STATE_USED] * 3, node_states)
 
     @simple_layout('layouts/autohold.yaml')
     def test_autohold_info(self):
