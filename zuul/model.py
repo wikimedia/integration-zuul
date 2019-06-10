@@ -4011,6 +4011,7 @@ class SemaphoreHandler(object):
         if not job.semaphore:
             return True
 
+        log = get_annotated_logger(self.log, item.event)
         if job.semaphore.resources_first and request_resources:
             # We're currently in the resource request phase and want to get the
             # resources before locking. So we don't need to do anything here.
@@ -4027,7 +4028,7 @@ class SemaphoreHandler(object):
         m = self.semaphores.get(semaphore_key)
         if not m:
             # The semaphore is not held, acquire it
-            self._acquire(semaphore_key, item, job.name)
+            self._acquire(semaphore_key, item, job.name, log)
             return True
         if (item, job.name) in m:
             # This item already holds the semaphore
@@ -4035,7 +4036,7 @@ class SemaphoreHandler(object):
 
         # semaphore is there, check max
         if len(m) < self._max_count(item, job.semaphore.name):
-            self._acquire(semaphore_key, item, job.name)
+            self._acquire(semaphore_key, item, job.name, log)
             return True
 
         return False
@@ -4044,36 +4045,36 @@ class SemaphoreHandler(object):
         if not job.semaphore:
             return
 
+        log = get_annotated_logger(self.log, item.event)
         semaphore_key = job.semaphore.name
 
         m = self.semaphores.get(semaphore_key)
         if not m:
             # The semaphore is not held, nothing to do
-            self.log.error("Semaphore can not be released for %s "
-                           "because the semaphore is not held" %
-                           item)
+            log.error("Semaphore can not be released for %s "
+                      "because the semaphore is not held", item)
             return
         if (item, job.name) in m:
             # This item is a holder of the semaphore
-            self._release(semaphore_key, item, job.name)
+            self._release(semaphore_key, item, job.name, log)
             return
-        self.log.error("Semaphore can not be released for %s "
-                       "which does not hold it" % item)
+        log.error("Semaphore can not be released for %s "
+                  "which does not hold it", item)
 
-    def _acquire(self, semaphore_key, item, job_name):
-        self.log.debug("Semaphore acquire {semaphore}: job {job}, item {item}"
-                       .format(semaphore=semaphore_key,
-                               job=job_name,
-                               item=item))
+    def _acquire(self, semaphore_key, item, job_name, log):
+        log.debug("Semaphore acquire {semaphore}: job {job}, item {item}"
+                  .format(semaphore=semaphore_key,
+                          job=job_name,
+                          item=item))
         if semaphore_key not in self.semaphores:
             self.semaphores[semaphore_key] = []
         self.semaphores[semaphore_key].append((item, job_name))
 
-    def _release(self, semaphore_key, item, job_name):
-        self.log.debug("Semaphore release {semaphore}: job {job}, item {item}"
-                       .format(semaphore=semaphore_key,
-                               job=job_name,
-                               item=item))
+    def _release(self, semaphore_key, item, job_name, log):
+        log.debug("Semaphore release {semaphore}: job {job}, item {item}"
+                  .format(semaphore=semaphore_key,
+                          job=job_name,
+                          item=item))
         sem_item = (item, job_name)
         if sem_item in self.semaphores[semaphore_key]:
             self.semaphores[semaphore_key].remove(sem_item)
