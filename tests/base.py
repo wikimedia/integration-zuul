@@ -1159,7 +1159,8 @@ class FakeGithubConnection(githubconnection.GithubConnection):
 
     def getGithubClient(self,
                         project=None,
-                        user_id=None):
+                        user_id=None,
+                        zuul_event_id=None):
 
         if self.app_id:
             inst_id = self.installation_map.get(project)
