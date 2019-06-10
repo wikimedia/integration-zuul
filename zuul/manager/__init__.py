@@ -397,21 +397,23 @@ class PipelineManager(object):
         return True
 
     def _executeJobs(self, item, jobs):
-        self.log.debug("Executing jobs for change %s" % item.change)
+        log = get_annotated_logger(self.log, item.event)
+        log.debug("Executing jobs for change %s", item.change)
         build_set = item.current_build_set
         for job in jobs:
-            self.log.debug("Found job %s for change %s" % (job, item.change))
+            log.debug("Found job %s for change %s", job, item.change)
             try:
                 nodeset = item.current_build_set.getJobNodeSet(job.name)
                 self.sched.nodepool.useNodeSet(
-                    nodeset, build_set=item.current_build_set)
+                    nodeset, build_set=item.current_build_set,
+                    event=item.event)
                 self.sched.executor.execute(
                     job, item, self.pipeline,
                     build_set.dependent_changes,
                     build_set.merger_items)
             except Exception:
-                self.log.exception("Exception while executing job %s "
-                                   "for change %s:" % (job, item.change))
+                log.exception("Exception while executing job %s "
+                              "for change %s:", job, item.change)
                 try:
                     # If we hit an exception we don't have a build in the
                     # current item so a potentially aquired semaphore must be
@@ -419,7 +421,7 @@ class PipelineManager(object):
                     tenant = item.pipeline.tenant
                     tenant.semaphore_handler.release(item, job)
                 except Exception:
-                    self.log.exception("Exception while releasing semaphore")
+                    log.exception("Exception while releasing semaphore")
 
     def executeJobs(self, item):
         # TODO(jeblair): This should return a value indicating a job

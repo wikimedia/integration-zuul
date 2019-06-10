@@ -1269,6 +1269,8 @@ class Scheduler(threading.Thread):
 
     def _doBuildCompletedEvent(self, event):
         build = event.build
+        zuul_event_id = build.zuul_event_id
+        log = get_annotated_logger(self.log, zuul_event_id)
 
         # Regardless of any other conditions which might cause us not
         # to pass this on to the pipeline manager, make sure we return
@@ -1276,27 +1278,25 @@ class Scheduler(threading.Thread):
         try:
             self._processAutohold(build)
         except Exception:
-            self.log.exception("Unable to process autohold for %s" % build)
+            log.exception("Unable to process autohold for %s" % build)
         try:
             self.nodepool.returnNodeSet(build.nodeset, build)
         except Exception:
-            self.log.exception("Unable to return nodeset %s" % build.nodeset)
+            log.exception("Unable to return nodeset %s" % build.nodeset)
 
         if build.build_set is not build.build_set.item.current_build_set:
-            self.log.debug("Build %s is not in the current build set" %
-                           (build,))
+            log.debug("Build %s is not in the current build set", build)
             return
         pipeline = build.build_set.item.pipeline
         if not pipeline:
-            self.log.warning("Build %s is not associated with a pipeline" %
-                             (build,))
+            log.warning("Build %s is not associated with a pipeline", build)
             return
         if build.end_time and build.start_time and build.result:
             duration = build.end_time - build.start_time
             try:
                 self.time_database.update(build, duration, build.result)
             except Exception:
-                self.log.exception("Exception recording build time:")
+                log.exception("Exception recording build time:")
         pipeline.manager.onBuildCompleted(event.build)
 
     def _doMergeCompletedEvent(self, event):
