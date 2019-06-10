@@ -304,11 +304,7 @@ class Client(zuul.cmd.ZuulApp):
             return True
 
         all_fields = self._show_running_jobs_columns()
-        if self.args.columns.upper() == 'ALL':
-            fields = all_fields.keys()
-        else:
-            fields = [f.strip().lower() for f in self.args.columns.split(',')
-                      if f.strip().lower() in all_fields]
+        fields = all_fields.keys()
 
         table = prettytable.PrettyTable(
             field_names=[all_fields[f]['title'] for f in fields])
