@@ -228,8 +228,9 @@ class Nodepool(object):
                           resources)
             self.emitStatsResources()
 
-    def returnNodeSet(self, nodeset, build=None):
-        self.log.info("Returning nodeset %s" % (nodeset,))
+    def returnNodeSet(self, nodeset, build=None, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        log.info("Returning nodeset %s", nodeset)
         resources = defaultdict(int)
         duration = None
         project = None
@@ -242,13 +243,12 @@ class Nodepool(object):
             build.build_set.item.change and
             build.build_set.item.change.project):
             duration = build.end_time - build.start_time
-            self.log.info("Nodeset %s with %s nodes was in use "
-                          "for %s seconds for build %s for project %s",
-                          nodeset, len(nodeset.nodes), duration, build,
-                          project)
+            log.info("Nodeset %s with %s nodes was in use "
+                     "for %s seconds for build %s for project %s",
+                     nodeset, len(nodeset.nodes), duration, build, project)
         for node in nodeset.getNodes():
             if node.lock is None:
-                self.log.error("Node %s is not locked" % (node,))
+                log.error("Node %s is not locked", node)
             else:
                 try:
                     if node.state == model.STATE_IN_USE:
@@ -257,8 +257,8 @@ class Nodepool(object):
                         node.state = model.STATE_USED
                         self.sched.zk.storeNode(node)
                 except Exception:
-                    self.log.exception("Exception storing node %s "
-                                       "while unlocking:" % (node,))
+                    log.exception("Exception storing node %s "
+                                  "while unlocking:", node)
         self._unlockNodes(nodeset.getNodes())
 
         # When returning a nodeset we need to update the gauges if we have a
