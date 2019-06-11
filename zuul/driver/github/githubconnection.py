@@ -655,7 +655,8 @@ class GithubConnection(BaseConnection):
                                  "GitHub Enterprise")
             github = github3.GitHubEnterprise(url, verify=self.verify_ssl)
         else:
-            github = github3.GitHub()
+            github = github3.GitHub(session=github3.session.GitHubSession(
+                default_read_timeout=300))
 
         # anything going through requests to http/s goes through cache
         github.session.mount('http://', self.cache_adapter)
