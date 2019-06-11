@@ -403,13 +403,44 @@ class JobDir(object):
         self.job_unreachable_file = os.path.join(self.ansible_cache_root,
                                                  'nodes.unreachable')
         os.makedirs(self.control_path)
+
         localhost_facts = os.path.join(self.fact_cache, 'localhost')
+        jobtime = datetime.datetime.utcnow()
+        date_time_facts = {}
+        date_time_facts['year'] = jobtime.strftime('%Y')
+        date_time_facts['month'] = jobtime.strftime('%m')
+        date_time_facts['weekday'] = jobtime.strftime('%A')
+        date_time_facts['weekday_number'] = jobtime.strftime('%w')
+        date_time_facts['weeknumber'] = jobtime.strftime('%W')
+        date_time_facts['day'] = jobtime.strftime('%d')
+        date_time_facts['hour'] = jobtime.strftime('%H')
+        date_time_facts['minute'] = jobtime.strftime('%M')
+        date_time_facts['second'] = jobtime.strftime('%S')
+        date_time_facts['epoch'] = jobtime.strftime('%s')
+        date_time_facts['date'] = jobtime.strftime('%Y-%m-%d')
+        date_time_facts['time'] = jobtime.strftime('%H:%M:%S')
+        date_time_facts['iso8601_micro'] = \
+            jobtime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        date_time_facts['iso8601'] = \
+            jobtime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        date_time_facts['iso8601_basic'] = jobtime.strftime("%Y%m%dT%H%M%S%f")
+        date_time_facts['iso8601_basic_short'] = \
+            jobtime.strftime("%Y%m%dT%H%M%S")
+
+        # Set the TZ data manually as jobtime is naive.
+        date_time_facts['tz'] = 'UTC'
+        date_time_facts['tz_offset'] = '+0000'
+
+        executor_facts = {}
+        executor_facts['date_time'] = date_time_facts
+        executor_facts['module_setup'] = True
+
         # NOTE(pabelanger): We do not want to leak zuul-executor facts to other
         # playbooks now that smart fact gathering is enabled by default.  We
-        # can have ansible skip populating the cache with information by the
-        # doing the following.
+        # can have ansible skip populating the cache with information by
+        # writing a file with the minimum facts we want.
         with open(localhost_facts, 'w') as f:
-            f.write('{"module_setup": true}')
+            json.dump(executor_facts, f)
 
         self.result_data_file = os.path.join(self.work_root, 'results.json')
         with open(self.result_data_file, 'w'):
