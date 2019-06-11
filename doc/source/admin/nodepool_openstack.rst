@@ -1,6 +1,6 @@
 :orphan:
 
-Nodepool - Openstack
+Nodepool - OpenStack
 ====================
 
 Setup
@@ -18,7 +18,7 @@ that will be installed when instantiating the servers:
    source <username>-openrc.sh  # this may prompt for password - enter it
    openstack keypair create --public-key nodepool_rsa.pub nodepool
 
-We'll use the private key later wheen configuring Zuul.  In the same
+We'll use the private key later when configuring Zuul.  In the same
 session, configure nodepool to talk to your cloud:
 
 .. code-block:: shell
@@ -83,4 +83,5 @@ configuration file:
 
 .. warning::
 
-   `min-ready:2` may incur costs in your cloud provider
+   `min-ready:2` may incur costs in your cloud provider. This will result in
+   two instances always running, even when idle.
