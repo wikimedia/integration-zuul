@@ -1163,32 +1163,30 @@ class Scheduler(threading.Thread):
 
     def _doBuildStartedEvent(self, event):
         build = event.build
+        log = get_annotated_logger(self.log, build.zuul_event_id)
         if build.build_set is not build.build_set.item.current_build_set:
-            self.log.warning("Build %s is not in the current build set" %
-                             (build,))
+            log.warning("Build %s is not in the current build set", build)
             return
         pipeline = build.build_set.item.pipeline
         if not pipeline:
-            self.log.warning("Build %s is not associated with a pipeline" %
-                             (build,))
+            log.warning("Build %s is not associated with a pipeline", build)
             return
         try:
             build.estimated_time = float(self.time_database.getEstimatedTime(
                 build))
         except Exception:
-            self.log.exception("Exception estimating build time:")
+            log.exception("Exception estimating build time:")
         pipeline.manager.onBuildStarted(event.build)
 
     def _doBuildPausedEvent(self, event):
         build = event.build
+        log = get_annotated_logger(self.log, build.zuul_event_id)
         if build.build_set is not build.build_set.item.current_build_set:
-            self.log.warning("Build %s is not in the current build set" %
-                             (build,))
+            log.warning("Build %s is not in the current build set", build)
             return
         pipeline = build.build_set.item.pipeline
         if not pipeline:
-            self.log.warning("Build %s is not associated with a pipeline" %
-                             (build,))
+            log.warning("Build %s is not associated with a pipeline", build)
             return
         pipeline.manager.onBuildPaused(event.build)
 

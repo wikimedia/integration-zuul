@@ -503,12 +503,12 @@ class ExecutorClient(object):
         self.onBuildCompleted(job, 'LOST')
 
     def cancelJobInQueue(self, build):
+        log = get_annotated_logger(self.log, build.zuul_event_id)
         job = build.__gearman_job
 
         req = gear.CancelJobAdminRequest(job.handle)
         job.connection.sendAdminRequest(req, timeout=300)
-        self.log.debug("Response to cancel build %s request: %s" %
-                       (build, req.response.strip()))
+        log.debug("Response to cancel build request: %s", req.response.strip())
         if req.response.startswith(b"OK"):
             try:
                 del self.builds[job.unique]
@@ -522,29 +522,31 @@ class ExecutorClient(object):
         return False
 
     def cancelRunningBuild(self, build):
+        log = get_annotated_logger(self.log, build.zuul_event_id)
         if not build.__gearman_worker:
-            self.log.error("Build %s has no manager while canceling" %
-                           (build,))
+            log.error("Build %s has no manager while canceling", build)
         stop_uuid = str(uuid4().hex)
-        data = dict(uuid=build.__gearman_job.unique)
+        data = dict(uuid=build.__gearman_job.unique,
+                    zuul_event_id=build.zuul_event_id)
         stop_job = gear.TextJob("executor:stop:%s" % build.__gearman_worker,
                                 json_dumps(data), unique=stop_uuid)
         self.meta_jobs[stop_uuid] = stop_job
-        self.log.debug("Submitting stop job: %s", stop_job)
+        log.debug("Submitting stop job: %s", stop_job)
         self.gearman.submitJob(stop_job, precedence=gear.PRECEDENCE_HIGH,
                                timeout=300)
         return True
 
     def resumeBuild(self, build):
+        log = get_annotated_logger(self.log, build.zuul_event_id)
         if not build.__gearman_worker:
-            self.log.error("Build %s has no manager while resuming" %
-                           (build,))
+            log.error("Build %s has no manager while resuming", build)
         resume_uuid = str(uuid4().hex)
-        data = dict(uuid=build.__gearman_job.unique)
+        data = dict(uuid=build.__gearman_job.unique,
+                    zuul_event_id=build.zuul_event_id)
         stop_job = gear.TextJob("executor:resume:%s" % build.__gearman_worker,
                                 json_dumps(data), unique=resume_uuid)
         self.meta_jobs[resume_uuid] = stop_job
-        self.log.debug("Submitting resume job: %s", stop_job)
+        log.debug("Submitting resume job: %s", stop_job)
         self.gearman.submitJob(stop_job, precedence=gear.PRECEDENCE_HIGH,
                                timeout=300)
 
