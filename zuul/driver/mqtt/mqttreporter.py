@@ -16,6 +16,7 @@ import logging
 import time
 import voluptuous as v
 
+from zuul.lib.logutil import get_annotated_logger
 from zuul.reporter import BaseReporter
 
 
@@ -26,8 +27,8 @@ class MQTTReporter(BaseReporter):
     log = logging.getLogger("zuul.MQTTReporter")
 
     def report(self, item):
-        self.log.debug("Report change %s, params %s" %
-                       (item.change, self.config))
+        log = get_annotated_logger(self.log, item.event)
+        log.debug("Report change %s, params %s", item.change, self.config)
         message = {
             'timestamp': time.time(),
             'action': self._action,
@@ -77,11 +78,11 @@ class MQTTReporter(BaseReporter):
                 patchset=getattr(item.change, 'patchset', None),
                 ref=getattr(item.change, 'ref', None))
         except Exception:
-            self.log.exception("Error while formatting MQTT topic %s:"
-                               % self.config['topic'])
+            log.exception("Error while formatting MQTT topic %s:",
+                          self.config['topic'])
         if topic is not None:
             self.connection.publish(
-                topic, message, qos=self.config.get('qos', 0))
+                topic, message, self.config.get('qos', 0), item.event)
 
 
 def topicValue(value):

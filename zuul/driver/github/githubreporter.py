@@ -16,6 +16,7 @@ import logging
 import voluptuous as v
 import time
 
+from zuul.lib.logutil import get_annotated_logger
 from zuul.reporter import BaseReporter
 from zuul.exceptions import MergeFailure
 from zuul.driver.util import scalar_or_list
@@ -45,7 +46,6 @@ class GithubReporter(BaseReporter):
 
     def report(self, item):
         """Report on an event."""
-
         # If the source is not GithubSource we cannot report anything here.
         if not isinstance(item.change.project.source, GithubSource):
             return
@@ -89,15 +89,18 @@ class GithubReporter(BaseReporter):
         return ret
 
     def addPullComment(self, item, comment=None):
+        log = get_annotated_logger(self.log, item.event)
         message = comment or self._formatItemReport(item)
         project = item.change.project.name
         pr_number = item.change.number
-        self.log.debug(
-            'Reporting change %s, params %s, message: %s' %
-            (item.change, self.config, message))
-        self.connection.commentPull(project, pr_number, message)
+        log.debug('Reporting change %s, params %s, message: %s',
+                  item.change, self.config, message)
+        self.connection.commentPull(project, pr_number, message,
+                                    zuul_event_id=item.event)
 
     def setCommitStatus(self, item):
+        log = get_annotated_logger(self.log, item.event)
+
         project = item.change.project.name
         if hasattr(item.change, 'patchset'):
             sha = item.change.patchset
@@ -122,66 +125,72 @@ class GithubReporter(BaseReporter):
             # characters seems to trip the limit.
             description = 'status: %s' % self._commit_status
 
-        self.log.debug(
+        log.debug(
             'Reporting change %s, params %s, '
-            'context: %s, state: %s, description: %s, url: %s' %
-            (item.change, self.config,
-             self.context, state, description, url))
+            'context: %s, state: %s, description: %s, url: %s',
+            item.change, self.config, self.context, state, description, url)
 
         self.connection.setCommitStatus(
-            project, sha, state, url, description, self.context)
+            project, sha, state, url, description, self.context,
+            zuul_event_id=item.event)
 
     def mergePull(self, item):
+        log = get_annotated_logger(self.log, item.event)
         project = item.change.project.name
         pr_number = item.change.number
         sha = item.change.patchset
-        self.log.debug('Reporting change %s, params %s, merging via API' %
-                       (item.change, self.config))
+        log.debug('Reporting change %s, params %s, merging via API',
+                  item.change, self.config)
         message = self._formatMergeMessage(item.change)
 
         for i in [1, 2]:
             try:
-                self.connection.mergePull(project, pr_number, message, sha)
+                self.connection.mergePull(project, pr_number, message, sha,
+                                          zuul_event_id=item.event)
                 item.change.is_merged = True
                 return
             except MergeFailure:
-                self.log.exception(
-                    'Merge attempt of change %s  %s/2 failed.' %
-                    (item.change, i), exc_info=True)
+                log.exception('Merge attempt of change %s  %s/2 failed.',
+                              item.change, i, exc_info=True)
                 if i == 1:
                     time.sleep(2)
-        self.log.warning(
-            'Merge of change %s failed after 2 attempts, giving up' %
-            item.change)
+        log.warning('Merge of change %s failed after 2 attempts, giving up',
+                    item.change)
 
     def addReview(self, item):
+        log = get_annotated_logger(self.log, item.event)
         project = item.change.project.name
         pr_number = item.change.number
         sha = item.change.patchset
-        self.log.debug('Reporting change %s, params %s, review:\n%s' %
-                       (item.change, self.config, self._review))
+        log.debug('Reporting change %s, params %s, review:\n%s',
+                  item.change, self.config, self._review)
         self.connection.reviewPull(
             project,
             pr_number,
             sha,
             self._review,
-            self._review_body)
+            self._review_body,
+            zuul_event_id=item.event)
         for label in self._unlabels:
-            self.connection.unlabelPull(project, pr_number, label)
+            self.connection.unlabelPull(project, pr_number, label,
+                                        zuul_event_id=item.event)
 
     def setLabels(self, item):
+        log = get_annotated_logger(self.log, item.event)
         project = item.change.project.name
         pr_number = item.change.number
         if self._labels:
-            self.log.debug('Reporting change %s, params %s, labels:\n%s' %
-                           (item.change, self.config, self._labels))
+            log.debug('Reporting change %s, params %s, labels:\n%s',
+                      item.change, self.config, self._labels)
         for label in self._labels:
-            self.connection.labelPull(project, pr_number, label)
+            self.connection.labelPull(project, pr_number, label,
+                                      zuul_event_id=item.event)
         if self._unlabels:
-            self.log.debug('Reporting change %s, params %s, unlabels:\n%s' %
-                           (item.change, self.config, self._unlabels))
+            log.debug('Reporting change %s, params %s, unlabels:\n%s',
+                      item.change, self.config, self._unlabels)
         for label in self._unlabels:
-            self.connection.unlabelPull(project, pr_number, label)
+            self.connection.unlabelPull(project, pr_number, label,
+                                        zuul_event_id=item.event)
 
     def _formatMergeMessage(self, change):
         message = ''

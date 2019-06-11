@@ -18,6 +18,7 @@ import smtplib
 from email.mime.text import MIMEText
 
 from zuul.connection import BaseConnection
+from zuul.lib.logutil import get_annotated_logger
 
 
 class SMTPConnection(BaseConnection):
@@ -43,7 +44,8 @@ class SMTPConnection(BaseConnection):
         else:
             self.smtp_starttls = True
 
-    def sendMail(self, subject, message, from_email=None, to_email=None):
+    def sendMail(self, subject, message, from_email=None, to_email=None,
+                 zuul_event_id=None):
         # Create a text/plain email message
         from_email = from_email \
             if from_email is not None else self.smtp_default_from
@@ -64,4 +66,5 @@ class SMTPConnection(BaseConnection):
             s.sendmail(from_email, to_email.split(','), msg.as_string())
             s.quit()
         except Exception as e:
-            self.log.warning("Error sending mail via SMTP: %s", e)
+            log = get_annotated_logger(self.log, zuul_event_id)
+            log.warning("Error sending mail via SMTP: %s", e)

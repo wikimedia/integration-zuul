@@ -688,7 +688,8 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         }
         return event
 
-    def review(self, change, message, action, file_comments):
+    def review(self, change, message, action={}, file_comments={},
+               zuul_event_id=None):
         if self.web_server:
             return super(FakeGerritConnection, self).review(
                 change, message, action, file_comments)
@@ -1263,13 +1264,14 @@ class FakeGithubConnection(githubconnection.GithubConnection):
     def real_getGitUrl(self, project):
         return super(FakeGithubConnection, self).getGitUrl(project)
 
-    def commentPull(self, project, pr_number, message):
+    def commentPull(self, project, pr_number, message, zuul_event_id=None):
         # record that this got reported
         self.reports.append((project, pr_number, 'comment'))
         pull_request = self.pull_requests[int(pr_number)]
         pull_request.addComment(message)
 
-    def mergePull(self, project, pr_number, commit_message='', sha=None):
+    def mergePull(self, project, pr_number, commit_message='', sha=None,
+                  zuul_event_id=None):
         # record that this got reported
         self.reports.append((project, pr_number, 'merge'))
         pull_request = self.pull_requests[int(pr_number)]
@@ -1282,20 +1284,20 @@ class FakeGithubConnection(githubconnection.GithubConnection):
         pull_request.setMerged(commit_message)
 
     def setCommitStatus(self, project, sha, state, url='', description='',
-                        context='default', user='zuul'):
+                        context='default', user='zuul', zuul_event_id=None):
         # record that this got reported and call original method
         self.reports.append((project, sha, 'status', (user, context, state)))
         super(FakeGithubConnection, self).setCommitStatus(
             project, sha, state,
             url=url, description=description, context=context)
 
-    def labelPull(self, project, pr_number, label):
+    def labelPull(self, project, pr_number, label, zuul_event_id=None):
         # record that this got reported
         self.reports.append((project, pr_number, 'label', label))
         pull_request = self.pull_requests[int(pr_number)]
         pull_request.addLabel(label)
 
-    def unlabelPull(self, project, pr_number, label):
+    def unlabelPull(self, project, pr_number, label, zuul_event_id=None):
         # record that this got reported
         self.reports.append((project, pr_number, 'unlabel', label))
         pull_request = self.pull_requests[pr_number]
@@ -2705,7 +2707,7 @@ class ZuulTestCase(BaseTestCase):
         # Set up mqtt related fakes
         self.mqtt_messages = []
 
-        def fakeMQTTPublish(_, topic, msg, qos):
+        def fakeMQTTPublish(_, topic, msg, qos, zuul_event_id):
             log = logging.getLogger('zuul.FakeMQTTPubish')
             log.info('Publishing message via mqtt')
             self.mqtt_messages.append({'topic': topic, 'msg': msg, 'qos': qos})

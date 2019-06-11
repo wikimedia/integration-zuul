@@ -18,6 +18,7 @@ import logging
 import time
 import voluptuous as v
 
+from zuul.lib.logutil import get_annotated_logger
 from zuul.reporter import BaseReporter
 from zuul.lib.artifacts import get_artifacts_from_result_data
 
@@ -30,9 +31,10 @@ class SQLReporter(BaseReporter):
 
     def report(self, item):
         """Create an entry into a database."""
+        log = get_annotated_logger(self.log, item.event)
 
         if not self.connection.tables_established:
-            self.log.warn("SQL reporter (%s) is disabled " % self)
+            log.warning("SQL reporter (%s) is disabled ", self)
             return
 
         with self.connection.getSession() as db:

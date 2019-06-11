@@ -1409,17 +1409,20 @@ class GithubConnection(BaseConnection):
         # get permissions from the data
         return perms.json().get('permission', 'none')
 
-    def commentPull(self, project, pr_number, message):
-        github = self.getGithubClient(project)
+    def commentPull(self, project, pr_number, message, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
         owner, proj = project.split('/')
         repository = github.repository(owner, proj)
         pull_request = repository.issue(pr_number)
         pull_request.create_comment(message)
-        self.log.debug("Commented on PR %s/%s#%s", owner, proj, pr_number)
+        log.debug("Commented on PR %s/%s#%s", owner, proj, pr_number)
         self.log_rate_limit(self.log, github)
 
-    def mergePull(self, project, pr_number, commit_message='', sha=None):
-        github = self.getGithubClient(project)
+    def mergePull(self, project, pr_number, commit_message='', sha=None,
+                  zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
         owner, proj = project.split('/')
         pull_request = github.pull_request(owner, proj, pr_number)
         try:
@@ -1428,7 +1431,7 @@ class GithubConnection(BaseConnection):
             raise MergeFailure('Merge was not successful due to mergeability'
                                ' conflict, original error is %s' % e)
 
-        self.log.debug("Merged PR %s/%s#%s", owner, proj, pr_number)
+        log.debug("Merged PR %s/%s#%s", owner, proj, pr_number)
         self.log_rate_limit(self.log, github)
         if not result:
             raise Exception('Pull request was not merged')
@@ -1461,37 +1464,41 @@ class GithubConnection(BaseConnection):
         return statuses
 
     def setCommitStatus(self, project, sha, state, url='', description='',
-                        context=''):
-        github = self.getGithubClient(project)
+                        context='', zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
         owner, proj = project.split('/')
         repository = github.repository(owner, proj)
         repository.create_status(sha, state, url, description, context)
-        self.log.debug("Set commit status to %s for sha %s on %s",
-                       state, sha, project)
+        log.debug("Set commit status to %s for sha %s on %s",
+                  state, sha, project)
         self.log_rate_limit(self.log, github)
 
-    def reviewPull(self, project, pr_number, sha, review, body):
-        github = self.getGithubClient(project)
+    def reviewPull(self, project, pr_number, sha, review, body,
+                   zuul_event_id=None):
+        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
         owner, proj = project.split('/')
         pull_request = github.pull_request(owner, proj, pr_number)
         event = review.replace('-', '_')
         event = event.upper()
         pull_request.create_review(body=body, commit_id=sha, event=event)
 
-    def labelPull(self, project, pr_number, label):
-        github = self.getGithubClient(project)
+    def labelPull(self, project, pr_number, label, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
         owner, proj = project.split('/')
         pull_request = github.issue(owner, proj, pr_number)
         pull_request.add_labels(label)
-        self.log.debug("Added label %s to %s#%s", label, proj, pr_number)
+        log.debug("Added label %s to %s#%s", label, proj, pr_number)
         self.log_rate_limit(self.log, github)
 
-    def unlabelPull(self, project, pr_number, label):
-        github = self.getGithubClient(project)
+    def unlabelPull(self, project, pr_number, label, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
         owner, proj = project.split('/')
         pull_request = github.issue(owner, proj, pr_number)
         pull_request.remove_label(label)
-        self.log.debug("Removed label %s from %s#%s", label, proj, pr_number)
+        log.debug("Removed label %s from %s#%s", label, proj, pr_number)
         self.log_rate_limit(self.log, github)
 
     def getPushedFileNames(self, event):

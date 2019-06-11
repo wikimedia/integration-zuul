@@ -165,6 +165,7 @@ class PipelineManager(object):
         Takes the action_reporters, item, message and extra options and
         sends them to the pluggable reporters.
         """
+        log = get_annotated_logger(self.log, item.event)
         report_errors = []
         if len(action_reporters) > 0:
             for reporter in action_reporters:
@@ -174,7 +175,7 @@ class PipelineManager(object):
                         report_errors.append(ret)
                 except Exception as e:
                     item.setReportedResult('ERROR')
-                    self.log.exception("Exception while reporting")
+                    log.exception("Exception while reporting")
                     report_errors.append(str(e))
         return report_errors
 
@@ -953,6 +954,7 @@ class PipelineManager(object):
                  request, request.job, build_set.item, request.nodeset)
 
     def reportItem(self, item):
+        log = get_annotated_logger(self.log, item.event)
         if not item.reported:
             # _reportItem() returns True if it failed to report.
             item.reported = not self._reportItem(item)
@@ -962,28 +964,29 @@ class PipelineManager(object):
             source = item.change.project.source
             if merged:
                 merged = source.isMerged(item.change, item.change.branch)
-            self.log.info("Reported change %s status: all-succeeded: %s, "
-                          "merged: %s" % (item.change, succeeded, merged))
+            log.info("Reported change %s status: all-succeeded: %s, "
+                     "merged: %s", item.change, succeeded, merged)
             change_queue = item.queue
             if not (succeeded and merged):
-                self.log.debug("Reported change %s failed tests or failed "
-                               "to merge" % (item.change))
+                log.debug("Reported change %s failed tests or failed to merge",
+                          item.change)
                 change_queue.decreaseWindowSize()
-                self.log.debug("%s window size decreased to %s" %
-                               (change_queue, change_queue.window))
+                log.debug("%s window size decreased to %s",
+                          change_queue, change_queue.window)
                 raise exceptions.MergeFailure(
                     "Change %s failed to merge" % item.change)
             else:
                 change_queue.increaseWindowSize()
-                self.log.debug("%s window size increased to %s" %
-                               (change_queue, change_queue.window))
+                log.debug("%s window size increased to %s",
+                          change_queue, change_queue.window)
 
                 zuul_driver = self.sched.connections.drivers['zuul']
                 tenant = self.pipeline.tenant
                 zuul_driver.onChangeMerged(tenant, item.change, source)
 
     def _reportItem(self, item):
-        self.log.debug("Reporting change %s" % item.change)
+        log = get_annotated_logger(self.log, item.event)
+        log.debug("Reporting change %s", item.change)
         ret = True  # Means error as returned by trigger.report
 
         # In the case of failure, we may not hove completed an initial
@@ -999,14 +1002,14 @@ class PipelineManager(object):
         try:
             ppc = layout.getProjectPipelineConfig(item)
         except Exception:
-            self.log.exception("Invalid config for change %s" % item.change)
+            log.exception("Invalid config for change %s", item.change)
         if not ppc:
-            self.log.debug("Project %s not in pipeline %s for change %s" % (
-                item.change.project, self.pipeline, item.change))
+            log.debug("Project %s not in pipeline %s for change %s",
+                      item.change.project, self.pipeline, item.change)
             project_in_pipeline = False
             actions = []
         elif item.getConfigErrors():
-            self.log.debug("Invalid config for change %s" % item.change)
+            log.debug("Invalid config for change %s", item.change)
             # TODOv3(jeblair): consider a new reporter action for this
             actions = self.pipeline.merge_failure_actions
             item.setReportedResult('CONFIG_ERROR')
@@ -1018,10 +1021,10 @@ class PipelineManager(object):
             item.setReportedResult('FAILURE')
         elif not item.getJobs():
             # We don't send empty reports with +1
-            self.log.debug("No jobs for change %s" % (item.change,))
+            log.debug("No jobs for change %s", item.change)
             actions = []
         elif item.didAllJobsSucceed():
-            self.log.debug("success %s" % (self.pipeline.success_actions))
+            log.debug("success %s", self.pipeline.success_actions)
             actions = self.pipeline.success_actions
             item.setReportedResult('SUCCESS')
             self.pipeline._consecutive_failures = 0
@@ -1038,12 +1041,10 @@ class PipelineManager(object):
             self.pipeline._consecutive_failures >= self.pipeline.disable_at):
             self.pipeline._disabled = True
         if actions:
-            self.log.info("Reporting item %s, actions: %s" %
-                          (item, actions))
+            log.info("Reporting item %s, actions: %s", item, actions)
             ret = self.sendReport(actions, item)
             if ret:
-                self.log.error("Reporting item %s received: %s" %
-                               (item, ret))
+                log.error("Reporting item %s received: %s", item, ret)
         return ret
 
     def reportStats(self, item):
