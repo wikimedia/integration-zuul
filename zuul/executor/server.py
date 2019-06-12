@@ -580,18 +580,6 @@ class DeduplicateQueue(object):
             self.condition.release()
 
 
-def _copy_ansible_files(python_module, target_dir):
-    library_path = os.path.dirname(os.path.abspath(python_module.__file__))
-    for fn in os.listdir(library_path):
-        if fn in ('__pycache__', 'base'):
-            continue
-        full_path = os.path.join(library_path, fn)
-        if os.path.isdir(full_path):
-            shutil.copytree(full_path, os.path.join(target_dir, fn))
-        else:
-            shutil.copy(os.path.join(library_path, fn), target_dir)
-
-
 def check_varnames(var):
     # We block these in configloader, but block it here too to make
     # sure that a job doesn't pass variables named zuul or nodepool.
