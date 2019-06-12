@@ -32,6 +32,7 @@ import git
 from urllib.parse import urlsplit
 
 from zuul.lib.ansible import AnsibleManager
+from zuul.lib.gearworker import ZuulGearWorker
 from zuul.lib.yamlutil import yaml
 from zuul.lib.config import get_default
 from zuul.lib.logutil import get_annotated_logger
@@ -2426,6 +2427,36 @@ class ExecutorServer(object):
                 self.ansible_manager.install()
         self.ansible_manager.copyAnsibleFiles()
 
+        self.merger_jobs = {
+            'merger:merge': self.merge,
+            'merger:cat': self.cat,
+            'merger:refstate': self.refstate,
+            'merger:fileschanges': self.fileschanges,
+        }
+        self.merger_gearworker = ZuulGearWorker(
+            'Zuul Executor Merger',
+            'zuul.ExecutorServer',
+            'merger',
+            self.config,
+            self.merger_jobs)
+
+        function_name = 'executor:execute'
+        if self.zone:
+            function_name += ':%s' % self.zone
+
+        self.executor_jobs = {
+            "executor:resume:%s" % self.hostname: self.resumeJob,
+            "executor:stop:%s" % self.hostname: self.stopJob,
+            function_name: self.executeJob,
+        }
+
+        self.executor_gearworker = ZuulGearWorker(
+            'Zuul Executor Server',
+            'zuul.ExecutorServer',
+            'executor',
+            self.config,
+            self.executor_jobs)
+
     def _getMerger(self, root, cache_root, logger=None):
         return zuul.merger.merger.Merger(
             root, self.connections, self.merge_email, self.merge_name,
@@ -2435,25 +2466,9 @@ class ExecutorServer(object):
     def start(self):
         self._running = True
         self._command_running = True
-        server = self.config.get('gearman', 'server')
-        port = get_default(self.config, 'gearman', 'port', 4730)
-        ssl_key = get_default(self.config, 'gearman', 'ssl_key')
-        ssl_cert = get_default(self.config, 'gearman', 'ssl_cert')
-        ssl_ca = get_default(self.config, 'gearman', 'ssl_ca')
-        self.merger_worker = ExecutorMergeWorker(self, 'Zuul Executor Merger')
-        self.merger_worker.addServer(server, port, ssl_key, ssl_cert, ssl_ca,
-                                     keepalive=True, tcp_keepidle=60,
-                                     tcp_keepintvl=30, tcp_keepcnt=5)
-        self.executor_worker = ExecutorExecuteWorker(
-            self, 'Zuul Executor Server')
-        self.executor_worker.addServer(server, port, ssl_key, ssl_cert, ssl_ca,
-                                       keepalive=True, tcp_keepidle=60,
-                                       tcp_keepintvl=30, tcp_keepcnt=5)
-        self.log.debug("Waiting for server")
-        self.merger_worker.waitForServer()
-        self.executor_worker.waitForServer()
-        self.log.debug("Registering")
-        self.register()
+
+        self.merger_gearworker.start()
+        self.executor_gearworker.start()
 
         self.log.debug("Starting command processor")
         self.command_socket.start()
@@ -2469,14 +2484,7 @@ class ExecutorServer(object):
             update_thread.daemon = True
             update_thread.start()
             self.update_threads.append(update_thread)
-        self.merger_thread = threading.Thread(target=self.run_merger,
-                                              name='merger')
-        self.merger_thread.daemon = True
-        self.merger_thread.start()
-        self.executor_thread = threading.Thread(target=self.run_executor,
-                                                name='executor')
-        self.executor_thread.daemon = True
-        self.executor_thread.start()
+
         self.governor_stop_event = threading.Event()
         self.governor_thread = threading.Thread(target=self.run_governor,
                                                 name='governor')
@@ -2484,35 +2492,24 @@ class ExecutorServer(object):
         self.governor_thread.start()
         self.disk_accountant.start()
 
-    def register(self):
-        self.register_work()
-        self.executor_worker.registerFunction("executor:resume:%s" %
-                                              self.hostname)
-        self.executor_worker.registerFunction("executor:stop:%s" %
-                                              self.hostname)
-        self.merger_worker.registerFunction("merger:merge")
-        self.merger_worker.registerFunction("merger:cat")
-        self.merger_worker.registerFunction("merger:refstate")
-        self.merger_worker.registerFunction("merger:fileschanges")
-
     def register_work(self):
         if self._running:
             self.accepting_work = True
             function_name = 'executor:execute'
             if self.zone:
                 function_name += ':%s' % self.zone
-            self.executor_worker.registerFunction(function_name)
+            self.executor_gearworker.gearman.registerFunction(function_name)
             # TODO(jeblair): Update geard to send a noop after
             # registering for a job which is in the queue, then remove
             # this API violation.
-            self.executor_worker._sendGrabJobUniq()
+            self.executor_gearworker.gearman._sendGrabJobUniq()
 
     def unregister_work(self):
         self.accepting_work = False
         function_name = 'executor:execute'
         if self.zone:
             function_name += ':%s' % self.zone
-        self.executor_worker.unRegisterFunction(function_name)
+        self.executor_gearworker.gearman.unRegisterFunction(function_name)
 
     def stop(self):
         self.log.debug("Stopping")
@@ -2522,8 +2519,8 @@ class ExecutorServer(object):
         self.governor_stop_event.set()
         self.governor_thread.join()
         # Stop accepting new jobs
-        self.merger_worker.setFunctions([])
-        self.executor_worker.setFunctions([])
+        self.merger_gearworker.gearman.setFunctions([])
+        self.executor_gearworker.gearman.setFunctions([])
         # Tell the executor worker to abort any jobs it just accepted,
         # and grab the list of currently running job workers.
         with self.run_lock:
@@ -2552,8 +2549,8 @@ class ExecutorServer(object):
 
         # All job results should have been sent by now, shutdown the
         # gearman workers.
-        self.merger_worker.shutdown()
-        self.executor_worker.shutdown()
+        self.merger_gearworker.stop()
+        self.executor_gearworker.stop()
 
         if self.statsd:
             base_key = 'zuul.executor.{hostname}'
@@ -2569,8 +2566,8 @@ class ExecutorServer(object):
         self.governor_thread.join()
         for update_thread in self.update_threads:
             update_thread.join()
-        self.merger_thread.join()
-        self.executor_thread.join()
+        self.merger_gearworker.join()
+        self.executor_gearworker.join()
 
     def pause(self):
         self.pause_sensor.pause = True
@@ -2672,82 +2669,11 @@ class ExecutorServer(object):
         task = self.update_queue.put(task)
         return task
 
-    def run_merger(self):
-        self.log.debug("Starting merger listener")
-        while self._running:
-            try:
-                job = self.merger_worker.getJob()
-                try:
-                    self.mergerJobDispatch(job)
-                except Exception:
-                    self.log.exception("Exception while running job")
-                    job.sendWorkException(
-                        traceback.format_exc().encode('utf8'))
-            except gear.InterruptedError:
-                pass
-            except Exception:
-                self.log.exception("Exception while getting job")
-
-    def mergerJobDispatch(self, job):
-        if job.name == 'merger:cat':
-            self.log.debug("Got cat job: %s" % job.unique)
-            self.cat(job)
-        elif job.name == 'merger:merge':
-            self.log.debug("Got merge job: %s" % job.unique)
-            self.merge(job)
-        elif job.name == 'merger:refstate':
-            self.log.debug("Got refstate job: %s" % job.unique)
-            self.refstate(job)
-        elif job.name == 'merger:fileschanges':
-            self.log.debug("Got fileschanges job: %s" % job.unique)
-            self.fileschanges(job)
-        else:
-            self.log.error("Unable to handle job %s" % job.name)
-            job.sendWorkFail()
-
-    def run_executor(self):
-        self.log.debug("Starting executor listener")
-        while self._running:
-            try:
-                job = self.executor_worker.getJob()
-                try:
-                    self.executorJobDispatch(job)
-                except Exception:
-                    self.log.exception("Exception while running job")
-                    job.sendWorkException(
-                        traceback.format_exc().encode('utf8'))
-            except gear.InterruptedError:
-                pass
-            except Exception:
-                self.log.exception("Exception while getting job")
-
-    def executorJobDispatch(self, job):
-        with self.run_lock:
-            if not self._running:
-                job.sendWorkFail()
-                return
-
-            args = json.loads(job.arguments)
-            zuul_event_id = args.get('zuul_event_id')
-            log = get_annotated_logger(self.log, zuul_event_id)
-
-            function_name = 'executor:execute'
-            if self.zone:
-                function_name += ':%s' % self.zone
-            if job.name == (function_name):
-                log.debug("Got %s job: %s", function_name, job.unique)
-                self.executeJob(job)
-            elif job.name.startswith('executor:resume'):
-                log.debug("Got resume job: %s", job.unique)
-                self.resumeJob(job)
-            elif job.name.startswith('executor:stop'):
-                log.debug("Got stop job: %s", job.unique)
-                self.stopJob(job)
-            else:
-                log.error("Unable to handle job %s", job.name)
-                job.sendWorkFail()
-
     def executeJob(self, job):
+        args = json.loads(job.arguments)
+        zuul_event_id = args.get('zuul_event_id')
+        log = get_annotated_logger(self.log, zuul_event_id)
+        log.debug("Got %s job: %s", job.name, job.unique)
         if self.statsd:
             base_key = 'zuul.executor.{hostname}'
             self.statsd.incr(base_key + '.builds')
@@ -2852,6 +2778,7 @@ class ExecutorServer(object):
             log.exception("Exception sending stop command to worker:")
 
     def cat(self, job):
+        self.log.debug("Got cat job: %s" % job.unique)
         args = json.loads(job.arguments)
         task = self.update(args['connection'], args['project'])
         task.wait()
@@ -2866,6 +2793,7 @@ class ExecutorServer(object):
         job.sendWorkComplete(json.dumps(result))
 
     def fileschanges(self, job):
+        self.log.debug("Got fileschanges job: %s" % job.unique)
         args = json.loads(job.arguments)
         zuul_event_id = args.get('zuul_event_id')
         task = self.update(args['connection'], args['project'])
@@ -2883,6 +2811,7 @@ class ExecutorServer(object):
         job.sendWorkComplete(json.dumps(result))
 
     def refstate(self, job):
+        self.log.debug("Got refstate job: %s" % job.unique)
         args = json.loads(job.arguments)
         zuul_event_id = args.get('zuul_event_id')
         success, repo_state = self.merger.getRepoState(
@@ -2894,6 +2823,7 @@ class ExecutorServer(object):
         job.sendWorkComplete(json.dumps(result))
 
     def merge(self, job):
+        self.log.debug("Got merge job: %s" % job.unique)
         args = json.loads(job.arguments)
         zuul_event_id = args.get('zuul_event_id')
         ret = self.merger.mergeChanges(args['items'], args.get('files'),

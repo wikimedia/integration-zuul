@@ -15,15 +15,11 @@
 
 import json
 import logging
-import threading
-import traceback
-
-import gear
 
 from zuul import model
 from zuul.connection import BaseConnection
 from zuul.lib import encryption
-from zuul.lib.config import get_default
+from zuul.lib.gearworker import ZuulGearWorker
 from zuul.lib.jsonutil import ZuulJSONEncoder
 
 
@@ -34,81 +30,50 @@ class RPCListener(object):
         self.config = config
         self.sched = sched
 
-    def start(self):
-        self._running = True
-        server = self.config.get('gearman', 'server')
-        port = get_default(self.config, 'gearman', 'port', 4730)
-        ssl_key = get_default(self.config, 'gearman', 'ssl_key')
-        ssl_cert = get_default(self.config, 'gearman', 'ssl_cert')
-        ssl_ca = get_default(self.config, 'gearman', 'ssl_ca')
-        self.worker = gear.TextWorker('Zuul RPC Listener')
-        self.worker.addServer(server, port, ssl_key, ssl_cert, ssl_ca,
-                              keepalive=True, tcp_keepidle=60,
-                              tcp_keepintvl=30, tcp_keepcnt=5)
-        self.log.debug("Waiting for server")
-        self.worker.waitForServer()
-        self.log.debug("Registering")
-        self.register()
-        self.thread = threading.Thread(target=self.run)
-        self.thread.daemon = True
-        self.thread.start()
+        self.jobs = {}
+        functions = [
+            'autohold',
+            'autohold_list',
+            'allowed_labels_get',
+            'dequeue',
+            'enqueue',
+            'enqueue_ref',
+            'promote',
+            'get_running_jobs',
+            'get_job_log_stream_address',
+            'tenant_list',
+            'tenant_sql_connection',
+            'status_get',
+            'job_get',
+            'job_list',
+            'project_get',
+            'project_list',
+            'project_freeze_jobs',
+            'pipeline_list',
+            'key_get',
+            'config_errors_list',
+            'connection_list',
+        ]
+        for func in functions:
+            f = getattr(self, 'handle_%s' % func)
+            self.jobs['zuul:%s' % func] = f
+        self.gearworker = ZuulGearWorker(
+            'Zuul RPC Listener',
+            'zuul.RPCListener',
+            'zuul-rpc-gearman-worker',
+            self.config,
+            self.jobs)
 
-    def register(self):
-        self.worker.registerFunction("zuul:autohold")
-        self.worker.registerFunction("zuul:autohold_list")
-        self.worker.registerFunction("zuul:allowed_labels_get")
-        self.worker.registerFunction("zuul:dequeue")
-        self.worker.registerFunction("zuul:enqueue")
-        self.worker.registerFunction("zuul:enqueue_ref")
-        self.worker.registerFunction("zuul:promote")
-        self.worker.registerFunction("zuul:get_running_jobs")
-        self.worker.registerFunction("zuul:get_job_log_stream_address")
-        self.worker.registerFunction("zuul:tenant_list")
-        self.worker.registerFunction("zuul:tenant_sql_connection")
-        self.worker.registerFunction("zuul:status_get")
-        self.worker.registerFunction("zuul:job_get")
-        self.worker.registerFunction("zuul:job_list")
-        self.worker.registerFunction("zuul:project_get")
-        self.worker.registerFunction("zuul:project_list")
-        self.worker.registerFunction("zuul:project_freeze_jobs")
-        self.worker.registerFunction("zuul:pipeline_list")
-        self.worker.registerFunction("zuul:key_get")
-        self.worker.registerFunction("zuul:config_errors_list")
-        self.worker.registerFunction("zuul:connection_list")
+    def start(self):
+        self.gearworker.start()
 
     def stop(self):
         self.log.debug("Stopping")
-        self._running = False
-        self.worker.shutdown()
+        self.gearworker.stop()
         self.log.debug("Stopped")
 
     def join(self):
-        self.thread.join()
-
-    def run(self):
-        self.log.debug("Starting RPC listener")
-        while self._running:
-            try:
-                job = self.worker.getJob()
-                self.log.debug("Received job %s" % job.name)
-                z, jobname = job.name.split(':')
-                attrname = 'handle_' + jobname
-                if hasattr(self, attrname):
-                    f = getattr(self, attrname)
-                    if callable(f):
-                        try:
-                            f(job)
-                        except Exception:
-                            self.log.exception("Exception while running job")
-                            job.sendWorkException(traceback.format_exc())
-                    else:
-                        job.sendWorkFail()
-                else:
-                    job.sendWorkFail()
-            except gear.InterruptedError:
-                return
-            except Exception:
-                self.log.exception("Exception while getting job")
+        self.gearworker.join()
 
     def handle_dequeue(self, job):
         args = json.loads(job.arguments)
