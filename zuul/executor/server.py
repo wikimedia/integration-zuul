@@ -1299,6 +1299,10 @@ class AnsibleJob(object):
                         private_ipv4=node.get('private_ipv4'),
                         public_ipv6=node.get('public_ipv6'))))
 
+                host_vars.setdefault(
+                    'ansible_python_interpreter',
+                    node.get('python_path', '/usr/bin/python2'))
+
                 username = node.get('username')
                 if username:
                     host_vars['ansible_user'] = username
@@ -1668,8 +1672,6 @@ class AnsibleJob(object):
     def prepareAnsibleFiles(self, args):
         all_vars = args['vars'].copy()
         check_varnames(all_vars)
-        # TODO(mordred) Hack to work around running things with python3
-        all_vars['ansible_python_interpreter'] = '/usr/bin/python2'
         all_vars['zuul'] = args['zuul'].copy()
         all_vars['zuul']['executor'] = dict(
             hostname=self.executor_server.hostname,
