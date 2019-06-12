@@ -202,6 +202,12 @@
             dependencies: zuul-build-image
         - nodepool-zuul-functional:
             voting: false
+        - build-python-release
+        - build-javascript-content-tarball:
+            vars:
+              node_version: 10
+              zuul_work_dir: "{{ zuul.project.src_dir }}/web"
+              create_tarball_directory: build
     gate:
       jobs:
         - zuul-upload-image
@@ -238,19 +244,22 @@
             timeout: 2700  # 45 minutes
         - zuul-quick-start:
             dependencies: zuul-upload-image
-    post:
-      jobs:
-        - publish-zuul-docs
-        - publish-zuul-python-branch-tarball
-        - publish-openstack-javascript-content:
+        - build-python-release
+        - build-javascript-content-tarball:
             vars:
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
               create_tarball_directory: build
+    post:
+      jobs:
+        - publish-zuul-docs
+        - publish-zuul-python-branch-tarball
         - release-zuul-python
     promote:
       jobs:
         - zuul-promote-image
+        - opendev-promote-python
+        - opendev-promote-javascript-content
     release:
       jobs:
         - release-zuul-python
