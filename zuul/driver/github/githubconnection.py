@@ -256,12 +256,21 @@ class GithubEventProcessor(object):
             return
 
         self.log.debug("Handling %s event", self.event_type)
-
+        event = None
         try:
-            event = method()
+            for retry in range(5):
+                try:
+                    event = method()
+                    break
+                except github3.exceptions.ServerError:
+                    self.log.exception(
+                        "Failed handling %s event; retrying", self.event_type)
+                time.sleep(1)
         except Exception:
+            # NOTE(pabelanger): We should report back to the PR we could
+            # not process the event, to give the user a chance to
+            # retrigger.
             self.log.exception('Exception when handling event:')
-            event = None
 
         if event:
             event.delivery = self.delivery
