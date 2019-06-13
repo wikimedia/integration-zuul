@@ -2682,7 +2682,7 @@ class TestAnsible25(AnsibleZuulTestCase):
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
 
-    def test_plugins(self):
+    def _test_plugins(self, plugin_tests):
         # This test runs a bit long and needs extra time.
         self.wait_timeout = 180
 
@@ -2693,25 +2693,6 @@ class TestAnsible25(AnsibleZuulTestCase):
         self.executor_server.verbose = True
 
         count = 0
-        plugin_tests = [
-            ('passwd', 'FAILURE'),
-            ('cartesian', 'SUCCESS'),
-            ('consul_kv', 'FAILURE'),
-            ('credstash', 'FAILURE'),
-            ('csvfile_good', 'SUCCESS'),
-            ('csvfile_bad', 'FAILURE'),
-            ('uri_bad_path', 'FAILURE'),
-            ('uri_bad_scheme', 'FAILURE'),
-            ('block_local_override', 'FAILURE'),
-            ('file_local_good', 'SUCCESS'),
-            ('file_local_bad', 'FAILURE'),
-            ('zuul_return', 'SUCCESS'),
-            ('password_create_good', 'SUCCESS'),
-            ('password_null_good', 'SUCCESS'),
-            ('password_read_good', 'SUCCESS'),
-            ('password_create_bad', 'FAILURE'),
-            ('password_read_bad', 'FAILURE'),
-        ]
 
         for job_name, result in plugin_tests:
             count += 1
@@ -2725,6 +2706,41 @@ class TestAnsible25(AnsibleZuulTestCase):
 
         # TODOv3(jeblair): parse the ansible output and verify we're
         # getting the exception we expect.
+
+    def test_plugins_1(self):
+        '''
+        Split plugin tests to avoid timeouts and exceeding subunit
+        report lengths.
+        '''
+        plugin_tests = [
+            ('passwd', 'FAILURE'),
+            ('cartesian', 'SUCCESS'),
+            ('consul_kv', 'FAILURE'),
+            ('credstash', 'FAILURE'),
+            ('csvfile_good', 'SUCCESS'),
+            ('csvfile_bad', 'FAILURE'),
+            ('uri_bad_path', 'FAILURE'),
+            ('uri_bad_scheme', 'FAILURE'),
+        ]
+        self._test_plugins(plugin_tests)
+
+    def test_plugins_2(self):
+        '''
+        Split plugin tests to avoid timeouts and exceeding subunit
+        report lengths.
+        '''
+        plugin_tests = [
+            ('block_local_override', 'FAILURE'),
+            ('file_local_good', 'SUCCESS'),
+            ('file_local_bad', 'FAILURE'),
+            ('zuul_return', 'SUCCESS'),
+            ('password_create_good', 'SUCCESS'),
+            ('password_null_good', 'SUCCESS'),
+            ('password_read_good', 'SUCCESS'),
+            ('password_create_bad', 'FAILURE'),
+            ('password_read_bad', 'FAILURE'),
+        ]
+        self._test_plugins(plugin_tests)
 
 
 class TestAnsible26(TestAnsible25):
