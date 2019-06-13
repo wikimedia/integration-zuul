@@ -18,7 +18,6 @@ import logging
 import os
 import sys
 import signal
-import tempfile
 
 import zuul.cmd
 import zuul.executor.server
@@ -86,7 +85,9 @@ class Executor(zuul.cmd.ZuulDaemonApp):
                     job_dir=self.job_dir))
                 sys.exit(1)
         else:
-            self.job_dir = tempfile.mkdtemp()
+            self.job_dir = '/var/lib/zuul/builds'
+            if not os.path.exists(self.job_dir):
+                os.mkdir(self.job_dir)
 
         self.setup_logging('executor', 'log_config')
         self.log = logging.getLogger("zuul.Executor")

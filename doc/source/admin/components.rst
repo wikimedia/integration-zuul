@@ -529,7 +529,7 @@ The following sections of ``zuul.conf`` are used by the executor:
       cache.
 
    .. attr:: job_dir
-      :default: /tmp
+      :default: /var/lib/zuul/builds
 
       Directory that Zuul should use to hold temporary job directories.
       When each job is run, a new entry will be created under this
