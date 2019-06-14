@@ -2584,10 +2584,6 @@ class ZuulTestCase(BaseTestCase):
         self.configure_connections()
         self.sched.registerConnections(self.connections)
 
-        if hasattr(self, 'fake_github'):
-            self.event_queues.append(
-                self.fake_github.github_event_connector._event_forward_queue)
-
         self.executor_server = RecordingExecutorServer(
             self.config, self.connections,
             jobdir_root=self.test_root,
