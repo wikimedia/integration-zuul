@@ -735,7 +735,7 @@ class GithubConnection(BaseConnection):
 
         return headers
 
-    def _get_installation_key(self, project, user_id=None, inst_id=None,
+    def _get_installation_key(self, project, inst_id=None,
                               reprime=False):
         installation_id = inst_id
         if project is not None:
@@ -746,7 +746,6 @@ class GithubConnection(BaseConnection):
                 # prime installation map and try again without refreshing
                 self._prime_installation_map()
                 return self._get_installation_key(project,
-                                                  user_id=user_id,
                                                   inst_id=inst_id,
                                                   reprime=False)
 
@@ -764,9 +763,7 @@ class GithubConnection(BaseConnection):
             url = "%s/installations/%s/access_tokens" % (self.base_url,
                                                          installation_id)
 
-            json_data = {'user_id': user_id} if user_id else None
-
-            response = requests.post(url, headers=headers, json=json_data)
+            response = requests.post(url, headers=headers, json=None)
             response.raise_for_status()
 
             data = response.json()
@@ -861,15 +858,14 @@ class GithubConnection(BaseConnection):
 
     def getGithubClient(self,
                         project=None,
-                        user_id=None,
                         zuul_event_id=None):
         # if you're authenticating for a project and you're an integration then
         # you need to use the installation specific token.
         if project and self.app_id:
             github = self._createGithubClient(zuul_event_id)
-            github.login(token=self._get_installation_key(project, user_id))
+            github.login(token=self._get_installation_key(project))
             github._zuul_project = project
-            github._zuul_user_id = user_id
+            github._zuul_user_id = self.installation_map.get(project)
             return github
 
         # if we're using api_key authentication then this is already token
