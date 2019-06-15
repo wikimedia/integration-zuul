@@ -1589,20 +1589,18 @@ class GithubConnection(BaseConnection):
             time.sleep(1)
             return self._getCommit(repository, sha, retries - 1)
 
-    def getCommitStatuses(self, project, sha, zuul_event_id=None):
+    def getCommitStatuses(self, project_name, sha, zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
-        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
-        owner, proj = project.split('/')
-        repository = github.repository(owner, proj)
+        github = self.getGithubClient(
+            project_name, zuul_event_id=zuul_event_id)
+        url = github.session.build_url('repos', project_name,
+                                       'commits', sha, 'statuses')
+        params = {'per_page': 100}
+        resp = github.session.get(url, params=params)
+        resp.raise_for_status()
 
-        commit = self._getCommit(repository, sha, 5)
-
-        # make a list out of the statuses so that we complete our
-        # API transaction
-        statuses = [status.as_dict() for status in commit.statuses()]
-
-        log.debug("Got commit statuses for sha %s on %s", sha, project)
-        return statuses
+        log.debug("Got commit statuses for sha %s on %s", sha, project_name)
+        return resp.json()
 
     def setCommitStatus(self, project, sha, state, url='', description='',
                         context='', zuul_event_id=None):
