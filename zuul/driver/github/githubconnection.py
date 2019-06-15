@@ -85,6 +85,103 @@ class GithubRequestLogger:
                        int(response.elapsed.microseconds / 1000))
 
 
+class GithubRateLimitHandler:
+    """
+    The GithubRateLimitHandler supplies the method handle_response that can be
+    added to the requests session hooks. It will transparently catch API rate
+    limit triggered 403 responses from github and retry the request after the
+    wait time github tells us.
+    """
+
+    def __init__(self, github, log_rate_limit, zuul_event_id):
+        log = logging.getLogger("zuul.GithubRateLimitHandler")
+        self.log = get_annotated_logger(log, zuul_event_id)
+        self.github = github
+        self.rate_limit_logging_enabled = log_rate_limit
+
+    def _log_rate_limit(self, response):
+        if not self.rate_limit_logging_enabled:
+            return
+
+        rate_limit_remaining = response.headers.get('x-ratelimit-remaining')
+        rate_limit_reset = response.headers.get('x-ratelimit-reset')
+
+        # Determine rate limit resource from the path.
+        path = response.request.path_url
+        if path.startswith('/api/v3'):
+            path = path[len('/api/v3'):]
+        if path.startswith('/search/'):
+            rate_limit_resource = 'search'
+        else:
+            rate_limit_resource = 'core'
+
+        # Log the rate limits if enabled.
+        if self.github._zuul_user_id:
+            self.log.debug(
+                'GitHub API rate limit (%s, %s) resource: %s, '
+                'remaining: %s, reset: %s',
+                self.github._zuul_project, self.github._zuul_user_id,
+                rate_limit_resource, rate_limit_remaining, rate_limit_reset)
+        else:
+            self.log.debug(
+                'GitHub API rate limit resource: %s, '
+                'remaining: %s, reset: %s',
+                rate_limit_resource, rate_limit_remaining, rate_limit_reset)
+
+    def _handle_rate_limit(self, response):
+        # We've hit the rate limit so calculate the time we need to wait based
+        # on the x-ratelimit-reset header. After waiting we can retry the
+        # original request and return it to the caller.
+        reset = response.headers.get('x-ratelimit-reset')
+        wait_time = int(reset) - int(time.time()) + 1
+        self.log.warning('API rate limit reached, need to wait for '
+                         '%s seconds', wait_time)
+        time.sleep(wait_time)
+        return self.github.session.send(response.request)
+
+    def _handle_abuse(self, response):
+        try:
+            retry_after = int(response.headers.get('retry-after'))
+        except Exception:
+            # This should not happen but if it does we cannot handle it.
+            # In this case the caller will need to handle the 403.
+            self.log.error('Missing retry-after header while trying to handle '
+                           'abuse error.')
+            return response
+        self.log.error('We triggered abuse detection, need to wait for '
+                       '%s seconds', retry_after)
+        time.sleep(retry_after + 1)
+        return self.github.session.send(response.request)
+
+    def handle_response(self, response, *args, **kwargs):
+
+        rate_limit = response.headers.get('x-ratelimit-limit')
+
+        if rate_limit:
+            self._log_rate_limit(response)
+
+        # If we got a 403 we could potentially have hit the rate limit. For
+        # any other response we're finished here.
+        if response.status_code != 403:
+            return
+
+        # Decode the body and check if we hit the rate limit.
+        try:
+            body = json.loads(response.content)
+            message = body.get('message', '')
+
+            # Catch rate limit and abuse detection responses. Every other 403
+            # needs to be handled by the caller.
+            if message.startswith('API rate limit exceeded'):
+                return self._handle_rate_limit(response)
+            elif message.startswith('You have triggered an abuse detection'):
+                return self._handle_abuse(response)
+        except Exception:
+            # If we cannot decode the response body, log it here and return so
+            # the caller can handle the response.
+            self.log.exception("Couldn't json decode the response body.")
+
+
 class GithubShaCache(object):
     def __init__(self):
         self.projects = {}
@@ -540,7 +637,6 @@ class GithubUser(collections.Mapping):
             github = self._connection.getGithubClient(self._project)
             user = github.user(self._username)
             self.log.debug("Initialized data for user %s", self._username)
-            self._connection.log_rate_limit(self.log, github)
             self._data = {
                 'username': user.login,
                 'name': user.name,
@@ -678,8 +774,15 @@ class GithubConnection(BaseConnection):
         github.session.mount('http://', self.cache_adapter)
         github.session.mount('https://', self.cache_adapter)
 
+        # Log all requests with attached event id
         request_logger = GithubRequestLogger(zuul_event_id)
         github.session.hooks['response'].append(request_logger.log_request)
+
+        # Install hook for handling rate limit errors transparently
+        rate_limit_handler = GithubRateLimitHandler(
+            github, self._log_rate_limit, zuul_event_id)
+        github.session.hooks['response'].append(
+            rate_limit_handler.handle_response)
 
         # Add properties to store project and user for logging later
         github._zuul_project = None
@@ -997,7 +1100,6 @@ class GithubConnection(BaseConnection):
                                 change.number))
                 keys.add(key)
             self.log.debug("Ran search issues: %s", query)
-            self.log_rate_limit(self.log, github)
 
         for key in keys:
             (proj, num, sha) = key
@@ -1154,7 +1256,6 @@ class GithubConnection(BaseConnection):
 
             branches.extend([x['name'] for x in resp.json()])
 
-        self.log_rate_limit(self.log, github)
         cache[project.name] = branches
         return branches
 
@@ -1207,7 +1308,6 @@ class GithubConnection(BaseConnection):
         labels = [l['name'] for l in pr['labels']]
         pr['labels'] = labels
         log.debug('Got PR %s#%s', project_name, number)
-        self.log_rate_limit(self.log, github)
         return (pr, probj)
 
     def canMerge(self, change, allow_needs):
@@ -1271,7 +1371,6 @@ class GithubConnection(BaseConnection):
             pulls.append(pr_dict)
 
         log.debug('Got PR on project %s for sha %s', project_name, sha)
-        self.log_rate_limit(self.log, github)
         if len(pulls) > 1:
             raise Exception('Multiple pulls found with head sha %s' % sha)
 
@@ -1413,7 +1512,6 @@ class GithubConnection(BaseConnection):
         perms = repository._get(url, headers=headers)
 
         self.log.debug("Got repo permissions for %s/%s", owner, proj)
-        self.log_rate_limit(self.log, github)
 
         # no known user, maybe deleted since review?
         if perms.status_code == 404:
@@ -1430,7 +1528,6 @@ class GithubConnection(BaseConnection):
         pull_request = repository.issue(pr_number)
         pull_request.create_comment(message)
         log.debug("Commented on PR %s/%s#%s", owner, proj, pr_number)
-        self.log_rate_limit(self.log, github)
 
     def mergePull(self, project, pr_number, commit_message='', sha=None,
                   zuul_event_id=None):
@@ -1445,7 +1542,6 @@ class GithubConnection(BaseConnection):
                                ' conflict, original error is %s' % e)
 
         log.debug("Merged PR %s/%s#%s", owner, proj, pr_number)
-        self.log_rate_limit(self.log, github)
         if not result:
             raise Exception('Pull request was not merged')
 
@@ -1473,7 +1569,6 @@ class GithubConnection(BaseConnection):
         statuses = [status.as_dict() for status in commit.statuses()]
 
         log.debug("Got commit statuses for sha %s on %s", sha, project)
-        self.log_rate_limit(log, github)
         return statuses
 
     def setCommitStatus(self, project, sha, state, url='', description='',
@@ -1485,7 +1580,6 @@ class GithubConnection(BaseConnection):
         repository.create_status(sha, state, url, description, context)
         log.debug("Set commit status to %s for sha %s on %s",
                   state, sha, project)
-        self.log_rate_limit(self.log, github)
 
     def reviewPull(self, project, pr_number, sha, review, body,
                    zuul_event_id=None):
@@ -1503,7 +1597,6 @@ class GithubConnection(BaseConnection):
         pull_request = github.issue(owner, proj, pr_number)
         pull_request.add_labels(label)
         log.debug("Added label %s to %s#%s", label, proj, pr_number)
-        self.log_rate_limit(self.log, github)
 
     def unlabelPull(self, project, pr_number, label, zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
@@ -1512,7 +1605,6 @@ class GithubConnection(BaseConnection):
         pull_request = github.issue(owner, proj, pr_number)
         pull_request.remove_label(label)
         log.debug("Removed label %s from %s#%s", label, proj, pr_number)
-        self.log_rate_limit(self.log, github)
 
     def getPushedFileNames(self, event):
         files = set()
@@ -1552,24 +1644,6 @@ class GithubConnection(BaseConnection):
                 "webhook_token not found in config for connection %s" %
                 self.connection_name)
         return True
-
-    def log_rate_limit(self, log, github):
-        if not self._log_rate_limit:
-            return
-
-        try:
-            rate_limit = github.rate_limit()
-            remaining = rate_limit['resources']['core']['remaining']
-            reset = rate_limit['resources']['core']['reset']
-        except Exception:
-            return
-        if github._zuul_user_id:
-            log.debug('GitHub API rate limit (%s, %s) remaining: %s reset: %s',
-                      github._zuul_project, github._zuul_user_id, remaining,
-                      reset)
-        else:
-            log.debug('GitHub API rate limit remaining: %s reset: %s',
-                      remaining, reset)
 
     def _clearBranchCache(self, project, log):
         log.debug("Clearing branch cache for %s", project.name)
