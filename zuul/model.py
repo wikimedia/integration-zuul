@@ -2765,6 +2765,7 @@ class QueueItem(object):
                 'canceled': build.canceled if build else None,
                 'paused': build.paused if build else None,
                 'retry': build.retry if build else None,
+                'tries': self.current_build_set.getTries(job.name),
                 'node_labels': build.node_labels if build else [],
                 'node_name': build.node_name if build else None,
                 'worker': worker,
