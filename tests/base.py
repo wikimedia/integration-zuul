@@ -1850,6 +1850,7 @@ class FakeNodepool(object):
         self.remote_ansible = False
         self.attributes = None
         self.resources = None
+        self.python_path = '/usr/bin/python2'
 
     def stop(self):
         self._running = False
@@ -1946,6 +1947,7 @@ class FakeNodepool(object):
                     public_ipv4=remote_ip,
                     private_ipv4=None,
                     public_ipv6=None,
+                    python_path=self.python_path,
                     allocated_to=request_id,
                     state='ready',
                     state_time=now,
