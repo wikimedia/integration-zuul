@@ -488,13 +488,18 @@ class TestMQTTConnection(ZuulTestCase):
         mqtt_payload = success_event['msg']
         self.assertEquals(mqtt_payload['project'], 'org/project')
         self.assertEquals(mqtt_payload['branch'], 'master')
-        self.assertEquals(mqtt_payload['buildset']['builds'][0]['job_name'],
-                          'test')
-        self.assertEquals(mqtt_payload['buildset']['builds'][0]['result'],
-                          'SUCCESS')
-        self.assertIn('execute_time', mqtt_payload['buildset']['builds'][0])
+        builds = mqtt_payload['buildset']['builds']
+        test_job = [b for b in builds if b['job_name'] == 'test'][0]
+        dependent_test_job = [
+            b for b in builds if b['job_name'] == 'dependent-test'
+        ][0]
+        self.assertEquals(test_job['job_name'], 'test')
+        self.assertEquals(test_job['result'], 'SUCCESS')
+        self.assertEquals(test_job['dependencies'], [])
+        self.assertIn('execute_time', test_job)
         self.assertIn('timestamp', mqtt_payload)
         self.assertIn('enqueue_time', mqtt_payload)
+        self.assertEquals(dependent_test_job['dependencies'], ['test'])
 
     def test_mqtt_invalid_topic(self):
         in_repo_conf = textwrap.dedent(

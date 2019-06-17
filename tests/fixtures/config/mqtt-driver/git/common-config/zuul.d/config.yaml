@@ -26,11 +26,18 @@
     name: test
     run: playbooks/test.yaml
 
+- job:
+    name: dependent-test
+    run: playbooks/test.yaml
+
 - project:
     name: org/project
     check:
       jobs:
         - test
+        - dependent-test:
+            dependencies:
+              - test
 
 - project:
     name: common-config
