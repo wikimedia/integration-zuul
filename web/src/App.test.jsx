@@ -20,7 +20,7 @@ import { Link, BrowserRouter as Router } from 'react-router-dom'
 import { Provider } from 'react-redux'
 
 import { fetchInfoIfNeeded } from './actions/info'
-import createZuulStore from './store'
+import store from './store'
 import App from './App'
 import TenantsPage from './pages/Tenants'
 import StatusPage from './pages/Status'
@@ -35,7 +35,6 @@ api.fetchConfigErrors.mockImplementation(() => Promise.resolve({data: []}))
 
 it('renders without crashing', () => {
   const div = document.createElement('div')
-  const store = createZuulStore()
   ReactDOM.render(<Provider store={store}><Router><App /></Router></Provider>,
     div)
   ReactDOM.unmountComponentAtNode(div)
@@ -50,7 +49,6 @@ it('renders multi tenant', () => {
   api.fetchTenants.mockImplementation(
     () => Promise.resolve({data: [{name: 'openstack'}]})
   )
-  const store = createZuulStore()
   const application = ReactTestUtils.renderIntoDocument(
     <Provider store={store}><Router><App /></Router></Provider>
   )
@@ -81,7 +79,6 @@ it('renders single tenant', () => {
   api.fetchStatus.mockImplementation(
     () => Promise.resolve({data: {pipelines: []}})
   )
-  const store = createZuulStore()
   const application = ReactTestUtils.renderIntoDocument(
     <Provider store={store}><Router><App /></Router></Provider>
   )
