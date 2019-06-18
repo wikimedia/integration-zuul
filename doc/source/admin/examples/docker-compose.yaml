@@ -54,7 +54,6 @@ services:
       - "./etc_zuul/:/etc/zuul/:z"
       - "./playbooks/:/var/playbooks/:z"
       - "sshkey:/var/ssh:z"
-      - /var/lib/zuul
   web:
     command: "sh -c '/var/playbooks/wait-to-start-gearman.sh && zuul-web -d'"
     depends_on:
