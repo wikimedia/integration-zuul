@@ -2953,12 +2953,14 @@ class ZuulTestCase(BaseTestCase):
         self.assertEqual({}, self.executor_server.job_workers)
         # Make sure that git.Repo objects have been garbage collected.
         gc.disable()
-        gc.collect()
-        for obj in gc.get_objects():
-            if isinstance(obj, git.Repo):
-                self.log.debug("Leaked git repo object: 0x%x %s" %
-                               (id(obj), repr(obj)))
-        gc.enable()
+        try:
+            gc.collect()
+            for obj in gc.get_objects():
+                if isinstance(obj, git.Repo):
+                    self.log.debug("Leaked git repo object: 0x%x %s" %
+                                   (id(obj), repr(obj)))
+        finally:
+            gc.enable()
         self.assertEmptyQueues()
         self.assertNodepoolState()
         self.assertNoGeneratedKeys()
