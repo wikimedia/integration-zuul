@@ -18,6 +18,7 @@ import github3.exceptions
 import re
 import time
 
+from requests import HTTPError
 
 FAKE_BASE_URL = 'https://example.com/api/v3/'
 
@@ -88,6 +89,11 @@ class FakeCommit(object):
         # always insert a status to the front of the list, to represent
         # the last status provided for a commit.
         self._statuses.insert(0, status)
+
+    def get_url(self, path, params=None):
+        if path == 'statuses':
+            statuses = [s.as_dict() for s in self._statuses]
+            return FakeResponse(statuses)
 
     def statuses(self):
         return self._statuses
@@ -192,6 +198,8 @@ class FakeRepository(object):
             return self.get_url_branches(request, params=params)
         if entity == 'collaborators':
             return self.get_url_collaborators(request)
+        if entity == 'commits':
+            return self.get_url_commits(request, params=params)
         else:
             return None
 
@@ -210,6 +218,28 @@ class FakeRepository(object):
             # fall back to treat all elements as branch
             branch = '/'.join(elements)
             return self.get_url_branch(branch)
+
+    def get_url_commits(self, path, params=None):
+        if '/' in path:
+            sha, request = path.split('/', 1)
+        else:
+            sha = path
+            request = None
+        commit = self._commits.get(sha)
+
+        # Commits are created lazy so check if there is a PR with the correct
+        # head sha.
+        if commit is None:
+            pull_requests = [pr for pr in self.data.pull_requests.values()
+                             if pr.head_sha == sha]
+            if pull_requests:
+                commit = FakeCommit(sha)
+                self._commits[sha] = commit
+
+        if not commit:
+            return FakeResponse({}, 404)
+
+        return commit.get_url(request, params=params)
 
     def get_url_branch_list(self, params):
         if params.get('protected') == 1:
@@ -377,6 +407,11 @@ class FakeResponse(object):
 
     def json(self):
         return self.data
+
+    def raise_for_status(self):
+        if 400 <= self.status_code < 600:
+            raise HTTPError('{} Something went wrong'.format(self.status_code),
+                            response=self)
 
 
 class FakeGithubSession(object):
