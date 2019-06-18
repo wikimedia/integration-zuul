@@ -182,6 +182,58 @@ class GithubRateLimitHandler:
             self.log.exception("Couldn't json decode the response body.")
 
 
+class GithubRetryHandler:
+    """
+    The GithubRetrHandler supplies the method handle_response that can be added
+    to the requests session hooks. It will transparently handle 5xx errors on
+    GET requests and retry them using an exponential backoff.
+    """
+
+    def __init__(self, github, retries, max_delay, zuul_event_id):
+        log = logging.getLogger("zuul.GithubRetryHandler")
+        self.log = get_annotated_logger(log, zuul_event_id)
+
+        self.github = github
+        self.max_retries = retries
+        self.max_delay = max_delay
+        self.initial_delay = 5
+
+    def handle_response(self, response, *args, **kwargs):
+        # Only handle GET requests that failed with 5xx. Retrying other request
+        # types like POST can be dangerous because we cannot know if they
+        # already might have altered the state on the server side.
+        if response.request.method != 'GET':
+            return
+        if not 500 <= response.status_code < 600:
+            return
+
+        if hasattr(response.request, 'zuul_retry_count'):
+            retry_count = response.request.zuul_retry_count
+            retry_delay = min(response.request.zuul_retry_delay * 2,
+                              self.max_delay)
+        else:
+            retry_count = 0
+            retry_delay = self.initial_delay
+
+        if retry_count >= self.max_retries:
+            # We've reached the max retries so let the caller handle thr 503.
+            self.log.error('GET Request failed with %s (%s/%s retries), '
+                           'won\'t retry again.', response.status_code,
+                           retry_count, self.max_retries)
+            return
+
+        self.log.warning('GET Request failed with %s (%s/%s retries), '
+                         'retrying in %s seconds', response.status_code,
+                         retry_count, self.max_retries, retry_delay)
+        time.sleep(retry_delay)
+
+        # Store retry information in the request object and perform the retry.
+        retry_count += 1
+        response.request.zuul_retry_count = retry_count
+        response.request.zuul_retry_delay = retry_delay
+        return self.github.session.send(response.request)
+
+
 class GithubShaCache(object):
     def __init__(self):
         self.projects = {}
@@ -783,6 +835,10 @@ class GithubConnection(BaseConnection):
             github, self._log_rate_limit, zuul_event_id)
         github.session.hooks['response'].append(
             rate_limit_handler.handle_response)
+
+        # Install hook for handling retries of GET requests transparently
+        retry_handler = GithubRetryHandler(github, 5, 30, zuul_event_id)
+        github.session.hooks['response'].append(retry_handler.handle_response)
 
         # Add properties to store project and user for logging later
         github._zuul_project = None
