@@ -240,6 +240,12 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       The introductory text in reports when at least one voting job
       fails.
 
+   .. attr:: start-message
+      :default: Starting {pipeline.name} jobs.
+
+      The introductory text in reports when jobs are started.
+      Two replacement fields are available ``status_url`` and ``pipeline``.
+
    .. attr:: merge-failure-message
       :default: Merge failed.
 
