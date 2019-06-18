@@ -283,6 +283,10 @@ class FakeIssue(object):
     def pull_request(self):
         return FakePull(self._fake_pull_request)
 
+    @property
+    def number(self):
+        return self._fake_pull_request.number
+
 
 class FakeFile(object):
     def __init__(self, filename):
@@ -449,6 +453,14 @@ class FakeGithubClient(object):
         def tokenize(s):
             return re.findall(r'[\w]+', s)
 
+        def query_is_sha(s):
+            return re.match(r'[a-z0-9]{40}', s)
+
+        if query_is_sha(query):
+            return (FakeIssueSearchResult(FakeIssue(pr))
+                    for pr in self._data.pull_requests.values()
+                    if pr.head_sha == query)
+
         parts = tokenize(query)
         terms = set()
         results = []
@@ -471,4 +483,4 @@ class FakeGithubClient(object):
                 issue = FakeIssue(pr)
                 results.append(FakeIssueSearchResult(issue))
 
-        return results
+        return iter(results)
