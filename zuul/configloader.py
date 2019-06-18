@@ -1149,6 +1149,7 @@ class PipelineParser(object):
                     'description': str,
                     'success-message': str,
                     'failure-message': str,
+                    'start-message': str,
                     'merge-failure-message': str,
                     'footer-message': str,
                     'dequeue-on-new-patchset': bool,
