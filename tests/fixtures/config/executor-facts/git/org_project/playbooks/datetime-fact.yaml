@@ -1,0 +1,11 @@
+- hosts: localhost
+  gather_facts: smart
+  tasks:
+    - debug:
+        var: date_time
+    - assert:
+        that: date_time is defined
+    - debug:
+        var: ansible_date_time
+    - assert:
+        that: ansible_date_time is not defined

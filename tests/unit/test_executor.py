@@ -13,6 +13,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import json
 import logging
 import multiprocessing
 import os
@@ -707,3 +708,28 @@ class TestLineMapping(AnsibleZuulTestCase):
                                        'name': 'Zuul',
                                        'username': 'jenkins'}}
         )
+
+
+class TestExecutorFacts(AnsibleZuulTestCase):
+    tenant_config_file = 'config/executor-facts/main.yaml'
+
+    def _get_file(self, build, path):
+        p = os.path.join(build.jobdir.root, path)
+        with open(p) as f:
+            return f.read()
+
+    def test_datetime_fact(self):
+        self.executor_server.keep_jobdir = True
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getChangeMergedEvent())
+        self.waitUntilSettled()
+
+        self.assertEqual(self.getJobFromHistory('datetime-fact').result,
+                         'SUCCESS')
+
+        j = json.loads(self._get_file(self.history[0],
+                                      'work/logs/job-output.json'))
+
+        date_time = \
+            j[0]['plays'][0]['tasks'][0]['hosts']['localhost']['date_time']
+        self.assertEqual(18, len(date_time))
