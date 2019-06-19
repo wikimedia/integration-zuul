@@ -40,6 +40,7 @@ from zuul.lib import filecomments
 
 import gear
 
+import zuul.lib.repl
 import zuul.merger.merger
 import zuul.ansible.logconfig
 from zuul.executor.sensors.cpu import CPUSensor
@@ -51,7 +52,7 @@ from zuul.lib import commandsocket
 
 BUFFER_LINES_FOR_SYNTAX = 200
 COMMANDS = ['stop', 'pause', 'unpause', 'graceful', 'verbose',
-            'unverbose', 'keep', 'nokeep']
+            'unverbose', 'keep', 'nokeep', 'repl', 'norepl']
 DEFAULT_FINGER_PORT = 7900
 DEFAULT_STREAM_PORT = 19885
 BLACKLISTED_ANSIBLE_CONNECTION_TYPES = [
@@ -2268,8 +2269,11 @@ class ExecutorServer(object):
             unverbose=self.verboseOff,
             keep=self.keep,
             nokeep=self.nokeep,
+            repl=self.start_repl,
+            norepl=self.stop_repl,
         )
         self.log_console_port = log_console_port
+        self.repl = None
 
         statsd_extra_keys = {'hostname': self.hostname}
         self.statsd = get_statsd(config, statsd_extra_keys)
@@ -2495,6 +2499,7 @@ class ExecutorServer(object):
             self.statsd.gauge(base_key + '.running_builds', 0)
 
         self.command_socket.stop()
+        self.stop_repl()
         self.log.debug("Stopped")
 
     def join(self):
@@ -2525,6 +2530,19 @@ class ExecutorServer(object):
 
     def nokeep(self):
         self.keep_jobdir = False
+
+    def start_repl(self):
+        if self.repl:
+            return
+        self.repl = zuul.lib.repl.REPLServer(self)
+        self.repl.start()
+
+    def stop_repl(self):
+        if not self.repl:
+            # not running
+            return
+        self.repl.stop()
+        self.repl = None
 
     def runCommand(self):
         while self._command_running:
