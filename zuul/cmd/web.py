@@ -30,6 +30,18 @@ class WebServer(zuul.cmd.ZuulDaemonApp):
     app_name = 'web'
     app_description = 'A standalone Zuul web server.'
 
+    def createParser(self):
+        parser = super().createParser()
+        parser.add_argument('command',
+                            choices=zuul.web.COMMANDS,
+                            nargs='?')
+        return parser
+
+    def parseArguments(self, args=None):
+        super().parseArguments()
+        if self.args.command:
+            self.args.nodaemon = True
+
     def exit_handler(self, signum, frame):
         self.web.stop()
 
@@ -54,6 +66,10 @@ class WebServer(zuul.cmd.ZuulDaemonApp):
         params['ssl_key'] = get_default(self.config, 'gearman', 'ssl_key')
         params['ssl_cert'] = get_default(self.config, 'gearman', 'ssl_cert')
         params['ssl_ca'] = get_default(self.config, 'gearman', 'ssl_ca')
+
+        params['command_socket'] = get_default(
+            self.config, 'web', 'command_socket',
+            '/var/lib/zuul/web.socket')
 
         params['connections'] = self.connections
         # Validate config here before we spin up the ZuulWeb object
@@ -91,6 +107,10 @@ class WebServer(zuul.cmd.ZuulDaemonApp):
         self.log.info("Zuul Web Server stopped")
 
     def run(self):
+        if self.args.command in zuul.web.COMMANDS:
+            self.send_command(self.args.command)
+            sys.exit(0)
+
         self.setup_logging('web', 'log_config')
         self.log = logging.getLogger("zuul.WebServer")
 

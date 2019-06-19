@@ -28,7 +28,7 @@ class TestWebURLs(ZuulTestCase):
         super(TestWebURLs, self).setUp()
         self.web = self.useFixture(
             ZuulWebFixture(self.gearman_server.port,
-                           self.config))
+                           self.config, self.test_root))
 
     def _get(self, port, uri):
         url = "http://localhost:{}{}".format(port, uri)

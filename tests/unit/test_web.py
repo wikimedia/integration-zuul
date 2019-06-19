@@ -52,6 +52,7 @@ class BaseTestWeb(ZuulTestCase):
             ZuulWebFixture(
                 self.gearman_server.port,
                 self.config,
+                self.test_root,
                 info=zuul.model.WebInfo.fromConfig(self.zuul_ini_config),
                 zk_hosts=self.zk_config))
 
