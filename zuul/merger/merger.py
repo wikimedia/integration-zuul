@@ -618,7 +618,7 @@ class Merger(object):
         repo.checkout(branch, zuul_event_id=zuul_event_id)
 
     def _saveRepoState(self, connection_name, project_name, repo,
-                       repo_state, recent):
+                       repo_state, recent, branches):
         projects = repo_state.setdefault(connection_name, {})
         project = projects.setdefault(project_name, {})
         for ref in repo.getRefs():
@@ -628,6 +628,8 @@ class Merger(object):
                 continue
             if ref.path.startswith('refs/heads/'):
                 branch = ref.path[len('refs/heads/'):]
+                if branches is not None and branch not in branches:
+                    continue
                 key = (connection_name, project_name, branch)
                 if key not in recent:
                     recent[key] = ref.object
@@ -690,7 +692,8 @@ class Merger(object):
         orig_commit = repo.revParse('FETCH_HEAD')
         return orig_commit, commit
 
-    def _mergeItem(self, item, recent, repo_state, zuul_event_id):
+    def _mergeItem(self, item, recent, repo_state, zuul_event_id,
+                   branches=None):
         log = get_annotated_logger(self.log, zuul_event_id)
         log.debug("Processing ref %s for project %s/%s / %s uuid %s" %
                   (item['ref'], item['connection'],
@@ -718,7 +721,7 @@ class Merger(object):
             # Save the repo state so that later mergers can repeat
             # this process.
             self._saveRepoState(item['connection'], item['project'], repo,
-                                repo_state, recent)
+                                repo_state, recent, branches)
         else:
             log.debug("Found base commit %s for %s" % (base, key,))
 
@@ -738,7 +741,7 @@ class Merger(object):
         return orig_commit, commit
 
     def mergeChanges(self, items, files=None, dirs=None, repo_state=None,
-                     repo_locks=None, zuul_event_id=None):
+                     repo_locks=None, branches=None, zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
         # connection+project+branch -> commit
         recent = {}
@@ -759,7 +762,7 @@ class Merger(object):
                 log.debug("Merging for change %s,%s" %
                           (item["number"], item["patchset"]))
                 orig_commit, commit = self._mergeItem(
-                    item, recent, repo_state, zuul_event_id)
+                    item, recent, repo_state, zuul_event_id, branches=branches)
                 if not commit:
                     return None
                 if files or dirs:
@@ -790,7 +793,7 @@ class Merger(object):
             self._restoreRepoState(item['connection'], item['project'], repo,
                                    repo_state, zuul_event_id)
 
-    def getRepoState(self, items, repo_locks=None):
+    def getRepoState(self, items, branches=None, repo_locks=None):
         # Gets the repo state for items.  Generally this will be
         # called in any non-change pipeline.  We will return the repo
         # state for each item, but manipulated with any information in
@@ -818,7 +821,7 @@ class Merger(object):
                         return (False, {})
 
                     self._saveRepoState(item['connection'], item['project'],
-                                        repo, repo_state, recent)
+                                        repo, repo_state, recent, branches)
 
                 if item.get('newrev'):
                     # This is a ref update rather than a branch tip, so make

@@ -2180,12 +2180,15 @@ class QueueItem(object):
             return None
         return self.job_graph.jobs.get(name)
 
-    def getNonLiveItemsAhead(self):
-        items = []
+    @property
+    def items_ahead(self):
         item_ahead = self.item_ahead
-        while item_ahead and not item_ahead.live:
-            items.append(item_ahead)
+        while item_ahead:
+            yield item_ahead
             item_ahead = item_ahead.item_ahead
+
+    def getNonLiveItemsAhead(self):
+        items = [item for item in self.items_ahead if not item.live]
         return reversed(items)
 
     def haveAllJobsStarted(self):
