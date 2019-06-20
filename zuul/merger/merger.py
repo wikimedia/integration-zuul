@@ -458,6 +458,17 @@ class Repo(object):
             self._git_fetch(repo, 'origin', zuul_event_id)
         self._git_fetch(repo, 'origin', zuul_event_id, tags=True)
 
+    def isUpdateNeeded(self, repo_state, zuul_event_id=None):
+        repo = self.createRepoObject(zuul_event_id)
+        for rev in repo_state.values():
+            try:
+                repo.commit(rev)
+            except Exception:
+                # GitPython throws an error if a revision does not
+                # exist
+                return True
+        return False
+
     def getFiles(self, files, dirs=[], branch=None, commit=None,
                  zuul_event_id=None):
         ret = {}
@@ -595,15 +606,23 @@ class Merger(object):
         return self._addProject(hostname, project_name, url, sshkey,
                                 zuul_event_id)
 
-    def updateRepo(self, connection_name, project_name, zuul_event_id=None,
+    def updateRepo(self, connection_name, project_name, repo_state=None,
+                   zuul_event_id=None,
                    build=None):
         log = get_annotated_logger(self.log, zuul_event_id, build=build)
         repo = self.getRepo(connection_name, project_name,
                             zuul_event_id=zuul_event_id)
         try:
-            log.info("Updating local repository %s/%s",
-                     connection_name, project_name)
-            repo.reset(zuul_event_id=zuul_event_id, build=build)
+
+            # Check if we need an update if we got a repo_state
+            if repo_state and not repo.isUpdateNeeded(
+                    repo_state, zuul_event_id=zuul_event_id):
+                log.info("Skipping updating local repository %s/%s",
+                         connection_name, project_name)
+            else:
+                log.info("Updating local repository %s/%s",
+                         connection_name, project_name)
+                repo.reset(zuul_event_id=zuul_event_id, build=build)
         except Exception:
             log.exception("Unable to update %s/%s",
                           connection_name, project_name)

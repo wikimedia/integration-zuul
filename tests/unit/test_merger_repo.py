@@ -302,6 +302,55 @@ class TestMergerRepo(ZuulTestCase):
                     "none@example.org", "User Name", "0", "0")
         self.assertIn(local_path, repr(repo))
 
+    def test_update_needed(self):
+        parent_path = os.path.join(self.upstream_root, 'org/project1')
+        repo = git.Repo(parent_path)
+        self.create_branch('org/project1', 'stable')
+
+        repo_state_no_update_master = {
+            'refs/heads/master': repo.commit('refs/heads/master').hexsha,
+        }
+        repo_state_no_update = {
+            'refs/heads/master': repo.commit('refs/heads/master').hexsha,
+            'refs/heads/stable': repo.commit('refs/heads/stable').hexsha,
+        }
+        repo_state_update = {
+            'refs/heads/master': repo.commit('refs/heads/master').hexsha,
+            'refs/heads/stable': repo.commit('refs/heads/stable').hexsha,
+            'refs/heads/test': '1234567',
+        }
+
+        work_repo = Repo(parent_path, self.workspace_root,
+                         'none@example.org', 'User Name', '0', '0')
+        self.assertFalse(work_repo.isUpdateNeeded(repo_state_no_update_master))
+        self.assertFalse(work_repo.isUpdateNeeded(repo_state_no_update))
+        self.assertTrue(work_repo.isUpdateNeeded(repo_state_update))
+
+        # Get repo and update for the first time.
+        merger = self.executor_server.merger
+        merger.updateRepo('gerrit', 'org/project1')
+        repo = merger.getRepo('gerrit', 'org/project1')
+
+        # Branches master and stable must exist
+        self.assertEqual(['master', 'stable'], repo.getBranches())
+
+        # Now create an additional branch in the parent repo
+        self.create_branch('org/project1', 'stable2')
+
+        # Update with repo state and expect no update done
+        self.log.info('Calling updateRepo with repo_state_no_update')
+        merger.updateRepo('gerrit', 'org/project1',
+                          repo_state=repo_state_no_update)
+        repo = merger.getRepo('gerrit', 'org/project1')
+        self.assertEqual(['master', 'stable'], repo.getBranches())
+
+        # Update with repo state and expect update
+        self.log.info('Calling updateRepo with repo_state_update')
+        merger.updateRepo('gerrit', 'org/project1',
+                          repo_state=repo_state_update)
+        repo = merger.getRepo('gerrit', 'org/project1')
+        self.assertEqual(['master', 'stable', 'stable2'], repo.getBranches())
+
 
 class TestMergerWithAuthUrl(ZuulTestCase):
     config_file = 'zuul-github-driver.conf'
