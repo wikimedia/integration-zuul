@@ -1117,11 +1117,15 @@ Here is an example of two job definitions:
       all projects permitted to use the job.  The current project
       (where the job is defined) is not automatically included, so if
       it should be able to run this job, then it must be explicitly
-      listed.  By default, all projects may use the job.
+      listed.  This setting is ignored by :term:`config projects
+      <config-project>` -- they may add any job to any project's
+      pipelines.  By default, all projects may use the job.
 
       If a :attr:`job.secrets` is used in a job definition in an
       :term:`untrusted-project`, `allowed-projects` is automatically
       set to the current project only, and can not be overridden.
+      However, a :term:`config-project` may still add such a job to
+      any project's pipeline.
 
       .. warning::
 
@@ -1519,7 +1523,9 @@ If a job with secrets is unsafe to be used by other projects, the
 :attr:`job.allowed-projects` attribute can be used to restrict the
 projects which can invoke that job.  If a job with secrets is defined
 in an `untrusted-project`, `allowed-projects` is automatically set to
-that project only, and can not be overridden.
+that project only, and can not be overridden (though a
+:term:`config-project` may still add the job to any project's pipeline
+regardless of this setting).
 
 Secrets, like most configuration items, are unique within a tenant,
 though a secret may be defined on multiple branches of the same

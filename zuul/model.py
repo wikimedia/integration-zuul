@@ -1145,6 +1145,8 @@ class Job(ConfigObject):
             provides=frozenset(),
             requires=frozenset(),
             dependencies=frozenset(),
+            ignore_allowed_projects=None,  # internal, but inherited
+                                           # in the usual manner
         )
 
         # These attributes affect how the job is actually run and more
@@ -3941,7 +3943,8 @@ class Layout(object):
                 raise Exception("Job %s is abstract and may not be "
                                 "directly run" %
                                 (frozen_job.name,))
-            if (frozen_job.allowed_projects is not None and
+            if (not frozen_job.ignore_allowed_projects and
+                frozen_job.allowed_projects is not None and
                 change.project.name not in frozen_job.allowed_projects):
                 raise Exception("Project %s is not allowed to run job %s" %
                                 (change.project.name, frozen_job.name))
