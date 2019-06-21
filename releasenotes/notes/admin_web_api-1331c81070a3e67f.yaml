@@ -1,0 +1,9 @@
+---
+features:
+  - |
+    Add an endpoint protection mechanism to zuul-web's REST API, based on the JWT
+    standard. A user can access protected endpoints with a valid bearer token.
+    The actions associated to these endpoints are tenant-scoped via a token claim.
+    Zuul supports token signatures using the HS256 or RS256 algorithms. External
+    JWKS are also supported.
+    Current protected endpoints are "autohold", "enqueue" and "dequeue".

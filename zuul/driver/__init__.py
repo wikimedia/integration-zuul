@@ -279,3 +279,22 @@ class WrapperInterface(object, metaclass=abc.ABCMeta):
 
         """
         pass
+
+
+class AuthenticatorInterface(object, metaclass=abc.ABCMeta):
+    """The Authenticator interface to be implemented by a driver."""
+
+    @abc.abstractmethod
+    def authenticate(self, **kwargs):
+        """verify an Authentication Token and if correct, return the user id
+        and the authorization claim if present (or an empty dictionary).
+
+        This method is required by the interface
+
+        :arg string rawToken: the base64-encoded Auth Token as passed in the
+        "Authorization" header.
+
+        :returns: a string and a dictionary
+        :rtype: list
+        """
+        raise NotImplementedError

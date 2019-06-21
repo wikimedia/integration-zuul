@@ -758,6 +758,8 @@ To enable or disable running Ansible in verbose mode (with the
 ``-vvv`` argument to ansible-playbook) run ``zuul-executor verbose``
 and ``zuul-executor unverbose``.
 
+.. _web-server:
+
 Web Server
 ----------
 
@@ -827,6 +829,114 @@ sections of ``zuul.conf`` are used by the web server:
 
       The Cache-Control max-age response header value for static files served
       by the zuul-web. Set to 0 during development to disable Cache-Control.
+
+Enabling tenant-scoped access to privileged actions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A user can be granted access to protected REST API endpoints by providing a
+valid JWT (JSON Web Token) as a bearer token when querying the API endpoints.
+
+JWTs are signed and therefore Zuul must be configured so that signatures can be
+verified. More information about the JWT standard can be found on the `IETF's
+RFC page <https://tools.ietf.org/html/rfc7519>`_.
+
+This optional section of ``zuul.conf``, if present, will activate the
+protected endpoints and configure JWT validation:
+
+.. attr:: auth <authenticator name>
+
+   .. attr:: driver
+
+      The signing algorithm to use. Accepted values are ``HS256``, ``RS256`` or
+      ``RS256withJWKS``. See below for driver-specific configuration options.
+
+   .. attr:: allow_authz_override
+      :default: false
+
+      Allow a JWT to override predefined access rules. Since predefined access
+      rules are not supported yet, this should be set to ``true``.
+
+   .. attr:: realm
+
+      The authentication realm.
+
+   .. attr:: default
+      :default: false
+
+      If set to ``true``, use this realm as the default authentication realm
+      when handling HTTP authentication errors.
+
+   .. attr:: client_id
+
+      The expected value of the "aud" claim in the JWT. This is required for
+      validation.
+
+   .. attr:: issuer_id
+
+      The expected value of the "iss" claim in the JWT. This is required for
+      validation.
+
+   .. attr:: uid_claim
+      :default: sub
+
+      The JWT claim that Zuul will use as a unique identifier for the bearer of
+      a token. This is "sub" by default, as it is usually the purpose of this
+      claim in a JWT. This identifier is used in audit logs.
+
+   .. attr:: max_validity_time
+
+      Optional value to ensure a JWT cannot be valid for more than this amount
+      of time in seconds. This is useful if the Zuul operator has no control
+      over the service issueing JWTs, and the tokens are too long-lived.
+
+This section can be repeated as needed with different authenticators, allowing
+access to privileged API actions from several JWT issuers.
+
+Driver-specific attributes
+..........................
+
+HS256
+,,,,,
+
+This is a symmetrical encryption algorithm that only requires a shared secret
+between the JWT issuer and the JWT consumer (ie Zuul). This driver should be
+used in test deployments only, or in deployments where JWTs will be issued
+manually.
+
+.. attr:: secret
+   :noindex:
+
+   The shared secret used to sign JWTs and validate signatures.
+
+RS256
+,,,,,
+
+This is an asymmetrical encryption algorithm that requires an RSA key pair. Only
+the public key is needed by Zuul for signature validation.
+
+.. attr:: public_key
+
+   The path to the public key of the RSA key pair. It must be readable by Zuul.
+
+.. attr:: private_key
+
+   Optional. The path to the private key of the RSA key pair. It must be
+   readable by Zuul.
+
+RS256withJWKS
+,,,,,,,,,,,,,
+
+Some Identity Providers use key sets (also known as **JWKS**), therefore the key to
+use when verifying the Authentication Token's signatures cannot be known in
+advance; the key's id is stored in the JWT's header and the key must then be
+found in the remote key set.
+The key set is usually available at a specific URL that can be found in the
+"well-known" configuration of an OpenID Connect Identity Provider.
+
+.. attr:: keys_url
+
+   The URL where the Identity Provider's key set can be found. For example, for
+   Google's OAuth service: https://www.googleapis.com/oauth2/v3/certs
 
 Operation
 ~~~~~~~~~

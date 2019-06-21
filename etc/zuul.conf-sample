@@ -40,6 +40,15 @@ port=9000
 static_cache_expiry=0
 status_url=https://zuul.example.com/status
 
+[auth zuul_operator]
+driver=HS256
+allow_authz_override=true
+realm=zuul.example.com
+default=true
+client_id=zuul.example.com
+issuer_id=zuul_operator
+secret=NoDanaOnlyZuul
+
 [connection gerrit]
 driver=gerrit
 server=review.example.com
