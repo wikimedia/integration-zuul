@@ -95,18 +95,7 @@ class BubblewrapExecutionContext(BaseExecutionContext):
 
     def getPopen(self, **kwargs):
         self.setpag()
-        # Set zuul_dir if it was not passed in
-        if 'zuul_dir' in kwargs:
-            zuul_dir = kwargs['zuul_dir']
-        else:
-            zuul_python_dir = os.path.dirname(sys.executable)
-            # We want the dir directly above bin to get the whole venv
-            zuul_dir = os.path.normpath(os.path.join(zuul_python_dir, '..'))
-
         bwrap_command = list(self.bwrap_command)
-        if not zuul_dir.startswith('/usr'):
-            bwrap_command.extend(['--ro-bind', zuul_dir, zuul_dir])
-
         for mount_type in ('ro', 'rw'):
             bind_arg = '--ro-bind' if mount_type == 'ro' else '--bind'
             for bind in self.mounts_map[mount_type]:
