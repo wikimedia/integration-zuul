@@ -1968,6 +1968,10 @@ class AnsibleJob(object):
                                 ("Ansible timeout exceeded: %s" % timeout,))
             watchdog.start()
         try:
+            ansible_log = get_annotated_logger(
+                logging.getLogger("zuul.AnsibleJob.output"),
+                self.zuul_event_id, build=self.job.unique)
+
             # Use manual idx instead of enumerate so that RESULT lines
             # don't count towards BUFFER_LINES_FOR_SYNTAX
             idx = 0
@@ -1980,7 +1984,7 @@ class AnsibleJob(object):
                 if idx < BUFFER_LINES_FOR_SYNTAX:
                     syntax_buffer.append(line)
                 line = line[:1024].rstrip()
-                self.log.debug("Ansible output: %s" % (line,))
+                ansible_log.debug("Ansible output: %s" % (line,))
             self.log.debug("Ansible output terminated")
             cpu_times = self.proc.cpu_times()
             self.log.debug("Ansible cpu times: user=%.2f, system=%.2f, "
