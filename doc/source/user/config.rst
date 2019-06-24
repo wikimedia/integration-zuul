@@ -1125,7 +1125,8 @@ Here is an example of two job definitions:
       :term:`untrusted-project`, `allowed-projects` is automatically
       set to the current project only, and can not be overridden.
       However, a :term:`config-project` may still add such a job to
-      any project's pipeline.
+      any project's pipeline.  Apply caution when doing so as other
+      projects may be able to expose the source project's secrets.
 
       .. warning::
 
@@ -1525,7 +1526,8 @@ projects which can invoke that job.  If a job with secrets is defined
 in an `untrusted-project`, `allowed-projects` is automatically set to
 that project only, and can not be overridden (though a
 :term:`config-project` may still add the job to any project's pipeline
-regardless of this setting).
+regardless of this setting; do so with caution as other projects may
+expose the source project's secrets).
 
 Secrets, like most configuration items, are unique within a tenant,
 though a secret may be defined on multiple branches of the same
