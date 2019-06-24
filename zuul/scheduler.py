@@ -1183,10 +1183,20 @@ class Scheduler(threading.Thread):
         log = get_annotated_logger(self.log, build.zuul_event_id)
         if build.build_set is not build.build_set.item.current_build_set:
             log.warning("Build %s is not in the current build set", build)
+            try:
+                self.executor.cancel(build)
+            except Exception:
+                log.exception(
+                    "Exception while canceling paused build %s", build)
             return
         pipeline = build.build_set.item.pipeline
         if not pipeline:
             log.warning("Build %s is not associated with a pipeline", build)
+            try:
+                self.executor.cancel(build)
+            except Exception:
+                log.exception(
+                    "Exception while canceling paused build %s", build)
             return
         pipeline.manager.onBuildPaused(event.build)
 
