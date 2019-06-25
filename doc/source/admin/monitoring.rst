@@ -89,6 +89,12 @@ These metrics are emitted by the Zuul :ref:`scheduler`:
                            additionally report the duration of the build as a
                            timer.
 
+                        .. stat:: wait_time
+                           :type: timer
+
+                           How long each item spent in the pipeline before its first job
+                           started.
+
                   .. stat:: current_changes
                      :type: gauge
 
@@ -117,12 +123,6 @@ These metrics are emitted by the Zuul :ref:`scheduler`:
          :type: counter
 
          The number of changes processed by the pipeline since Zuul
-         started.
-
-      .. stat:: wait_time
-         :type: timer
-
-         How long each item spent in the pipeline before its first job
          started.
 
 .. stat:: zuul.executor.<executor>
