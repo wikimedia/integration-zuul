@@ -31,6 +31,7 @@ import threading
 
 import re2
 
+import zuul.lib.repl
 import zuul.model
 import zuul.rpcclient
 import zuul.zk
@@ -39,7 +40,7 @@ from zuul.lib import commandsocket
 STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
 cherrypy.tools.websocket = WebSocketTool()
 
-COMMANDS = ['stop']
+COMMANDS = ['stop', 'repl', 'norepl']
 
 
 class SaveParamsTool(cherrypy.Tool):
@@ -750,8 +751,13 @@ class ZuulWeb(object):
         self.stream_manager = StreamManager()
 
         self.command_socket = commandsocket.CommandSocket(command_socket)
+
+        self.repl = None
+
         self.command_map = {
             'stop': self.stop,
+            'repl': self.start_repl,
+            'norepl': self.stop_repl,
         }
 
         route_map = cherrypy.dispatch.RoutesDispatcher()
@@ -866,6 +872,7 @@ class ZuulWeb(object):
         self.wsplugin.unsubscribe()
         self.stream_manager.stop()
         self.zk.disconnect()
+        self.stop_repl()
         self._command_running = False
         self.command_socket.stop()
         self.command_thread.join()
@@ -878,6 +885,18 @@ class ZuulWeb(object):
                     self.command_map[command]()
             except Exception:
                 self.log.exception("Exception while processing command")
+
+    def start_repl(self):
+        if self.repl:
+            return
+        self.repl = zuul.lib.repl.REPLServer(self)
+        self.repl.start()
+
+    def stop_repl(self):
+        if not self.repl:
+            return
+        self.repl.stop()
+        self.repl = None
 
 
 if __name__ == "__main__":
