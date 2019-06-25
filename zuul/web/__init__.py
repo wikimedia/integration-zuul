@@ -34,9 +34,12 @@ import re2
 import zuul.model
 import zuul.rpcclient
 import zuul.zk
+from zuul.lib import commandsocket
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
 cherrypy.tools.websocket = WebSocketTool()
+
+COMMANDS = ['stop']
 
 
 class SaveParamsTool(cherrypy.Tool):
@@ -726,7 +729,8 @@ class ZuulWeb(object):
                  connections=None,
                  info=None,
                  static_path=None,
-                 zk_hosts=None):
+                 zk_hosts=None,
+                 command_socket=None):
         self.start_time = time.time()
         self.listen_address = listen_address
         self.listen_port = listen_port
@@ -744,6 +748,11 @@ class ZuulWeb(object):
             self.zk.connect(hosts=zk_hosts, read_only=True)
         self.connections = connections
         self.stream_manager = StreamManager()
+
+        self.command_socket = commandsocket.CommandSocket(command_socket)
+        self.command_map = {
+            'stop': self.stop,
+        }
 
         route_map = cherrypy.dispatch.RoutesDispatcher()
         api = ZuulWebAPI(self)
@@ -838,6 +847,14 @@ class ZuulWeb(object):
         self.wsplugin.subscribe()
         cherrypy.engine.start()
 
+        self.log.debug("Starting command processor")
+        self._command_running = True
+        self.command_socket.start()
+        self.command_thread = threading.Thread(target=self.runCommand,
+                                               name='command')
+        self.command_thread.daemon = True
+        self.command_thread.start()
+
     def stop(self):
         self.log.debug("ZuulWeb stopping")
         self.rpc.shutdown()
@@ -849,6 +866,18 @@ class ZuulWeb(object):
         self.wsplugin.unsubscribe()
         self.stream_manager.stop()
         self.zk.disconnect()
+        self._command_running = False
+        self.command_socket.stop()
+        self.command_thread.join()
+
+    def runCommand(self):
+        while self._command_running:
+            try:
+                command = self.command_socket.get().decode('utf8')
+                if command != '_stop':
+                    self.command_map[command]()
+            except Exception:
+                self.log.exception("Exception while processing command")
 
 
 if __name__ == "__main__":

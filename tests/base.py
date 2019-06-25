@@ -2505,7 +2505,8 @@ class WebProxyFixture(fixtures.Fixture):
 
 
 class ZuulWebFixture(fixtures.Fixture):
-    def __init__(self, gearman_server_port, config, info=None, zk_hosts=None):
+    def __init__(self, gearman_server_port, config, test_root, info=None,
+                 zk_hosts=None):
         super(ZuulWebFixture, self).__init__()
         self.gearman_server_port = gearman_server_port
         self.connections = zuul.lib.connections.ConnectionRegistry()
@@ -2519,6 +2520,7 @@ class ZuulWebFixture(fixtures.Fixture):
         else:
             self.info = info
         self.zk_hosts = zk_hosts
+        self.test_root = test_root
 
     def _setUp(self):
         # Start the web server
@@ -2527,7 +2529,8 @@ class ZuulWebFixture(fixtures.Fixture):
             gear_server='127.0.0.1', gear_port=self.gearman_server_port,
             info=self.info,
             connections=self.connections,
-            zk_hosts=self.zk_hosts)
+            zk_hosts=self.zk_hosts,
+            command_socket=os.path.join(self.test_root, 'web.socket'))
         self.web.start()
         self.addCleanup(self.stop)
 

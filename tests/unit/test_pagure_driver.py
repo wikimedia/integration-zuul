@@ -839,7 +839,7 @@ class TestPagureWebhook(ZuulTestCase):
         # Start the web server
         self.web = self.useFixture(
             ZuulWebFixture(self.gearman_server.port,
-                           self.config))
+                           self.config, self.test_root))
 
         host = '127.0.0.1'
         # Wait until web server is started

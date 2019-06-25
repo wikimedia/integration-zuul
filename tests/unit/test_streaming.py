@@ -251,7 +251,7 @@ class TestStreaming(tests.base.AnsibleZuulTestCase):
         # Start the web server
         web = self.useFixture(
             ZuulWebFixture(self.gearman_server.port,
-                           self.config))
+                           self.config, self.test_root))
 
         # Start the finger streamer daemon
         streamer = zuul.lib.log_streamer.LogStreamer(
@@ -327,7 +327,7 @@ class TestStreaming(tests.base.AnsibleZuulTestCase):
         # Start the web server
         web = self.useFixture(
             ZuulWebFixture(self.gearman_server.port,
-                           self.config))
+                           self.config, self.test_root))
 
         # Start the finger streamer daemon
         streamer = zuul.lib.log_streamer.LogStreamer(
@@ -400,7 +400,7 @@ class TestStreaming(tests.base.AnsibleZuulTestCase):
         # Start the web server
         web = self.useFixture(
             ZuulWebFixture(self.gearman_server.port,
-                           self.config))
+                           self.config, self.test_root))
 
         # Start the finger streamer daemon
         streamer = zuul.lib.log_streamer.LogStreamer(
