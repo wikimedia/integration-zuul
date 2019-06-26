@@ -17,6 +17,6 @@ import thunk from 'redux-thunk'
 
 import appReducers from './reducers'
 
-export default function createZuulStore() {
-  return createStore(appReducers, applyMiddleware(thunk))
-}
+const store = createStore(appReducers, applyMiddleware(thunk))
+
+export default store

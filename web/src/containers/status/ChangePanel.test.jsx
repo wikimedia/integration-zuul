@@ -19,7 +19,7 @@ import { Link, BrowserRouter as Router } from 'react-router-dom'
 import { Provider } from 'react-redux'
 
 import { setTenantAction } from '../../actions/tenant'
-import createZuulStore from '../../store'
+import store from '../../store'
 import ChangePanel from './ChangePanel'
 
 
@@ -33,7 +33,6 @@ const fakeChange = {
 }
 
 it('change panel render multi tenant links', () => {
-  const store = createZuulStore()
   store.dispatch(setTenantAction('tenant-one', false))
   const application = ReactTestUtils.renderIntoDocument(
     <Provider store={store}>
@@ -49,7 +48,6 @@ it('change panel render multi tenant links', () => {
 })
 
 it('change panel render white-label tenant links', () => {
-  const store = createZuulStore()
   store.dispatch(setTenantAction('tenant-one', true))
   const application = ReactTestUtils.renderIntoDocument(
     <Provider store={store}>
