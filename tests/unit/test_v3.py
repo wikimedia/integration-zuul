@@ -801,6 +801,22 @@ class TestAllowedProjects(ZuulTestCase):
                       'to run job test-project2b', B.messages[0])
 
 
+class TestAllowedProjectsTrusted(ZuulTestCase):
+    tenant_config_file = 'config/allowed-projects-trusted/main.yaml'
+
+    def test_allowed_projects_secret_trusted(self):
+        # Test that an untrusted job defined in project1 can be used
+        # in project2, but only if attached by a config project.
+        A = self.fake_gerrit.addFakeChange('org/project2', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertEqual(A.reported, 1)
+        self.assertIn('Build succeeded', A.messages[0])
+        self.assertHistory([
+            dict(name='test-project1', result='SUCCESS', changes='1,1'),
+        ], ordered=False)
+
+
 class TestCentralJobs(ZuulTestCase):
     tenant_config_file = 'config/central-jobs/main.yaml'
 

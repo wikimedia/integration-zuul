@@ -670,6 +670,14 @@ class JobParser(object):
         job.variant_description = conf.get(
             'variant-description', " ".join(as_list(conf.get('branches'))))
 
+        if project_pipeline and conf['_source_context'].trusted:
+            # A config project has attached this job to a
+            # project-pipeline.  In this case, we can ignore
+            # allowed-projects -- the superuser has stated they want
+            # it to run.  This can be useful to allow untrusted jobs
+            # with secrets to be run in other untrusted projects.
+            job.ignore_allowed_projects = True
+
         if 'parent' in conf:
             if conf['parent'] is not None:
                 # Parent job is explicitly specified, so inherit from it.
