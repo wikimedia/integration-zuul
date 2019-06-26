@@ -3840,9 +3840,6 @@ class ZuulTestCase(BaseTestCase):
         for build in self.history:
             self.log.debug(build)
 
-    def getPipeline(self, name):
-        return self.sched.abide.tenants.values()[0].layout.pipelines.get(name)
-
     def updateConfigLayout(self, path):
         root = os.path.join(self.test_root, "config")
         if not os.path.exists(root):
