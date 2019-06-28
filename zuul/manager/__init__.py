@@ -661,9 +661,14 @@ class PipelineManager(object):
         if not build_set.ref:
             build_set.setConfiguration()
         if build_set.merge_state == build_set.NEW:
-            ready = self.scheduleMerge(item,
-                                       files=['zuul.yaml', '.zuul.yaml'],
-                                       dirs=['zuul.d', '.zuul.d'])
+            tenant = item.pipeline.tenant
+            tpc = tenant.project_configs[item.change.project.canonical_name]
+            ready = self.scheduleMerge(
+                item,
+                files=(['zuul.yaml', '.zuul.yaml'] +
+                       list(tpc.extra_config_files)),
+                dirs=(['zuul.d', '.zuul.d'] +
+                      list(tpc.extra_config_dirs)))
         if build_set.files_state == build_set.NEW:
             ready = self.scheduleFilesChanges(item)
         if build_set.files_state == build_set.PENDING:

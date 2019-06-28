@@ -1365,6 +1365,7 @@ class TenantParser(object):
         'exclude': to_list(classes),
         'shadow': to_list(str),
         'exclude-unprotected-branches': bool,
+        'extra-config-paths': to_list(str),
     }}
 
     project = vs.Any(str, project_dict)
@@ -1556,6 +1557,9 @@ class TenantParser(object):
 
     @staticmethod
     def _getProject(source, conf, current_include):
+        extra_config_files = ()
+        extra_config_dirs = ()
+
         if isinstance(conf, str):
             # Return a project object whether conf is a dict or a str
             project = source.getProject(conf)
@@ -1579,12 +1583,21 @@ class TenantParser(object):
                 project_include = frozenset(project_include - project_exclude)
             project_exclude_unprotected_branches = conf[project_name].get(
                 'exclude-unprotected-branches', None)
+            if conf[project_name].get('extra-config-paths') is not None:
+                extra_config_paths = as_list(
+                    conf[project_name]['extra-config-paths'])
+                extra_config_files = tuple([x for x in extra_config_paths
+                                            if not x.endswith('/')])
+                extra_config_dirs = tuple([x[:-1] for x in extra_config_paths
+                                           if x.endswith('/')])
 
         tenant_project_config = model.TenantProjectConfig(project)
         tenant_project_config.load_classes = frozenset(project_include)
         tenant_project_config.shadow_projects = shadow_projects
         tenant_project_config.exclude_unprotected_branches = \
             project_exclude_unprotected_branches
+        tenant_project_config.extra_config_files = extra_config_files
+        tenant_project_config.extra_config_dirs = extra_config_dirs
 
         return tenant_project_config
 
@@ -1670,8 +1683,9 @@ class TenantParser(object):
                 job = self.merger.getFiles(
                     project.source.connection.connection_name,
                     project.name, branch,
-                    files=['zuul.yaml', '.zuul.yaml'],
-                    dirs=['zuul.d', '.zuul.d'])
+                    files=(['zuul.yaml', '.zuul.yaml'] +
+                           list(tpc.extra_config_files)),
+                    dirs=['zuul.d', '.zuul.d'] + list(tpc.extra_config_dirs))
                 self.log.debug("Submitting cat job %s for %s %s %s" % (
                     job, project.source.connection.connection_name,
                     project.name, branch))
@@ -1689,19 +1703,25 @@ class TenantParser(object):
             loaded = False
             files = sorted(job.files.keys())
             unparsed_config = model.UnparsedConfig()
-            for conf_root in ['zuul.yaml', 'zuul.d', '.zuul.yaml', '.zuul.d']:
+            tpc = tenant.project_configs[
+                job.source_context.project.canonical_name]
+            for conf_root in (
+                    ('zuul.yaml', 'zuul.d', '.zuul.yaml', '.zuul.d') +
+                    tpc.extra_config_files + tpc.extra_config_dirs):
                 for fn in files:
                     fn_root = fn.split('/')[0]
                     if fn_root != conf_root or not job.files.get(fn):
                         continue
                     # Don't load from more than one configuration in a
-                    # project-branch.
-                    if loaded and loaded != conf_root:
-                        self.log.warning(
-                            "Multiple configuration files in %s" %
-                            (job.source_context,))
-                        continue
-                    loaded = conf_root
+                    # project-branch (unless an "extra" file/dir).
+                    if (conf_root not in tpc.extra_config_files and
+                        conf_root not in tpc.extra_config_dirs):
+                        if (loaded and loaded != conf_root):
+                            self.log.warning(
+                                "Multiple configuration files in %s" %
+                                (job.source_context,))
+                            continue
+                        loaded = conf_root
                     # Create a new source_context so we have unique filenames.
                     source_context = job.source_context.copy()
                     source_context.path = fn
@@ -2117,6 +2137,8 @@ class ConfigLoader(object):
         for branch in branches:
             fns1 = []
             fns2 = []
+            fns3 = []
+            fns4 = []
             files_entry = files.connections.get(
                 project.source.connection.connection_name, {}).get(
                     project.name, {}).get(branch)
@@ -2135,7 +2157,14 @@ class ConfigLoader(object):
                     fns1.append(fn)
                 if fn.startswith(".zuul.d/"):
                     fns2.append(fn)
-            fns = ["zuul.yaml"] + sorted(fns1) + [".zuul.yaml"] + sorted(fns2)
+                for ef in tpc.extra_config_files:
+                    if fn.startswith(ef):
+                        fns3.append(fn)
+                for ed in tpc.extra_config_dirs:
+                    if fn.startswith(ed):
+                        fns4.append(fn)
+            fns = (["zuul.yaml"] + sorted(fns1) + [".zuul.yaml"] +
+                   sorted(fns2) + fns3 + sorted(fns4))
             incdata = None
             loaded = None
             for fn in fns:
@@ -2146,11 +2175,17 @@ class ConfigLoader(object):
                                                          fn, trusted)
                     # Prevent mixing configuration source
                     conf_root = fn.split('/')[0]
-                    if loaded and loaded != conf_root:
-                        self.log.warning(
-                            "Multiple configuration in %s" % source_context)
-                        continue
-                    loaded = conf_root
+
+                    # Don't load from more than one configuration in a
+                    # project-branch (unless an "extra" file/dir).
+                    if (conf_root not in tpc.extra_config_files and
+                        conf_root not in tpc.extra_config_dirs):
+                        if loaded and loaded != conf_root:
+                            self.log.warning(
+                                "Multiple configuration in %s" %
+                                source_context)
+                            continue
+                        loaded = conf_root
 
                     incdata = self.tenant_parser.loadProjectYAML(
                         data, source_context, loading_errors)

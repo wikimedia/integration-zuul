@@ -416,3 +416,34 @@ class TestConfigConflict(ZuulTestCase):
             ['base', 'noop', 'trusted-zuul.yaml-job',
              'untrusted-zuul.yaml-job'],
             jobs)
+
+
+class TestTenantExtra(TenantParserTestCase):
+    tenant_config_file = 'config/tenant-parser/extra.yaml'
+
+    def test_tenant_extra(self):
+        tenant = self.sched.abide.tenants.get('tenant-one')
+        self.assertTrue('project2-extra-file' in tenant.layout.jobs)
+        self.assertTrue('project2-extra-dir' in tenant.layout.jobs)
+
+    def test_dynamic_extra(self):
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: project2-extra-file2
+                parent: common-config-job
+            - project:
+                name: org/project2
+                check:
+                  jobs:
+                    - project2-extra-file2
+            """)
+        file_dict = {'extra.yaml': in_repo_conf, '.zuul.yaml': ''}
+        A = self.fake_gerrit.addFakeChange('org/project2', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='common-config-job', result='SUCCESS', changes='1,1'),
+            dict(name='project2-extra-file2', result='SUCCESS', changes='1,1'),
+        ], ordered=False)

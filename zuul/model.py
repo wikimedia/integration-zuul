@@ -3167,6 +3167,10 @@ class TenantProjectConfig(object):
         # be overridden by this one if not None.
         self.exclude_unprotected_branches = None
         self.parsed_branch_config = {}  # branch -> ParsedConfig
+        # The list of paths to look for extra zuul config files
+        self.extra_config_files = ()
+        # The list of paths to look for extra zuul config dirs
+        self.extra_config_dirs = ()
 
 
 class ProjectPipelineConfig(ConfigObject):

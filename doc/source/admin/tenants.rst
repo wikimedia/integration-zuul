@@ -183,6 +183,35 @@ configuration. Some examples of tenant definitions are:
             processed. Defaults to the tenant wide setting of
             exclude-unprotected-branches.
 
+         .. attr:: extra-config-paths
+
+            Normally Zuul loads in-repo configuration from the first
+            of these paths:
+
+            * zuul.yaml
+            * zuul.d/*
+            * .zuul.yaml
+            * .zuul.d/*
+
+            If this option is supplied then, after the normal process
+            completes, Zuul will also load any configuration found in
+            the files or paths supplied here.  This can be a string or
+            a list.  If a list of multiple items, Zuul will load
+            configuration from *all* of the items in the list (it will
+            not stop at the first extra configuration found).
+            Directories should be listed with a trailing ``/``.  Example:
+
+            .. code-block:: yaml
+
+               extra-config-paths:
+                 - zuul-extra.yaml
+                 - zuul-extra.d/
+
+            This feature may be useful to allow a project that
+            primarily holds shared jobs or roles to include additional
+            in-repo configuration for its own testing (which may not
+            be relevant to other users of the project).
+
       .. attr:: <project-group>
 
          The items in the list are dictionaries with the following
