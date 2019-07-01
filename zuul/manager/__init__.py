@@ -598,7 +598,7 @@ class PipelineManager(object):
 
     def _queueUpdatesConfig(self, item):
         while item:
-            if item.change.updatesConfig():
+            if item.change.updatesConfig(item.pipeline.tenant):
                 return True
             item = item.item_ahead
         return False
@@ -607,7 +607,7 @@ class PipelineManager(object):
         if not self._queueUpdatesConfig(item):
             # No config updates in queue. Use existing pipeline layout
             return item.queue.pipeline.tenant.layout
-        elif (not item.change.updatesConfig() and
+        elif (not item.change.updatesConfig(item.pipeline.tenant) and
                 item.item_ahead and item.item_ahead.live):
             # Current change does not update layout, use its parent if parent
             # has a layout.

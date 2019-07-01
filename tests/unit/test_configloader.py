@@ -447,3 +447,33 @@ class TestTenantExtra(TenantParserTestCase):
             dict(name='common-config-job', result='SUCCESS', changes='1,1'),
             dict(name='project2-extra-file2', result='SUCCESS', changes='1,1'),
         ], ordered=False)
+
+    def test_extra_reconfigure(self):
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: project2-extra-file2
+                parent: common-config-job
+            - project:
+                name: org/project2
+                check:
+                  jobs:
+                    - project2-extra-file2
+            """)
+        file_dict = {'extra.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project2', 'master', 'A',
+                                           files=file_dict)
+        A.setMerged()
+        self.fake_gerrit.addEvent(A.getChangeMergedEvent())
+        self.waitUntilSettled()
+        self.fake_gerrit.addEvent(A.getRefUpdatedEvent())
+        self.waitUntilSettled()
+
+        B = self.fake_gerrit.addFakeChange('org/project2', 'master', 'B')
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='common-config-job', result='SUCCESS', changes='2,1'),
+            dict(name='project2-job', result='SUCCESS', changes='2,1'),
+            dict(name='project2-extra-file2', result='SUCCESS', changes='2,1'),
+        ], ordered=False)

@@ -2282,7 +2282,7 @@ class QueueItem(object):
         tenant = self.pipeline.tenant
         item = self
         while item:
-            if item.change.updatesConfig():
+            if item.change.updatesConfig(tenant):
                 (trusted, project) = tenant.getProject(
                     item.change.project.canonical_name)
                 if trusted:
@@ -2899,16 +2899,30 @@ class Ref(object):
     def getRelatedChanges(self):
         return set()
 
-    def updatesConfig(self):
+    def updatesConfig(self, tenant):
+        tpc = tenant.project_configs.get(self.project.canonical_name)
+        if tpc is None:
+            return False
         if self.files is None:
             # If self.files is None we don't know if this change updates the
             # config so assume it does as this is a safe default if we don't
             # know.
             return True
-        if 'zuul.yaml' in self.files or '.zuul.yaml' in self.files or \
-           [True for fn in self.files if fn.startswith("zuul.d/") or
-            fn.startswith(".zuul.d/")]:
-            return True
+        for fn in self.files:
+            if fn == 'zuul.yaml':
+                return True
+            if fn == '.zuul.yaml':
+                return True
+            if fn.startswith("zuul.d/"):
+                return True
+            if fn.startswith(".zuul.d/"):
+                return True
+            for ef in tpc.extra_config_files:
+                if fn.startswith(ef):
+                    return True
+            for ed in tpc.extra_config_dirs:
+                if fn.startswith(ed):
+                    return True
         return False
 
     def getSafeAttributes(self):
