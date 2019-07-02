@@ -141,6 +141,7 @@ class MergeServer(object):
         ret = self.merger.mergeChanges(
             args['items'], args.get('files'),
             args.get('dirs'), args.get('repo_state'),
+            branches=args.get('branches'),
             zuul_event_id=zuul_event_id)
         result = dict(merged=(ret is not None))
         if ret is None:
@@ -154,7 +155,8 @@ class MergeServer(object):
     def refstate(self, job):
         args = json.loads(job.arguments)
         zuul_event_id = args.get('zuul_event_id')
-        success, repo_state = self.merger.getRepoState(args['items'])
+        success, repo_state = self.merger.getRepoState(
+            args['items'], branches=args.get('branches'))
         result = dict(updated=success,
                       repo_state=repo_state)
         result['zuul_event_id'] = zuul_event_id

@@ -629,16 +629,43 @@ class PipelineManager(object):
                   (item, files, dirs))
         build_set = item.current_build_set
         build_set.merge_state = build_set.PENDING
+
+        # If the involved projects exclude unprotected branches we should also
+        # exclude them from the merge and repo state except the branch of the
+        # change that is tested.
+        tenant = item.pipeline.tenant
+        items = list(item.items_ahead) + [item]
+        projects = [
+            item.change.project for item in items
+            if tenant.getProject(item.change.project.canonical_name)[1]
+        ]
+        if all(tenant.getExcludeUnprotectedBranches(project)
+               for project in projects):
+            branches = set()
+
+            # Add all protected branches of all involved projects
+            for project in projects:
+                branches.update(tenant.getProjectBranches(project))
+
+            # Additionally add all target branches of all involved items.
+            branches.update(item.change.branch for item in items
+                            if hasattr(item.change, 'branch'))
+            branches = list(branches)
+        else:
+            branches = None
+
         if isinstance(item.change, model.Change):
             self.sched.merger.mergeChanges(build_set.merger_items,
                                            item.current_build_set, files, dirs,
                                            precedence=self.pipeline.precedence,
-                                           event=item.event)
+                                           event=item.event,
+                                           branches=branches)
         else:
             self.sched.merger.getRepoState(build_set.merger_items,
                                            item.current_build_set,
                                            precedence=self.pipeline.precedence,
-                                           event=item.event)
+                                           event=item.event,
+                                           branches=branches)
         return False
 
     def scheduleFilesChanges(self, item):

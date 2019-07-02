@@ -1132,6 +1132,79 @@ class TestGithubUnprotectedBranches(ZuulTestCase):
         self.assertIn('master', tpc1.parsed_branch_config.keys())
         self.assertIn('master', tpc2.parsed_branch_config.keys())
 
+    def test_filtered_branches_in_build(self):
+        """
+        Tests unprotected branches are filtered in builds if excluded
+        """
+        self.executor_server.keep_jobdir = True
+
+        # Enable branch protection on org/project2@master
+        github = self.fake_github.getGithubClient()
+        repo = github.repo_from_project('org/project2')
+        self.create_branch('org/project2', 'feat-x')
+        repo._set_branch_protection('master', True)
+
+        # Enable branch protection on org/project3@stable. We'll use a PR on
+        # this branch as a depends-on to validate that the stable branch
+        # which is not protected in org/project3 is not filtered out.
+        repo = github.repo_from_project('org/project3')
+        self.create_branch('org/project3', 'stable')
+        repo._set_branch_protection('stable', True)
+
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+
+        A = self.fake_github.openFakePullRequest('org/project3', 'stable', 'A')
+        msg = "Depends-On: https://github.com/org/project1/pull/%s" % A.number
+        B = self.fake_github.openFakePullRequest('org/project2', 'master', 'B',
+                                                 body=msg)
+
+        self.fake_github.emitEvent(B.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        build = self.history[0]
+        path = os.path.join(
+            build.jobdir.src_root, 'github.com', 'org/project2')
+        build_repo = git.Repo(path)
+        branches = [x.name for x in build_repo.branches]
+        self.assertNotIn('feat-x', branches)
+
+        self.assertHistory([
+            dict(name='used-job', result='SUCCESS',
+                 changes="%s,%s %s,%s" % (A.number, A.head_sha,
+                                          B.number, B.head_sha)),
+        ])
+
+    def test_unfiltered_branches_in_build(self):
+        """
+        Tests unprotected branches are not filtered in builds if not excluded
+        """
+        self.executor_server.keep_jobdir = True
+
+        # Enable branch protection on org/project1@master
+        github = self.fake_github.getGithubClient()
+        repo = github.repo_from_project('org/project1')
+        self.create_branch('org/project1', 'feat-x')
+        repo._set_branch_protection('master', True)
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+
+        A = self.fake_github.openFakePullRequest('org/project1', 'master', 'A')
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        build = self.history[0]
+        path = os.path.join(
+            build.jobdir.src_root, 'github.com', 'org/project1')
+        build_repo = git.Repo(path)
+        branches = [x.name for x in build_repo.branches]
+        self.assertIn('feat-x', branches)
+
+        self.assertHistory([
+            dict(name='project-test', result='SUCCESS',
+                 changes="%s,%s" % (A.number, A.head_sha)),
+        ])
+
     def test_unprotected_push(self):
         """Test that unprotected pushes don't cause tenant reconfigurations"""
 
