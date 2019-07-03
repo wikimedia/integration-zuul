@@ -455,6 +455,7 @@ class JobDir(object):
         self.playbooks = []  # The list of candidate playbooks
         self.pre_playbooks = []
         self.post_playbooks = []
+        self.cleanup_playbooks = []
         self.job_output_file = os.path.join(self.log_root, 'job-output.txt')
         # We need to create the job-output.txt upfront in order to close the
         # gap between url reporting and ansible creating the file. Otherwise
@@ -524,6 +525,15 @@ class JobDir(object):
         os.makedirs(root)
         playbook = JobDirPlaybook(root)
         self.post_playbooks.append(playbook)
+        return playbook
+
+    def addCleanupPlaybook(self):
+        count = len(self.cleanup_playbooks)
+        root = os.path.join(
+            self.ansible_root, 'cleanup_playbook_%i' % (count,))
+        os.makedirs(root)
+        playbook = JobDirPlaybook(root)
+        self.cleanup_playbooks.append(playbook)
         return playbook
 
     def addPlaybook(self):
@@ -864,7 +874,7 @@ class AnsibleJob(object):
         # ...as well as all playbook and role projects.
         repos = []
         playbooks = (args['pre_playbooks'] + args['playbooks'] +
-                     args['post_playbooks'])
+                     args['post_playbooks'] + args['cleanup_playbooks'])
         for playbook in playbooks:
             repos.append(playbook)
             repos += playbook['roles']
@@ -1453,6 +1463,10 @@ class AnsibleJob(object):
 
         for playbook in args['post_playbooks']:
             jobdir_playbook = self.jobdir.addPostPlaybook()
+            self.preparePlaybook(jobdir_playbook, playbook, args)
+
+        for playbook in args['cleanup_playbooks']:
+            jobdir_playbook = self.jobdir.addCleanupPlaybook()
             self.preparePlaybook(jobdir_playbook, playbook, args)
 
     def preparePlaybook(self, jobdir_playbook, playbook, args):
