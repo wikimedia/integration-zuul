@@ -729,7 +729,7 @@ class Scheduler(threading.Thread):
             for (project, branch) in event.project_branches:
                 self.log.debug("Clearing unparsed config: %s @%s",
                                project.canonical_name, branch)
-                self.abide.clearUnparsedConfigCache(project.canonical_name,
+                self.abide.clearUnparsedBranchCache(project.canonical_name,
                                                     branch)
             old_tenant = self.abide.tenants[event.tenant_name]
             loader = configloader.ConfigLoader(
@@ -1096,8 +1096,8 @@ class Scheduler(threading.Thread):
                      change.updatesConfig(tenant)) or
                     event.branch_created or
                     (event.branch_deleted and
-                     self.abide.getUnparsedConfig(event.project_name,
-                                                  event.branch) is not None)):
+                     self.abide.hasUnparsedBranchCache(event.project_name,
+                                                       event.branch))):
                     reconfigure_tenant = True
 
                 # If the driver knows the branch but we don't have a config, we
@@ -1105,8 +1105,8 @@ class Scheduler(threading.Thread):
                 # was just configured as protected without a push in between.
                 if (event.branch in project.source.getProjectBranches(
                         project, tenant)
-                    and self.abide.getUnparsedConfig(
-                        project.canonical_name, event.branch) is None):
+                    and not self.abide.hasUnparsedBranchCache(
+                        project.canonical_name, event.branch)):
                     reconfigure_tenant = True
 
                 # If the branch is unprotected and unprotected branches

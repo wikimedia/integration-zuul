@@ -3423,7 +3423,7 @@ class UnparsedAbideConfig(object):
 class UnparsedConfig(object):
     """A collection of yaml lists that has not yet been parsed into objects."""
 
-    def __init__(self, load_skipped=False):
+    def __init__(self):
         self.pragmas = []
         self.pipelines = []
         self.jobs = []
@@ -3433,9 +3433,9 @@ class UnparsedConfig(object):
         self.secrets = []
         self.semaphores = []
 
-        # This indicates wether this is empty because we skipped loading
-        # earlier because all config items have been excluded.
-        self.load_skipped = load_skipped
+        # The list of files/dirs which this represents.
+        self.files_examined = set()
+        self.dirs_examined = set()
 
     def copy(self, trusted=None):
         # If trusted is not None, update the source context of each
@@ -4304,30 +4304,93 @@ class Tenant(object):
         return Attributes(name=self.name)
 
 
+class UnparsedBranchCache(object):
+    """Cache information about a single branch"""
+    def __init__(self):
+        self.load_skipped = True
+        self.extra_files_searched = set()
+        self.extra_dirs_searched = set()
+        self.files = {}
+
+    def isValidFor(self, tpc):
+        """Return True if this has valid cache results for the extra
+        files/dirs in the tpc.
+        """
+        if self.load_skipped:
+            return False
+        if (set(tpc.extra_config_files) <= self.extra_files_searched and
+            set(tpc.extra_config_dirs) <= self.extra_dirs_searched):
+            return True
+        return False
+
+    def setValidFor(self, tpc):
+        self.load_skipped = False
+        self.extra_files_searched |= set(tpc.extra_config_files)
+        self.extra_dirs_searched |= set(tpc.extra_config_dirs)
+
+    def put(self, path, config):
+        self.files[path] = config
+
+    def get(self, tpc):
+        ret = UnparsedConfig()
+        files_list = self.files.keys()
+        fns1 = []
+        fns2 = []
+        fns3 = []
+        fns4 = []
+        for fn in files_list:
+            if fn.startswith("zuul.d/"):
+                fns1.append(fn)
+            if fn.startswith(".zuul.d/"):
+                fns2.append(fn)
+            for ef in tpc.extra_config_files:
+                if fn.startswith(ef):
+                    fns3.append(fn)
+            for ed in tpc.extra_config_dirs:
+                if fn.startswith(ed):
+                    fns4.append(fn)
+        fns = (["zuul.yaml"] + sorted(fns1) + [".zuul.yaml"] +
+               sorted(fns2) + fns3 + sorted(fns4))
+        for fn in fns:
+            data = self.files.get(fn)
+            if data is not None:
+                ret.extend(data)
+        return ret
+
+
 class Abide(object):
     def __init__(self):
         self.tenants = OrderedDict()
-        # project -> branch -> UnparsedConfig
-        self.unparsed_project_branch_config = {}
+        # project -> branch -> UnparsedBranchCache
+        self.unparsed_project_branch_cache = {}
 
-    def cacheUnparsedConfig(self, canonical_project_name, branch, conf):
-        self.unparsed_project_branch_config.setdefault(
-            canonical_project_name, {})[branch] = conf
+    def hasUnparsedBranchCache(self, canonical_project_name, branch):
+        project_branch_cache = self.unparsed_project_branch_cache.setdefault(
+            canonical_project_name, {})
+        cache = project_branch_cache.get(branch)
+        if cache is None:
+            return False
+        return True
 
-    def getUnparsedConfig(self, canonical_project_name, branch):
-        return self.unparsed_project_branch_config.get(
-            canonical_project_name, {}).get(branch)
+    def getUnparsedBranchCache(self, canonical_project_name, branch):
+        project_branch_cache = self.unparsed_project_branch_cache.setdefault(
+            canonical_project_name, {})
+        cache = project_branch_cache.get(branch)
+        if cache is not None:
+            return cache
+        project_branch_cache[branch] = UnparsedBranchCache()
+        return project_branch_cache[branch]
 
-    def clearUnparsedConfigCache(self, canonical_project_name, branch=None):
-        if canonical_project_name in self.unparsed_project_branch_config:
-            project_branch_config = \
-                self.unparsed_project_branch_config[canonical_project_name]
+    def clearUnparsedBranchCache(self, canonical_project_name, branch=None):
+        if canonical_project_name in self.unparsed_project_branch_cache:
+            project_branch_cache = \
+                self.unparsed_project_branch_cache[canonical_project_name]
 
-            if branch in project_branch_config:
-                del project_branch_config[branch]
+            if branch in project_branch_cache:
+                del project_branch_cache[branch]
 
-            if len(project_branch_config) == 0 or branch is None:
-                del self.unparsed_project_branch_config[canonical_project_name]
+            if len(project_branch_cache) == 0 or branch is None:
+                del self.unparsed_project_branch_cache[canonical_project_name]
 
 
 class JobTimeData(object):

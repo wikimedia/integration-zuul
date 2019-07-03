@@ -1673,18 +1673,14 @@ class TenantParser(object):
             # in-repo configuration apply only to that branch.
             branches = tenant.getProjectBranches(project)
             for branch in branches:
-                unparsed_config = abide.getUnparsedConfig(
+                branch_cache = abide.getUnparsedBranchCache(
                     project.canonical_name, branch)
-                if unparsed_config and not unparsed_config.load_skipped:
+                if branch_cache.isValidFor(tpc):
                     # We already have this branch cached.
                     continue
                 if not tpc.load_classes:
                     # If all config classes are excluded then do not
-                    # request any getFiles jobs, but cache the lack of
-                    # data so we know we've looked at this branch.
-                    abide.cacheUnparsedConfig(
-                        project.canonical_name,
-                        branch, model.UnparsedConfig(load_skipped=True))
+                    # request any getFiles jobs.
                     continue
                 job = self.merger.getFiles(
                     project.source.connection.connection_name,
@@ -1698,6 +1694,7 @@ class TenantParser(object):
                 job.source_context = model.SourceContext(
                     project, branch, '', False)
                 jobs.append(job)
+                branch_cache.setValidFor(tpc)
 
         for job in jobs:
             self.log.debug("Waiting for cat job %s" % (job,))
@@ -1736,18 +1733,21 @@ class TenantParser(object):
                         (source_context,))
                     incdata = self.loadProjectYAML(
                         job.files[fn], source_context, loading_errors)
+                    branch_cache = abide.getUnparsedBranchCache(
+                        source_context.project.canonical_name,
+                        source_context.branch)
+                    branch_cache.put(source_context.path, incdata)
                     unparsed_config.extend(incdata)
-            abide.cacheUnparsedConfig(
-                job.source_context.project.canonical_name,
-                job.source_context.branch, unparsed_config)
 
     def _loadTenantYAML(self, abide, tenant, loading_errors):
         config_projects_config = model.UnparsedConfig()
         untrusted_projects_config = model.UnparsedConfig()
 
         for project in tenant.config_projects:
-            unparsed_branch_config = abide.getUnparsedConfig(
+            branch_cache = abide.getUnparsedBranchCache(
                 project.canonical_name, 'master')
+            tpc = tenant.project_configs[project.canonical_name]
+            unparsed_branch_config = branch_cache.get(tpc)
 
             if unparsed_branch_config:
                 unparsed_branch_config = self.filterConfigProjectYAML(
@@ -1758,8 +1758,10 @@ class TenantParser(object):
         for project in tenant.untrusted_projects:
             branches = tenant.getProjectBranches(project)
             for branch in branches:
-                unparsed_branch_config = abide.getUnparsedConfig(
+                branch_cache = abide.getUnparsedBranchCache(
                     project.canonical_name, branch)
+                tpc = tenant.project_configs[project.canonical_name]
+                unparsed_branch_config = branch_cache.get(tpc)
                 if unparsed_branch_config:
                     unparsed_branch_config = self.filterUntrustedProjectYAML(
                         unparsed_branch_config, loading_errors)
@@ -2111,8 +2113,8 @@ class ConfigLoader(object):
     def reloadTenant(self, abide, tenant, ansible_manager):
         new_abide = model.Abide()
         new_abide.tenants = abide.tenants.copy()
-        new_abide.unparsed_project_branch_config = \
-            abide.unparsed_project_branch_config
+        new_abide.unparsed_project_branch_cache = \
+            abide.unparsed_project_branch_cache
 
         # When reloading a tenant only, use cached data if available.
         new_tenant = self.tenant_parser.fromYaml(
