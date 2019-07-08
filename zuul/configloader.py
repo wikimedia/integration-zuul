@@ -621,7 +621,9 @@ class JobParser(object):
                       'override-checkout': str,
                       'description': str,
                       'variant-description': str,
-                      'post-review': bool}
+                      'post-review': bool,
+                      'match-on-config-updates': bool,
+    }
 
     job_name = {vs.Required('name'): str}
 
@@ -645,6 +647,7 @@ class JobParser(object):
         'success-url',
         'override-branch',
         'override-checkout',
+        'match-on-config-updates',
     ]
 
     def __init__(self, pcontext):

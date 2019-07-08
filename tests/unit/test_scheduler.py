@@ -5712,6 +5712,98 @@ For CI problems and help debugging, contact ci@example.org"""
         ], ordered=False)
 
 
+class TestJobUpdateFileMatcher(ZuulTestCase):
+    tenant_config_file = 'config/job-update/main.yaml'
+
+    def test_matchers(self):
+        "Test matchers work as expected with no change"
+        file_dict = {'README.txt': ''}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        file_dict = {'something_else': ''}
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='existing-files', result='SUCCESS', changes='1,1'),
+            dict(name='existing-irr', result='SUCCESS', changes='2,1'),
+        ])
+
+    def test_job_update(self):
+        "Test matchers are overridden with a config update"
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: existing-files
+                tags: foo
+            - job:
+                name: existing-irr
+                tags: foo
+            """)
+
+        file_dict = {'zuul.d/new.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='existing-files', result='SUCCESS', changes='1,1'),
+            dict(name='existing-irr', result='SUCCESS', changes='1,1'),
+        ], ordered=False)
+
+    def test_new_job(self):
+        "Test matchers are overridden when creating a new job"
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: new-files
+                parent: existing-files
+
+            - project:
+                check:
+                  jobs:
+                    - new-files
+            """)
+
+        file_dict = {'zuul.d/new.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='new-files', result='SUCCESS', changes='1,1'),
+        ])
+
+    def test_disable_match(self):
+        "Test matchers are not overridden if we say so"
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: new-files
+                parent: existing-files
+                match-on-config-updates: false
+
+            - project:
+                check:
+                  jobs:
+                    - new-files
+            """)
+
+        file_dict = {'zuul.d/new.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([])
+
+
 class TestAmbiguousProjectNames(ZuulTestCase):
     config_file = 'zuul-connections-multiple-gerrits.conf'
     tenant_config_file = 'config/ambiguous-names/main.yaml'

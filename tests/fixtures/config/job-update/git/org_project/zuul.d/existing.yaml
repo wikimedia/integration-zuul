@@ -1,0 +1,19 @@
+# Every fake change in the unit tests modifies "README"
+
+- job:
+    name: existing-files
+    files:
+      - README.txt
+
+- job:
+    name: existing-irr
+    irrelevant-files:
+      - README
+      - ^zuul.d/.*$
+
+- project:
+    name: org/project
+    check:
+      jobs:
+        - existing-files
+        - existing-irr
