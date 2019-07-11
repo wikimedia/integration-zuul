@@ -166,7 +166,7 @@
     check:
       jobs:
         - zuul-build-image
-        - tox-docs
+        - zuul-tox-docs
         - tox-pep8
         - tox-py35:
             irrelevant-files:
@@ -211,7 +211,7 @@
     gate:
       jobs:
         - zuul-upload-image
-        - tox-docs
+        - zuul-tox-docs
         - tox-pep8
         - tox-py35:
             irrelevant-files:
@@ -250,17 +250,13 @@
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
               create_tarball_directory: build
-    post:
-      jobs:
-        - publish-zuul-docs
-        - publish-zuul-python-branch-tarball
-        - release-zuul-python
     promote:
       jobs:
         - zuul-promote-image
+        - zuul-promote-docs
         - opendev-promote-python
         - opendev-promote-javascript-content
     release:
       jobs:
-        - release-zuul-python
-        - publish-zuul-docs
+        - opendev-release-python
+        - zuul-publish-tox-docs
