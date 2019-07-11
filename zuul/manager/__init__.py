@@ -250,8 +250,7 @@ class PipelineManager(object):
                 item.job_graph = None
                 item.layout = None
                 if item.active:
-                    if self.prepareItem(item):
-                        self.prepareJobs(item)
+                    self.prepareItem(item)
 
                 # Re-set build results in case any new jobs have been
                 # added to the tree.
@@ -458,12 +457,9 @@ class PipelineManager(object):
         return canceled
 
     def _findRelevantErrors(self, item, layout):
-        parent_layout = None
-        parent = item.item_ahead
-        while not parent_layout and parent:
-            parent_layout = parent.layout
-            parent = parent.item_ahead
-        if not parent_layout:
+        if item.item_ahead:
+            parent_layout = item.item_ahead.layout
+        else:
             parent_layout = item.pipeline.tenant.layout
 
         relevant_errors = []
@@ -604,24 +600,22 @@ class PipelineManager(object):
         return False
 
     def getLayout(self, item):
-        if not self._queueUpdatesConfig(item):
-            # No config updates in queue. Use existing pipeline layout
-            return item.queue.pipeline.tenant.layout
-        elif (not item.change.updatesConfig(item.pipeline.tenant) and
-                item.item_ahead and item.item_ahead.live):
-            # Current change does not update layout, use its parent if parent
-            # has a layout.
-            return item.item_ahead.layout
-        # Else this item or a non live parent updates the config,
+        if item.item_ahead:
+            fallback_layout = item.item_ahead.layout
+        else:
+            fallback_layout = item.pipeline.tenant.layout
+        if not item.change.updatesConfig(item.pipeline.tenant):
+            # Current change does not update layout, use its parent.
+            return fallback_layout
+        # Else this item updates the config,
         # ask the merger for the result.
         build_set = item.current_build_set
-        if build_set.merge_state == build_set.PENDING:
+        if build_set.merge_state != build_set.COMPLETE:
             return None
-        if build_set.merge_state == build_set.COMPLETE:
-            if build_set.unable_to_merge:
-                return None
-            self.log.debug("Preparing dynamic layout for: %s" % item.change)
-            return self._loadDynamicLayout(item)
+        if build_set.unable_to_merge:
+            return fallback_layout
+        self.log.debug("Preparing dynamic layout for: %s" % item.change)
+        return self._loadDynamicLayout(item)
 
     def scheduleMerge(self, item, files=None, dirs=None):
         log = item.annotateLogger(self.log)
@@ -681,47 +675,76 @@ class PipelineManager(object):
         return False
 
     def prepareItem(self, item):
-        # This runs on every iteration of _processOneItem
-        # Returns True if the item is ready, false otherwise
-        ready = True
         build_set = item.current_build_set
+        tenant = item.pipeline.tenant
+        # We always need to set the configuration of the item if it
+        # isn't already set.
+        tpc = tenant.project_configs.get(item.change.project.canonical_name)
         if not build_set.ref:
             build_set.setConfiguration()
+
+        # Next, if a change ahead has a broken config, then so does
+        # this one.  Record that and don't do anything else.
+        if (item.item_ahead and item.item_ahead.current_build_set and
+            item.item_ahead.current_build_set.config_errors):
+            msg = "This change depends on a change "\
+                  "with an invalid configuration.\n"
+            item.setConfigError(msg)
+            return False
+
+        # The next section starts between 0 and 2 remote merger
+        # operations in parallel as needed.
+        ready = True
+        # If the project is in this tenant, fetch missing files so we
+        # know if it updates the config.
+        if tpc:
+            if build_set.files_state == build_set.NEW:
+                ready = self.scheduleFilesChanges(item)
+            if build_set.files_state == build_set.PENDING:
+                ready = False
+        # If this change alters config or is live, schedule merge and
+        # build a layout.
         if build_set.merge_state == build_set.NEW:
-            tenant = item.pipeline.tenant
-            tpc = tenant.project_configs[item.change.project.canonical_name]
-            ready = self.scheduleMerge(
-                item,
-                files=(['zuul.yaml', '.zuul.yaml'] +
-                       list(tpc.extra_config_files)),
-                dirs=(['zuul.d', '.zuul.d'] +
-                      list(tpc.extra_config_dirs)))
-        if build_set.files_state == build_set.NEW:
-            ready = self.scheduleFilesChanges(item)
-        if build_set.files_state == build_set.PENDING:
-            ready = False
+            if item.live or item.change.updatesConfig(tenant):
+                ready = self.scheduleMerge(
+                    item,
+                    files=(['zuul.yaml', '.zuul.yaml'] +
+                           list(tpc.extra_config_files)),
+                    dirs=(['zuul.d', '.zuul.d'] +
+                          list(tpc.extra_config_dirs)))
         if build_set.merge_state == build_set.PENDING:
             ready = False
-        if build_set.unable_to_merge:
-            ready = False
-        if build_set.config_errors:
-            ready = False
-        return ready
 
-    def prepareJobs(self, item):
-        log = item.annotateLogger(self.log)
-        # This only runs once the item is in the pipeline's action window
-        # Returns True if the item is ready, false otherwise
-        if not item.live:
-            # Short circuit as non live items don't need layouts.
-            # We also don't need to take further ready actions in
-            # _processOneItem() so we return false.
+        # If a merger op is outstanding, we're not ready.
+        if not ready:
             return False
-        elif not item.layout:
+
+        # With the merges done, we have the info needed to get a
+        # layout.  This may return the pipeline layout, a layout from
+        # a change ahead, a newly generated layout for this change, or
+        # None if there was an error that makes the layout unusable.
+        # In the last case, it will have set the config_errors on this
+        # item, which may be picked up by the next itme.
+        if not item.layout:
             item.layout = self.getLayout(item)
         if not item.layout:
             return False
 
+        # If the change can not be merged or has config errors, don't
+        # run jobs.
+        if build_set.unable_to_merge:
+            return False
+        if build_set.config_errors:
+            return False
+
+        # We don't need to build a job graph for a non-live item, we
+        # just need the layout.
+        if not item.live:
+            return False
+
+        # At this point we have a layout for the item, and it's live,
+        # so freeze the job graph.
+        log = item.annotateLogger(self.log)
         if not item.job_graph:
             try:
                 log.debug("Freezing job graph for %s" % (item,))
@@ -784,8 +807,8 @@ class PipelineManager(object):
                 change_queue.moveItem(item, nnfi)
                 changed = True
                 self.cancelJobs(item)
-            if actionable and item.live:
-                ready = self.prepareItem(item) and self.prepareJobs(item)
+            if actionable:
+                ready = self.prepareItem(item)
                 # Starting jobs reporting should only be done once if there are
                 # jobs to run for this item.
                 if ready and len(self.pipeline.start_actions) > 0 \

@@ -5781,6 +5781,47 @@ class TestJobUpdateFileMatcher(ZuulTestCase):
             dict(name='new-files', result='SUCCESS', changes='1,1'),
         ])
 
+    def test_patch_series(self):
+        "Test that we diff to the nearest layout in a patch series"
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: new-files1
+                parent: existing-files
+
+            - project:
+                check:
+                  jobs:
+                    - new-files1
+            """)
+
+        file_dict = {'zuul.d/new1.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: new-files2
+                parent: existing-files
+
+            - project:
+                check:
+                  jobs:
+                    - new-files2
+            """)
+
+        file_dict = {'zuul.d/new2.yaml': in_repo_conf}
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B',
+                                           files=file_dict)
+        B.setDependsOn(A, 1)
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='new-files2', result='SUCCESS', changes='1,1 2,1'),
+        ])
+
     def test_disable_match(self):
         "Test matchers are not overridden if we say so"
         in_repo_conf = textwrap.dedent(

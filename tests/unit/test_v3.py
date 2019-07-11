@@ -2178,8 +2178,8 @@ class TestInRepoConfig(ZuulTestCase):
 
         self.assertEqual(C.reported, 1,
                          "C should report failure")
-        self.assertIn('Zuul encountered a syntax error while parsing '
-                      'its configuration',
+        self.assertIn('This change depends on a change '
+                      'with an invalid configuration.',
                       C.messages[0],
                       "C should have an error reported")
 
@@ -2215,20 +2215,14 @@ class TestNonLiveMerges(ZuulTestCase):
     config_file = 'zuul-connections-gerrit-and-github.conf'
     tenant_config_file = 'config/in-repo/main.yaml'
 
-    def test_non_live_merges(self):
+    def test_non_live_merges_with_config_updates(self):
         """
-        This test checks that we don't do merges for non-live queue items.
-
-        The scenario tests three scenarios:
+        This test checks that we do merges for non-live queue items with
+        config updates.
 
         * Simple dependency chain:
           A -> B -> C
 
-        * Dependency chain that includes a merge conflict:
-          A -> B -> B_conflict (conflicts with A) -> C_conflict
-
-        * Dependency chain with broken config in the middls:
-          A_invalid (broken config) -> B_after_invalid (repairs broken config(
         """
 
         in_repo_conf_a = textwrap.dedent(
@@ -2302,55 +2296,18 @@ class TestNonLiveMerges(ZuulTestCase):
                                            parent=B.patchsets[0]['ref'])
         C.setDependsOn(B, 1)
 
-        B_conflict = self.fake_gerrit.addFakeChange(
-            'org/project', 'master', 'B_conflict', files=file_dict_a)
-        B_conflict.setDependsOn(B, 1)
-        C_conflict = self.fake_gerrit.addFakeChange(
-            'org/project', 'master', 'C_conflict')
-        C_conflict.setDependsOn(B_conflict, 1)
-
-        in_repo_conf_a_invalid = textwrap.dedent(
-            """
-            - project:
-                name: org/project
-                check:
-                  jobs:
-                    - project-test1
-            """)
-
-        file_dict_a_invalid = {'.zuul.yaml': in_repo_conf_a_invalid,
-                               'playbooks/project-test.yaml': in_repo_playbook}
-        A_invalid = self.fake_gerrit.addFakeChange(
-            'org/project', 'master', 'A_invalid', files=file_dict_a_invalid)
-        B_after_invalid = self.fake_gerrit.addFakeChange(
-            'org/project', 'master', 'B', files=file_dict_b,
-            parent=A_invalid.patchsets[0]['ref'])
-        B_after_invalid.setDependsOn(A_invalid, 1)
-
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
         self.fake_gerrit.addEvent(C.getPatchsetCreatedEvent(1))
-        self.fake_gerrit.addEvent(B_conflict.getPatchsetCreatedEvent(1))
-        self.fake_gerrit.addEvent(C_conflict.getPatchsetCreatedEvent(1))
-        self.fake_gerrit.addEvent(A_invalid.getPatchsetCreatedEvent(1))
-        self.fake_gerrit.addEvent(B_after_invalid.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
 
         self.assertEqual(A.reported, 1, "A should report")
         self.assertEqual(B.reported, 1, "B should report")
         self.assertEqual(C.reported, 1, "C should report")
-        self.assertEqual(B_conflict.reported, 1, "B_conflict should report")
-        self.assertEqual(C_conflict.reported, 1, "C_conflict should report")
-        self.assertEqual(B_after_invalid.reported, 1,
-                         "B_after_invalid should report")
 
         self.assertIn('Build succeeded', A.messages[0])
         self.assertIn('Build succeeded', B.messages[0])
         self.assertIn('Build succeeded', C.messages[0])
-        self.assertIn('Merge Failed', B_conflict.messages[0])
-        self.assertIn('Merge Failed', C_conflict.messages[0])
-        self.assertIn('Zuul encountered a syntax error', A_invalid.messages[0])
-        self.assertIn('Build succeeded', B_after_invalid.messages[0])
 
         self.assertHistory([
             # Change A
@@ -2367,14 +2324,34 @@ class TestNonLiveMerges(ZuulTestCase):
                  changes='1,1 2,1 3,1'),
             dict(name='project-test3', result='SUCCESS',
                  changes='1,1 2,1 3,1'),
-
-            # Change B_after_invalid
-            dict(name='project-test1', result='SUCCESS', changes='6,1 7,1'),
-            dict(name='project-test2', result='SUCCESS', changes='6,1 7,1'),
         ], ordered=False)
 
-        # We expect one merge call per change
-        self.assertEqual(len(self.merge_client.history['merger:merge']), 7)
+        # We expect one merge call per live change, plus one call for
+        # each non-live change with a config update (which is all of them).
+        self.assertEqual(len(self.merge_client.history['merger:merge']), 6)
+
+    def test_non_live_merges(self):
+        """
+        This test checks that we don't do merges for non-live queue items.
+
+        * Simple dependency chain:
+          A -> B -> C
+        """
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
+        B.setDependsOn(A, 1)
+
+        C = self.fake_gerrit.addFakeChange('org/project', 'master', 'C')
+        C.setDependsOn(B, 1)
+
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.fake_gerrit.addEvent(C.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        # We expect one merge call per live change.
+        self.assertEqual(len(self.merge_client.history['merger:merge']), 3)
 
 
 class TestJobContamination(AnsibleZuulTestCase):
