@@ -2879,11 +2879,11 @@ class QueueItem(object):
             # would be if the layout had not changed.
             if self._old_job_graph is None:
                 ppc = layout_ahead.getProjectPipelineConfig(self)
-                log.debug("Creating job graph for config change detecction")
+                log.debug("Creating job graph for config change detection")
                 self._old_job_graph = layout_ahead.createJobGraph(
                     self, ppc, skip_file_matcher=True)
                 log.debug("Done creating job graph for "
-                          "config change detecction")
+                          "config change detection")
             old_job = self._old_job_graph.jobs.get(job.name)
             if old_job is None:
                 log.debug("Found a newly created job")
