@@ -40,6 +40,9 @@ class ZuulRESTClient(object):
         self.auth_token = auth_token
         self.base_url = urllib.parse.urljoin(self.url, '/api/')
         self.verify = verify
+        self.session = requests.Session(
+            verify=self.verify,
+            headers={'Authorization': 'Bearer %s' % self.auth_token})
 
     def _check_status(self, req):
         try:
@@ -65,9 +68,7 @@ class ZuulRESTClient(object):
         url = urllib.parse.urljoin(
             self.base_url,
             'tenant/%s/project/%s/autohold' % (tenant, project))
-        req = requests.post(
-            url, json=args, verify=self.verify,
-            headers={'Authorization': 'Bearer %s' % self.auth_token})
+        req = self.session.post(url, json=args)
         self._check_status(req)
         return req.json()
 
@@ -100,9 +101,7 @@ class ZuulRESTClient(object):
         url = urllib.parse.urljoin(
             self.base_url,
             'tenant/%s/project/%s/enqueue' % (tenant, project))
-        req = requests.post(
-            url, json=args, verify=self.verify,
-            headers={'Authorization': 'Bearer %s' % self.auth_token})
+        req = self.session.post(url, json=args)
         self._check_status(req)
         return req.json()
 
@@ -118,9 +117,7 @@ class ZuulRESTClient(object):
         url = urllib.parse.urljoin(
             self.base_url,
             'tenant/%s/project/%s/enqueue' % (tenant, project))
-        req = requests.post(
-            url, json=args, verify=self.verify,
-            headers={'Authorization': 'Bearer %s' % self.auth_token})
+        req = self.session.post(url, json=args)
         self._check_status(req)
         return req.json()
 
@@ -137,9 +134,7 @@ class ZuulRESTClient(object):
         url = urllib.parse.urljoin(
             self.base_url,
             'tenant/%s/project/%s/dequeue' % (tenant, project))
-        req = requests.post(
-            url, json=args, verify=self.verify,
-            headers={'Authorization': 'Bearer %s' % self.auth_token})
+        req = self.session.post(url, json=args)
         self._check_status(req)
         return req.json()
 
