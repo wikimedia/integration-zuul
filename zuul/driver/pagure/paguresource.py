@@ -47,12 +47,12 @@ class PagureSource(BaseSource):
             return True
         return change.is_merged
 
-    def canMerge(self, change, allow_needs):
+    def canMerge(self, change, allow_needs, event=None):
         """Determine if change can merge."""
         if not change.number:
             # Not a pull request, considering merged.
             return True
-        return self.connection.canMerge(change, allow_needs)
+        return self.connection.canMerge(change, allow_needs, event=event)
 
     def postConfig(self):
         """Called after configuration has been processed."""

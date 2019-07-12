@@ -1423,7 +1423,7 @@ class GithubConnection(BaseConnection):
         log.debug('Got PR %s#%s', project_name, number)
         return (pr, probj)
 
-    def canMerge(self, change, allow_needs):
+    def canMerge(self, change, allow_needs, event=None):
         # NOTE: The mergeable call may get a false (null) while GitHub is
         # calculating if it can merge. The github3.py library will just return
         # that as false. This could lead to false negatives. So don't do this
@@ -1431,12 +1431,12 @@ class GithubConnection(BaseConnection):
         # conflicts which would block merging finally will be detected by
         # the zuul-mergers anyway.
 
-        github = self.getGithubClient(change.project.name)
+        github = self.getGithubClient(change.project.name, zuul_event_id=event)
         owner, proj = change.project.name.split('/')
         pull = github.pull_request(owner, proj, change.number)
 
         protection = self._getBranchProtection(
-            change.project.name, change.branch)
+            change.project.name, change.branch, zuul_event_id=event)
 
         if not self._hasRequiredStatusChecks(allow_needs, protection, pull):
             return False
@@ -1542,8 +1542,10 @@ class GithubConnection(BaseConnection):
 
         return reviews.values()
 
-    def _getBranchProtection(self, project_name: str, branch: str):
-        github = self.getGithubClient(project_name)
+    def _getBranchProtection(self, project_name: str, branch: str,
+                             zuul_event_id=None):
+        github = self.getGithubClient(
+            project_name, zuul_event_id=zuul_event_id)
         url = github.session.build_url('repos', project_name,
                                        'branches', branch,
                                        'protection')

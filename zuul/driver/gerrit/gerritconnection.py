@@ -748,9 +748,10 @@ class GerritConnection(BaseConnection):
         sha = refs.get(ref, '')
         return sha
 
-    def canMerge(self, change, allow_needs):
+    def canMerge(self, change, allow_needs, event=None):
+        log = get_annotated_logger(self.log, event)
         if not change.number:
-            self.log.debug("Change has no number; considering it merged")
+            log.debug("Change has no number; considering it merged")
             # Good question.  It's probably ref-updated, which, ah,
             # means it's merged.
             return True
@@ -779,8 +780,8 @@ class GerritConnection(BaseConnection):
                     # CLOSED, RULE_ERROR
                     return False
         except Exception:
-            self.log.exception("Exception determining whether change"
-                               "%s can merge:" % change)
+            log.exception("Exception determining whether change"
+                          "%s can merge:", change)
             return False
         return True
 

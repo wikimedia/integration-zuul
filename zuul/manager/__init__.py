@@ -179,7 +179,7 @@ class PipelineManager(object):
                     report_errors.append(str(e))
         return report_errors
 
-    def isChangeReadyToBeEnqueued(self, change):
+    def isChangeReadyToBeEnqueued(self, change, event):
         return True
 
     def enqueueChangesAhead(self, change, event, quiet, ignore_requirements,
@@ -299,7 +299,7 @@ class PipelineManager(object):
                                   change, f, str(match_result)))
                     return False
 
-        if not self.isChangeReadyToBeEnqueued(change):
+        if not self.isChangeReadyToBeEnqueued(change, event):
             log.debug("Change %s is not ready to be enqueued, ignoring" %
                       change)
             return False

@@ -41,7 +41,7 @@ class BaseSource(object, metaclass=abc.ABCMeta):
         If head is provided the change is checked if it is at head."""
 
     @abc.abstractmethod
-    def canMerge(self, change, allow_needs):
+    def canMerge(self, change, allow_needs, event=None):
         """Determine if change can merge."""
 
     def postConfig(self):

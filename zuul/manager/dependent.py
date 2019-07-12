@@ -97,10 +97,12 @@ class DependentPipelineManager(PipelineManager):
             items = change_queue.queue
             return items.index(item)
 
-    def isChangeReadyToBeEnqueued(self, change):
+    def isChangeReadyToBeEnqueued(self, change, event):
+        log = get_annotated_logger(self.log, event)
         source = change.project.source
-        if not source.canMerge(change, self.getSubmitAllowNeeds()):
-            self.log.debug("Change %s can not merge, ignoring" % change)
+        if not source.canMerge(change, self.getSubmitAllowNeeds(),
+                               event=event):
+            log.debug("Change %s can not merge, ignoring", change)
             return False
         return True
 
