@@ -2878,12 +2878,21 @@ class QueueItem(object):
             # This change updates the layout.  Calculate the job as it
             # would be if the layout had not changed.
             if self._old_job_graph is None:
-                ppc = layout_ahead.getProjectPipelineConfig(self)
-                log.debug("Creating job graph for config change detection")
-                self._old_job_graph = layout_ahead.createJobGraph(
-                    self, ppc, skip_file_matcher=True)
-                log.debug("Done creating job graph for "
-                          "config change detection")
+                try:
+                    ppc = layout_ahead.getProjectPipelineConfig(self)
+                    log.debug("Creating job graph for config change detection")
+                    self._old_job_graph = layout_ahead.createJobGraph(
+                        self, ppc, skip_file_matcher=True)
+                    log.debug("Done creating job graph for "
+                              "config change detection")
+                except Exception:
+                    self.log.debug(
+                        "Error freezing job graph in job update check:",
+                        exc_info=True)
+                    # The config was broken before, we have no idea
+                    # which jobs have changed, so rather than run them
+                    # all, just rely on the file matchers as-is.
+                    return False
             old_job = self._old_job_graph.jobs.get(job.name)
             if old_job is None:
                 log.debug("Found a newly created job")
