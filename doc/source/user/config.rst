@@ -293,6 +293,15 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       type of the connection will dictate which options are available.
       See :ref:`drivers`.
 
+   .. attr:: supercedes
+
+      The name of a pipeline, or a list of names, that this pipeline
+      supercedes.  When a change is enqueued in this pipeline, it will
+      be removed from the pipelines listed here.  For example, a
+      :term:`gate` pipeline may supercede a :term:`check` pipeline so
+      that test resources are not spent running near-duplicate jobs
+      simultaneously.
+
    .. attr:: dequeue-on-new-patchset
       :default: true
 

@@ -294,6 +294,18 @@ class Pipeline(object):
     def getSafeAttributes(self):
         return Attributes(name=self.name)
 
+    def validateReferences(self, layout):
+        # Verify that references to other objects in the layout are
+        # valid.
+
+        for pipeline in self.supercedes:
+            if not layout.pipelines.get(pipeline):
+                raise Exception(
+                    'The pipeline "{this}" supercedes an unknown pipeline '
+                    '{other}.'.format(
+                        this=self.name,
+                        other=pipeline))
+
     def setManager(self, manager):
         self.manager = manager
 

@@ -7527,3 +7527,41 @@ class TestSchedulerFailFast(ZuulTestCase):
             dict(name='project-test5', result='SUCCESS', changes='1,1'),
             dict(name='project-test6', result='FAILURE', changes='1,1'),
         ], ordered=False)
+
+
+class TestPipelineSupersedes(ZuulTestCase):
+
+    @simple_layout('layouts/pipeline-supercedes.yaml')
+    def test_supercedes(self):
+        """
+        Tests that a pipeline that is flagged with fail-fast
+        aborts jobs early.
+        """
+        self.executor_server.hold_jobs_in_build = True
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 1)
+        self.assertEqual(self.builds[0].name, 'test-job')
+
+        A.addApproval('Code-Review', 2)
+        self.fake_gerrit.addEvent(A.addApproval('Approved', 1))
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 1)
+        self.assertEqual(self.builds[0].name, 'test-job')
+        self.assertEqual(self.builds[0].pipeline, 'gate')
+
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 0)
+        self.assertEqual(A.reported, 2)
+        self.assertEqual(A.data['status'], 'MERGED')
+        self.assertHistory([
+            dict(name='test-job', result='ABORTED', changes='1,1'),
+            dict(name='test-job', result='SUCCESS', changes='1,1'),
+        ], ordered=False)
