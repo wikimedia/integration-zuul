@@ -2404,7 +2404,7 @@ class ExecutorServer(object):
             HDDSensor(config),
             self.pause_sensor,
             RAMSensor(config),
-            StartingBuildsSensor(self, cpu_sensor.max_load_avg)
+            StartingBuildsSensor(self, cpu_sensor.max_load_avg, config)
         ]
 
         manage_ansible = get_default(

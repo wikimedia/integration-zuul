@@ -16,15 +16,22 @@ import logging
 import multiprocessing
 
 from zuul.executor.sensors import SensorInterface
+from zuul.lib.config import get_default
 
 
 class StartingBuildsSensor(SensorInterface):
     log = logging.getLogger("zuul.executor.sensor.startingbuilds")
 
-    def __init__(self, executor, max_load_avg):
+    def __init__(self, executor, max_load_avg, config=None):
         self.executor = executor
-        self.max_starting_builds = max_load_avg * 2
-        self.min_starting_builds = max(int(multiprocessing.cpu_count() / 2), 1)
+
+        self.max_starting_builds = get_default(
+            config, 'executor', 'max_starting_builds', int(max_load_avg * 2)) \
+            if config is not None else int(max_load_avg * 2)
+
+        self.min_starting_builds = min(
+            max(int(multiprocessing.cpu_count() / 2), 1),
+            self.max_starting_builds)
 
     def _getStartingBuilds(self):
         starting_builds = 0
