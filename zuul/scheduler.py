@@ -689,6 +689,7 @@ class Scheduler(threading.Thread):
         self.config = event.config
         try:
             self.log.info("Full reconfiguration beginning")
+            start = time.monotonic()
 
             # Reload the ansible manager in case the default ansible version
             # changed.
@@ -714,7 +715,10 @@ class Scheduler(threading.Thread):
             self.abide = abide
         finally:
             self.layout_lock.release()
-        self.log.info("Full reconfiguration complete")
+
+        duration = round(time.monotonic() - start, 3)
+        self.log.info("Full reconfiguration complete (duration: %s seconds)",
+                      duration)
 
     def _doTenantReconfigureEvent(self, event):
         # This is called in the scheduler loop after another thread submits
