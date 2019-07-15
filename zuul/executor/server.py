@@ -717,8 +717,6 @@ class AnsibleJob(object):
         self.paused = False
         self.aborted = False
         self.aborted_reason = None
-        self.cleaned = False
-        self.cleanup_lock = threading.Lock()
         self.cleanup_started = False
         self._resume_event = threading.Event()
         self.thread = None
@@ -1000,9 +998,7 @@ class AnsibleJob(object):
 
         result = self.runPlaybooks(args)
 
-        if result is not None:
-            # Only run cleanup when playbooks ran (e.g. result is not None)
-            self.runCleanupPlaybooks()
+        self.runCleanupPlaybooks()
 
         # Stop the persistent SSH connections.
         setup_status, setup_code = self.runAnsibleCleanup(
@@ -1309,16 +1305,11 @@ class AnsibleJob(object):
                 now=datetime.datetime.now()
             ))
 
-        with self.cleanup_lock:
-            if self.cleaned:
-                # Cleanup phase may already ran when multiple aborts got issued
-                return
-            self.cleanup_started = True
-            for index, playbook in enumerate(self.jobdir.cleanup_playbooks):
-                self.runAnsiblePlaybook(
-                    playbook, cleanup_timeout, self.ansible_version,
-                    phase='cleanup', index=index)
-            self.cleaned = True
+        self.cleanup_started = True
+        for index, playbook in enumerate(self.jobdir.cleanup_playbooks):
+            self.runAnsiblePlaybook(
+                playbook, cleanup_timeout, self.ansible_version,
+                phase='cleanup', index=index)
 
     def _logFinalPlaybookError(self):
         # Failures in the final post playbook can include failures
@@ -1920,8 +1911,6 @@ class AnsibleJob(object):
                 self.log.debug("Abort: cleanup is in progress")
             else:
                 self.log.debug("Abort: no process is running")
-        if self.started and not self.cleaned:
-            self.runCleanupPlaybooks()
 
     def runAnsible(self, cmd, timeout, playbook, ansible_version,
                    wrapped=True, cleanup=False):
