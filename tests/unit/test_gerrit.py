@@ -182,7 +182,8 @@ class TestGerritWeb(ZuulTestCase):
         self.waitUntilSettled()
 
         self.assertEqual(B.patchsets[0]['approvals'][0]['value'], "-1")
-        self.assertIn('Zuul encountered a syntax error',
+        self.assertIn('This change depends on a change '
+                      'with an invalid configuration',
                       B.messages[0])
         self.assertEqual(B.comments, [])
 
