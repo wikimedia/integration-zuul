@@ -27,6 +27,7 @@ import voluptuous as v
 import gear
 
 from zuul.connection import BaseConnection
+from zuul.lib.logutil import get_annotated_logger
 from zuul.web.handler import BaseWebController
 from zuul.lib.config import get_default
 from zuul.model import Ref, Branch, Tag
@@ -700,7 +701,8 @@ class PagureConnection(BaseConnection):
         flag = pagure.get_pr_flags(change.number, last=True)
         return True if flag.get('status', '') == 'success' else False
 
-    def canMerge(self, change, allow_needs):
+    def canMerge(self, change, allow_needs, event=None):
+        log = get_annotated_logger(self.log, event)
         pagure = self.get_project_api_client(change.project.name)
         pr = pagure.get_pr(change.number)
 
@@ -716,16 +718,15 @@ class PagureConnection(BaseConnection):
         if threshold is None:
             self.log.debug("No threshold_reached attribute found")
 
-        self.log.debug(
+        log.debug(
             'PR %s#%s mergeability details mergeable: %s '
-            'flag: %s threshold: %s' % (
-                change.project.name, change.number, mergeable,
-                ci_flag, threshold))
+            'flag: %s threshold: %s', change.project.name, change.number,
+            mergeable, ci_flag, threshold)
 
         can_merge = mergeable and ci_flag and threshold
 
-        self.log.info('Check PR %s#%s mergeability can_merge: %s' % (
-            change.project.name, change.number, can_merge))
+        log.info('Check PR %s#%s mergeability can_merge: %s',
+                 change.project.name, change.number, can_merge)
         return can_merge
 
     def getPull(self, project_name, number):
