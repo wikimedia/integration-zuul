@@ -5712,6 +5712,68 @@ For CI problems and help debugging, contact ci@example.org"""
         ], ordered=False)
 
 
+class TestJobUpdateBrokenConfig(ZuulTestCase):
+    tenant_config_file = 'config/job-update-broken/main.yaml'
+
+    def test_fix_check_without_running(self):
+        "Test that we can fix a broken check pipeline (don't run the job)"
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: existing-files
+                files:
+                  - README.txt
+
+            - project-template:
+                name: files-template
+                check:
+                  jobs:
+                    - existing-files
+                    - noop
+            """)
+
+        # When the config is broken, we don't override any files
+        # matchers since we don't have a valid basis.  Since this
+        # doesn't update README.txt, nothing should run.
+        file_dict = {'zuul.d/existing.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([])
+        self.assertEqual(A.reported, 1)
+
+    def test_fix_check_with_running(self):
+        "Test that we can fix a broken check pipeline (do run the job)"
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: existing-files
+                files:
+                  - README.txt
+
+            - project-template:
+                name: files-template
+                check:
+                  jobs:
+                    - existing-files
+            """)
+
+        # When the config is broken, we don't override any files
+        # matchers since we don't have a valid basis.  Since this
+        # does update README.txt, the job should run.
+        file_dict = {'zuul.d/template.yaml': in_repo_conf,
+                     'README.txt': ''}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='existing-files', result='SUCCESS', changes='1,1'),
+        ])
+        self.assertEqual(A.reported, 1)
+
+
 class TestJobUpdateFileMatcher(ZuulTestCase):
     tenant_config_file = 'config/job-update/main.yaml'
 
