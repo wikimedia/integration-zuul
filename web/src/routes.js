@@ -26,6 +26,7 @@ import BuildsetsPage from './pages/Buildsets'
 import ConfigErrorsPage from './pages/ConfigErrors'
 import TenantsPage from './pages/Tenants'
 import StreamPage from './pages/Stream'
+import OpenApiPage from './pages/OpenApi'
 
 // The Route object are created in the App component.
 // Object with a title are created in the menu.
@@ -95,6 +96,11 @@ const routes = () => [
     to: '/tenants',
     component: TenantsPage,
     globalRoute: true
+  },
+  {
+    to: '/openapi',
+    component: OpenApiPage,
+    noTenantPrefix: true,
   }
 ]
 

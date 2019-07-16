@@ -31,6 +31,7 @@ extensions = [
     'sphinx.ext.graphviz',
     'sphinxcontrib.blockdiag',
     'sphinxcontrib.programoutput',
+    'sphinxcontrib.openapi',
     'zuul_sphinx',
     'zuul.sphinx.ansible',
     'zuul.sphinx.zuul',

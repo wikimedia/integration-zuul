@@ -106,7 +106,9 @@ class App extends React.Component {
         allRoutes.push(
           <Route
             key={index}
-            path={item.globalRoute ? item.to : tenant.routePrefix + item.to}
+            path={
+              item.globalRoute ? item.to :
+                item.noTenantPrefix ? item.to : tenant.routePrefix + item.to}
             component={item.component}
             exact
             />
@@ -255,6 +257,9 @@ class App extends React.Component {
                     this.setState({showErrors: !this.state.showErrors})}}
                   />
               }
+              <li>
+                <Link to='/openapi'>API</Link>
+              </li>
               <li>
                 <a href='https://zuul-ci.org/docs'
                    rel='noopener noreferrer' target='_blank'>
