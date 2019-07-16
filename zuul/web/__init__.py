@@ -33,6 +33,7 @@ import re2
 
 import zuul.lib.repl
 import zuul.model
+from zuul import exceptions
 import zuul.rpcclient
 import zuul.zk
 from zuul.lib import commandsocket
@@ -41,6 +42,16 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), 'static')
 cherrypy.tools.websocket = WebSocketTool()
 
 COMMANDS = ['stop', 'repl', 'norepl']
+
+
+def is_authorized(uid, tenant, authN=None):
+    """Simple authorization checker. For now, relies on the passed authN
+    dictionary to figure out whether 'uid' is allowed 'action' on
+    'tenant/project'.
+    This is just a stub that will be expanded in subsequent patches."""
+    if authN is None:
+        authN = []
+    return (tenant in authN)
 
 
 class SaveParamsTool(cherrypy.Tool):
@@ -211,6 +222,231 @@ class ZuulWebAPI(object):
         self.cache_expiry = 1
         self.static_cache_expiry = zuulweb.static_cache_expiry
         self.status_lock = threading.Lock()
+
+    def _basic_auth_header_check(self):
+        """make sure protected endpoints have a Authorization header with the
+        bearer token."""
+        token = cherrypy.request.headers.get('Authorization', None)
+        # Add basic checks here
+        if token is None:
+            status = 401
+            e = 'Missing "Authorization" header'
+            e_desc = e
+        elif not token.lower().startswith('bearer '):
+            status = 401
+            e = 'Invalid Authorization header format'
+            e_desc = '"Authorization" header must start with "Bearer"'
+        else:
+            return None
+        error_header = '''Bearer realm="%s"
+       error="%s"
+       error_description="%s"''' % (self.zuulweb.auths.default_realm,
+                                    e,
+                                    e_desc)
+        cherrypy.response.status = status
+        cherrypy.response.headers["WWW-Authenticate"] = error_header
+        return '<h1>%s</h1>' % e_desc
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
+    def dequeue(self, tenant, project):
+        basic_error = self._basic_auth_header_check()
+        if basic_error is not None:
+            return basic_error
+        if cherrypy.request.method != 'POST':
+            raise cherrypy.HTTPError(405)
+        # AuthN/AuthZ
+        rawToken = cherrypy.request.headers['Authorization'][len('Bearer '):]
+        try:
+            uid, authz = self.zuulweb.auths.authenticate(rawToken)
+        except exceptions.AuthTokenException as e:
+            for header, contents in e.getAdditionalHeaders().items():
+                cherrypy.response.headers[header] = contents
+            cherrypy.response.status = e.HTTPError
+            return '<h1>%s</h1>' % e.error_description
+        # TODO plug an actual authorization mechanism, for now rely on token
+        # content
+        if not is_authorized(uid, tenant, authz):
+            raise cherrypy.HTTPError(403)
+        self.log.info(
+            'User "%s" requesting "%s" on %s/%s' % (uid, 'dequeue',
+                                                    tenant, project))
+
+        body = cherrypy.request.json
+        if 'pipeline' in body and (
+            ('change' in body and 'ref' not in body) or
+            ('change' not in body and 'ref' in body)):
+            job = self.rpc.submitJob('zuul:dequeue',
+                                     {'tenant': tenant,
+                                      'pipeline': body['pipeline'],
+                                      'project': project,
+                                      'change': body.get('change', None),
+                                      'ref': body.get('ref', None)})
+            result = not job.failure
+            resp = cherrypy.response
+            resp.headers['Access-Control-Allow-Origin'] = '*'
+            return result
+        else:
+            raise cherrypy.HTTPError(400,
+                                     'Invalid request body')
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
+    def enqueue(self, tenant, project):
+        basic_error = self._basic_auth_header_check()
+        if basic_error is not None:
+            return basic_error
+        if cherrypy.request.method != 'POST':
+            raise cherrypy.HTTPError(405)
+        # AuthN/AuthZ
+        rawToken = cherrypy.request.headers['Authorization'][len('Bearer '):]
+        try:
+            uid, authz = self.zuulweb.auths.authenticate(rawToken)
+        except exceptions.AuthTokenException as e:
+            for header, contents in e.getAdditionalHeaders().items():
+                cherrypy.response.headers[header] = contents
+            cherrypy.response.status = e.HTTPError
+            return '<h1>%s</h1>' % e.error_description
+        # TODO plug an actual authorization mechanism, for now rely on token
+        # content
+        if not is_authorized(uid, tenant, authz):
+            raise cherrypy.HTTPError(403)
+        self.log.info(
+            'User "%s" requesting "%s" on %s/%s' % (uid, 'enqueue',
+                                                    tenant, project))
+
+        body = cherrypy.request.json
+        if all(p in body for p in ['trigger', 'change', 'pipeline']):
+            return self._enqueue(tenant, project, **body)
+        elif all(p in body for p in ['trigger', 'ref', 'oldrev',
+                                     'newrev', 'pipeline']):
+            return self._enqueue_ref(tenant, project, **body)
+        else:
+            raise cherrypy.HTTPError(400,
+                                     'Invalid request body')
+
+    def _enqueue(self, tenant, project, trigger, change, pipeline, **kwargs):
+        job = self.rpc.submitJob('zuul:enqueue',
+                                 {'tenant': tenant,
+                                  'pipeline': pipeline,
+                                  'project': project,
+                                  'trigger': trigger,
+                                  'change': change, })
+        result = not job.failure
+        resp = cherrypy.response
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        return result
+
+    def _enqueue_ref(self, tenant, project, trigger, ref,
+                     oldrev, newrev, pipeline, **kwargs):
+        job = self.rpc.submitJob('zuul:enqueue_ref',
+                                 {'tenant': tenant,
+                                  'pipeline': pipeline,
+                                  'project': project,
+                                  'trigger': trigger,
+                                  'ref': ref,
+                                  'oldrev': oldrev,
+                                  'newrev': newrev, })
+        result = not job.failure
+        resp = cherrypy.response
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        return result
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
+    def autohold_list(self, tenant, *args, **kwargs):
+        # we don't use json_in because a payload is not mandatory with GET
+        if cherrypy.request.method != 'GET':
+            raise cherrypy.HTTPError(405)
+        # filter by project if passed as a query string
+        project = cherrypy.request.params.get('project', None)
+        return self._autohold_list(tenant, project)
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
+    def autohold(self, tenant, project=None):
+        # we don't use json_in because a payload is not mandatory with GET
+        # Note: GET handling is redundant with autohold_list
+        # and could be removed.
+        if cherrypy.request.method == 'GET':
+            return self._autohold_list(tenant, project)
+        elif cherrypy.request.method == 'POST':
+            basic_error = self._basic_auth_header_check()
+            if basic_error is not None:
+                return basic_error
+            # AuthN/AuthZ
+            rawToken = \
+                cherrypy.request.headers['Authorization'][len('Bearer '):]
+            try:
+                uid, authz = self.zuulweb.auths.authenticate(rawToken)
+            except exceptions.AuthTokenException as e:
+                for header, contents in e.getAdditionalHeaders().items():
+                    cherrypy.response.headers[header] = contents
+                cherrypy.response.status = e.HTTPError
+                return '<h1>%s</h1>' % e.error_description
+            # TODO plug an actual authorization mechanism, for now rely on
+            # token content
+            if not is_authorized(uid, tenant, authz):
+                raise cherrypy.HTTPError(403)
+            self.log.info(
+                'User "%s" requesting "%s" on %s/%s' % (uid, 'autohold',
+                                                        tenant, project))
+
+            length = int(cherrypy.request.headers['Content-Length'])
+            body = cherrypy.request.body.read(length)
+            try:
+                jbody = json.loads(body.decode('utf-8'))
+            except ValueError:
+                raise cherrypy.HTTPError(406, 'JSON body required')
+            if (jbody.get('change') and jbody.get('ref')):
+                raise cherrypy.HTTPError(400,
+                                         'change and ref are '
+                                         'mutually exclusive')
+            else:
+                jbody['change'] = jbody.get('change', None)
+                jbody['ref'] = jbody.get('ref', None)
+            if all(p in jbody for p in ['job', 'change', 'ref',
+                                        'count', 'reason',
+                                        'node_hold_expiration']):
+                data = {'tenant': tenant,
+                        'project': project,
+                        'job': jbody['job'],
+                        'change': jbody['change'],
+                        'ref': jbody['ref'],
+                        'reason': jbody['reason'],
+                        'count': jbody['count'],
+                        'node_hold_expiration': jbody['node_hold_expiration']}
+                result = self.rpc.submitJob('zuul:autohold', data)
+                return not result.failure
+            else:
+                raise cherrypy.HTTPError(400,
+                                         'Invalid request body')
+        else:
+            raise cherrypy.HTTPError(405)
+
+    def _autohold_list(self, tenant, project=None):
+        job = self.rpc.submitJob('zuul:autohold_list', {})
+        if job.failure:
+            raise cherrypy.HTTPError(500, 'autohold-list failed')
+        else:
+            payload = json.loads(job.data[0])
+            result = []
+            for key in payload:
+                _tenant, _project, job, ref_filter = key.split(',')
+                count, reason, hold_expiration = payload[key]
+                if tenant == _tenant:
+                    if project is None or _project.endswith(project):
+                        result.append(
+                            {'tenant': _tenant,
+                             'project': _project,
+                             'job': job,
+                             'ref_filter': ref_filter,
+                             'count': count,
+                             'reason': reason,
+                             'node_hold_expiration': hold_expiration})
+            return result
 
     @cherrypy.expose
     @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
@@ -731,7 +967,8 @@ class ZuulWeb(object):
                  info=None,
                  static_path=None,
                  zk_hosts=None,
-                 command_socket=None):
+                 command_socket=None,
+                 auths=None):
         self.start_time = time.time()
         self.listen_address = listen_address
         self.listen_port = listen_port
@@ -748,6 +985,7 @@ class ZuulWeb(object):
         if zk_hosts:
             self.zk.connect(hosts=zk_hosts, read_only=True)
         self.connections = connections
+        self.auths = auths
         self.stream_manager = StreamManager()
 
         self.command_socket = commandsocket.CommandSocket(command_socket)
@@ -780,6 +1018,24 @@ class ZuulWeb(object):
                           controller=api, action='jobs')
         route_map.connect('api', '/api/tenant/{tenant}/job/{job_name}',
                           controller=api, action='job')
+        # if no auth configured, deactivate admin routes
+        if self.auths.authenticators:
+            # route order is important, put project actions before the more
+            # generic tenant/{tenant}/project/{project} route
+            route_map.connect(
+                'api',
+                '/api/tenant/{tenant}/project/{project:.*}/autohold',
+                controller=api, action='autohold')
+            route_map.connect(
+                'api',
+                '/api/tenant/{tenant}/project/{project:.*}/enqueue',
+                controller=api, action='enqueue')
+            route_map.connect(
+                'api',
+                '/api/tenant/{tenant}/project/{project:.*}/dequeue',
+                controller=api, action='dequeue')
+        route_map.connect('api', '/api/tenant/{tenant}/autohold',
+                          controller=api, action='autohold_list')
         route_map.connect('api', '/api/tenant/{tenant}/projects',
                           controller=api, action='projects')
         route_map.connect('api', '/api/tenant/{tenant}/project/{project:.*}',
@@ -902,9 +1158,11 @@ class ZuulWeb(object):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     import zuul.lib.connections
+    import zuul.lib.authenticators
     connections = zuul.lib.connections.ConnectionRegistry()
+    auths = zuul.lib.authenticators.AuthenticatorRegistry()
     z = ZuulWeb(listen_address="127.0.0.1", listen_port=9000,
                 gear_server="127.0.0.1", gear_port=4730,
-                connections=connections)
+                connections=connections, auths=auths)
     z.start()
     cherrypy.engine.block()

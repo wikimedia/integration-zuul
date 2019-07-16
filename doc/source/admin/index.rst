@@ -19,4 +19,5 @@ provides to in-project configuration.
    tenants
    monitoring
    client
+   tenant-scoped-rest-api
    troubleshooting
