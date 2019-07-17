@@ -115,10 +115,11 @@ Here is an example of a start message:
     'branch': 'master',
     'change_url': 'https://gerrit.example.com/r/3',
     'message': 'Starting check jobs.',
+    'enqueue_time': '1524801093.5689457',
     'change': '3',
     'patchset': '1',
-    "ref": "refs/changes/03/3/1",
-    'zuul_ref': 'Zf8b3d7cd34f54cb396b488226589db8f'
+    'ref': 'refs/changes/03/3/1',
+    'zuul_ref': 'Zf8b3d7cd34f54cb396b488226589db8f',
     'buildset': {
       'uuid': 'f8b3d7cd34f54cb396b488226589db8f'
       'builds': [{
@@ -141,20 +142,23 @@ Here is an example of a success message:
     'branch': 'master',
     'change_url': 'https://gerrit.example.com/r/3',
     'message': 'Build succeeded.',
+    'enqueue_time': '1524801093.5689457',
     'change': '3',
     'patchset': '1',
-    "ref": "refs/changes/03/3/1",
-    'zuul_ref': 'Zf8b3d7cd34f54cb396b488226589db8f'
+    'ref': 'refs/changes/03/3/1',
+    'zuul_ref': 'Zf8b3d7cd34f54cb396b488226589db8f',
     'buildset': {
       'uuid': 'f8b3d7cd34f54cb396b488226589db8f'
       'builds': [{
         'job_name': 'linters',
         'voting': True
         'uuid': '16e3e55aca984c6c9a50cc3c5b21bb83',
+        'execute_time': 1524801120.75632954,
         'start_time': 1524801179.8557224,
         'end_time': 1524801208.928095,
         'log_url': 'https://logs.example.com/logs/3/3/1/check/linters/16e3e55/',
         'result': 'SUCCESS',
+        'dependencies': []
       }],
     },
   }
