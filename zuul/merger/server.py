@@ -15,12 +15,10 @@
 import json
 import logging
 import threading
-import traceback
-
-import gear
 
 from zuul.lib import commandsocket
 from zuul.lib.config import get_default
+from zuul.lib.gearworker import ZuulGearWorker
 from zuul.merger import merger
 
 
@@ -52,22 +50,24 @@ class MergeServer(object):
             '/var/lib/zuul/merger.socket')
         self.command_socket = commandsocket.CommandSocket(command_socket)
 
+        self.jobs = {
+            'merger:merge': self.merge,
+            'merger:cat': self.cat,
+            'merger:refstate': self.refstate,
+            'merger:fileschanges': self.fileschanges,
+        }
+        self.gearworker = ZuulGearWorker(
+            'Zuul Merger',
+            'zuul.MergeServer',
+            'merger-gearman-worker',
+            self.config,
+            self.jobs)
+
     def start(self):
-        self._running = True
+        self.log.debug("Starting worker")
+        self.gearworker.start()
+
         self._command_running = True
-        server = self.config.get('gearman', 'server')
-        port = get_default(self.config, 'gearman', 'port', 4730)
-        ssl_key = get_default(self.config, 'gearman', 'ssl_key')
-        ssl_cert = get_default(self.config, 'gearman', 'ssl_cert')
-        ssl_ca = get_default(self.config, 'gearman', 'ssl_ca')
-        self.worker = gear.TextWorker('Zuul Merger')
-        self.worker.addServer(server, port, ssl_key, ssl_cert, ssl_ca,
-                              keepalive=True, tcp_keepidle=60,
-                              tcp_keepintvl=30, tcp_keepcnt=5)
-        self.log.debug("Waiting for server")
-        self.worker.waitForServer()
-        self.log.debug("Registering")
-        self.register()
         self.log.debug("Starting command processor")
         self.command_socket.start()
         self.command_thread = threading.Thread(
@@ -75,27 +75,15 @@ class MergeServer(object):
         self.command_thread.daemon = True
         self.command_thread.start()
 
-        self.log.debug("Starting worker")
-        self.thread = threading.Thread(target=self.run)
-        self.thread.daemon = True
-        self.thread.start()
-
-    def register(self):
-        self.worker.registerFunction("merger:merge")
-        self.worker.registerFunction("merger:cat")
-        self.worker.registerFunction("merger:refstate")
-        self.worker.registerFunction("merger:fileschanges")
-
     def stop(self):
         self.log.debug("Stopping")
-        self._running = False
+        self.gearworker.stop()
         self._command_running = False
-        self.worker.shutdown()
         self.command_socket.stop()
         self.log.debug("Stopped")
 
     def join(self):
-        self.thread.join()
+        self.gearworker.join()
 
     def runCommand(self):
         while self._command_running:
@@ -106,36 +94,8 @@ class MergeServer(object):
             except Exception:
                 self.log.exception("Exception while processing command")
 
-    def run(self):
-        self.log.debug("Starting merge listener")
-        while self._running:
-            try:
-                job = self.worker.getJob()
-                try:
-                    if job.name == 'merger:merge':
-                        self.log.debug("Got merge job: %s" % job.unique)
-                        self.merge(job)
-                    elif job.name == 'merger:cat':
-                        self.log.debug("Got cat job: %s" % job.unique)
-                        self.cat(job)
-                    elif job.name == 'merger:refstate':
-                        self.log.debug("Got refstate job: %s" % job.unique)
-                        self.refstate(job)
-                    elif job.name == 'merger:fileschanges':
-                        self.log.debug("Got fileschanges job: %s" % job.unique)
-                        self.fileschanges(job)
-                    else:
-                        self.log.error("Unable to handle job %s" % job.name)
-                        job.sendWorkFail()
-                except Exception:
-                    self.log.exception("Exception while running job")
-                    job.sendWorkException(traceback.format_exc())
-            except gear.InterruptedError:
-                return
-            except Exception:
-                self.log.exception("Exception while getting job")
-
     def merge(self, job):
+        self.log.debug("Got merge job: %s" % job.unique)
         args = json.loads(job.arguments)
         zuul_event_id = args.get('zuul_event_id')
         ret = self.merger.mergeChanges(
@@ -153,6 +113,7 @@ class MergeServer(object):
         job.sendWorkComplete(json.dumps(result))
 
     def refstate(self, job):
+        self.log.debug("Got refstate job: %s" % job.unique)
         args = json.loads(job.arguments)
         zuul_event_id = args.get('zuul_event_id')
         success, repo_state = self.merger.getRepoState(
@@ -163,6 +124,7 @@ class MergeServer(object):
         job.sendWorkComplete(json.dumps(result))
 
     def cat(self, job):
+        self.log.debug("Got cat job: %s" % job.unique)
         args = json.loads(job.arguments)
         self.merger.updateRepo(args['connection'], args['project'])
         files = self.merger.getFiles(args['connection'], args['project'],
@@ -173,6 +135,7 @@ class MergeServer(object):
         job.sendWorkComplete(json.dumps(result))
 
     def fileschanges(self, job):
+        self.log.debug("Got fileschanges job: %s" % job.unique)
         args = json.loads(job.arguments)
         zuul_event_id = args.get('zuul_event_id')
         self.merger.updateRepo(args['connection'], args['project'],

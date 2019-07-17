@@ -405,7 +405,7 @@ class Scheduler(threading.Thread):
     def _runStats(self):
         if not self.statsd:
             return
-        functions = getGearmanFunctions(self.rpc.worker)
+        functions = getGearmanFunctions(self.rpc.gearworker.gearman)
         executors_accepting = 0
         executors_online = 0
         execute_queue = 0

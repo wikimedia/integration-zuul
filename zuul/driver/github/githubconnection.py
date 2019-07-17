@@ -23,7 +23,6 @@ import threading
 import time
 import re
 import json
-import traceback
 
 import cherrypy
 import cachecontrol
@@ -36,11 +35,9 @@ import requests
 import github3
 import github3.exceptions
 
-import gear
-
 from zuul.connection import BaseConnection
+from zuul.lib.gearworker import ZuulGearWorker
 from zuul.web.handler import BaseWebController
-from zuul.lib.config import get_default
 from zuul.lib.logutil import get_annotated_logger
 from zuul.model import Ref, Branch, Tag, Project
 from zuul.exceptions import MergeFailure
@@ -268,36 +265,21 @@ class GithubGearmanWorker(object):
     def __init__(self, connection):
         self.config = connection.sched.config
         self.connection = connection
-        self.thread = threading.Thread(target=self._run,
-                                       name='github-gearman-worker')
-        self._running = False
+
         handler = "github:%s:payload" % self.connection.connection_name
         self.jobs = {
             handler: self.handle_payload,
         }
 
-    def _run(self):
-        while self._running:
-            try:
-                job = self.gearman.getJob()
-                try:
-                    if job.name not in self.jobs:
-                        self.log.exception("Exception while running job")
-                        job.sendWorkException(
-                            traceback.format_exc().encode('utf8'))
-                        continue
-                    output = self.jobs[job.name](json.loads(job.arguments))
-                    job.sendWorkComplete(json.dumps(output))
-                except Exception:
-                    self.log.exception("Exception while running job")
-                    job.sendWorkException(
-                        traceback.format_exc().encode('utf8'))
-            except gear.InterruptedError:
-                pass
-            except Exception:
-                self.log.exception("Exception while getting job")
+        self.gearworker = ZuulGearWorker(
+            'Zuul Github Connector',
+            'zuul.GithubGearmanWorker',
+            'github-gearman-worker',
+            self.config,
+            self.jobs)
 
-    def handle_payload(self, args):
+    def handle_payload(self, job):
+        args = json.loads(job.arguments)
         headers = args.get("headers")
         body = args.get("body")
 
@@ -314,7 +296,7 @@ class GithubGearmanWorker(object):
             output = {'return_code': 503}
             log.exception("Exception handling Github event:")
 
-        return output
+        job.sendWorkComplete(json.dumps(output))
 
     def __dispatch_event(self, body, headers, log):
         try:
@@ -334,29 +316,10 @@ class GithubGearmanWorker(object):
             raise Exception(message)
 
     def start(self):
-        self._running = True
-        server = self.config.get('gearman', 'server')
-        port = get_default(self.config, 'gearman', 'port', 4730)
-        ssl_key = get_default(self.config, 'gearman', 'ssl_key')
-        ssl_cert = get_default(self.config, 'gearman', 'ssl_cert')
-        ssl_ca = get_default(self.config, 'gearman', 'ssl_ca')
-        self.gearman = gear.TextWorker('Zuul Github Connector')
-        self.log.debug("Connect to gearman")
-        self.gearman.addServer(server, port, ssl_key, ssl_cert, ssl_ca,
-                               keepalive=True, tcp_keepidle=60,
-                               tcp_keepintvl=30, tcp_keepcnt=5)
-        self.log.debug("Waiting for server")
-        self.gearman.waitForServer()
-        self.log.debug("Registering")
-        for job in self.jobs:
-            self.gearman.registerFunction(job)
-        self.thread.start()
+        self.gearworker.start()
 
     def stop(self):
-        self._running = False
-        self.gearman.stopWaitingForJobs()
-        self.thread.join()
-        self.gearman.shutdown()
+        self.gearworker.stop()
 
 
 class GithubEventProcessor(object):

@@ -3488,7 +3488,7 @@ class ZuulTestCase(BaseTestCase):
             # It hasn't been reported yet.
             return False
         # Make sure that none of the worker connections are in GRAB_WAIT
-        worker = self.executor_server.executor_worker
+        worker = self.executor_server.executor_gearworker.gearman
         for connection in worker.active_connections:
             if connection.state == 'GRAB_WAIT':
                 return False
