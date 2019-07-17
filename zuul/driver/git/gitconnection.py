@@ -80,6 +80,7 @@ class GitWatcher(threading.Thread):
         for pevent in partial_events:
             event = GitTriggerEvent()
             event.type = 'ref-updated'
+            event.timestamp = time.time()
             event.project_hostname = self.git_connection.canonical_hostname
             event.project_name = project
             for attr in ('ref', 'oldrev', 'newrev', 'branch_created',

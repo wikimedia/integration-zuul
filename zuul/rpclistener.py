@@ -15,6 +15,7 @@
 
 import json
 import logging
+import time
 
 from zuul import model
 from zuul.connection import BaseConnection
@@ -151,6 +152,7 @@ class RPCListener(object):
     def _common_enqueue(self, job):
         args = json.loads(job.arguments)
         event = model.TriggerEvent()
+        event.timestamp = time.time()
         errors = ''
         tenant = None
         project = None

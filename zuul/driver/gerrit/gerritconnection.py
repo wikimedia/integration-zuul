@@ -72,6 +72,7 @@ class GerritEventConnector(threading.Thread):
         now = time.time()
         time.sleep(max((ts + self.delay) - now, 0.0))
         event = GerritTriggerEvent()
+        event.timestamp = ts
 
         # Gerrit events don't have an event id that could be used to globally
         # identify this event in the system so we have to generate one.

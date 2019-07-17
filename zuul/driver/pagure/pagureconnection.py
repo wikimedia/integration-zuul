@@ -231,6 +231,7 @@ class PagureEventConnector(threading.Thread):
             event = None
 
         if event:
+            event.timestamp = ts
             if event.change_number:
                 project = self.connection.source.getProject(event.project_name)
                 self.connection._getChange(project,

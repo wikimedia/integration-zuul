@@ -386,6 +386,7 @@ class GithubEventProcessor(object):
             with self.connection.get_request_lock(installation_id):
                 event.delivery = self.delivery
                 event.zuul_event_id = self.delivery
+                event.timestamp = self.ts
                 project = self.connection.source.getProject(event.project_name)
                 if event.change_number:
                     self.connection._getChange(project,

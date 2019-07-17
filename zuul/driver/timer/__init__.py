@@ -15,6 +15,7 @@
 # under the License.
 
 import logging
+import time
 from uuid import uuid4
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -100,6 +101,7 @@ class TimerDriver(Driver, TriggerInterface):
                 event.ref = 'refs/heads/%s' % branch
                 event.branch = branch
                 event.zuul_event_id = str(uuid4().hex)
+                event.timestamp = time.time()
                 log = get_annotated_logger(self.log, event)
                 log.debug("Adding event")
                 self.sched.addEvent(event)

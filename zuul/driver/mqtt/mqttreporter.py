@@ -43,6 +43,7 @@ class MQTTReporter(BaseReporter):
             'ref': getattr(item.change, 'ref', ''),
             'message': self._formatItemReport(
                 item, with_jobs=False),
+            'trigger_time': item.event.timestamp,
             'enqueue_time': item.enqueue_time,
             'buildset': {
                 'uuid': item.current_build_set.uuid,

@@ -3147,6 +3147,7 @@ class TriggerEvent(object):
         self.forced_pipeline = None
         # For logging
         self.zuul_event_id = None
+        self.timestamp = None
 
     @property
     def canonical_project_name(self):

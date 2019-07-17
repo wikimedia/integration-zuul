@@ -13,6 +13,7 @@
 # under the License.
 
 import logging
+import time
 from uuid import uuid4
 
 from zuul.driver import Driver, TriggerInterface
@@ -93,6 +94,7 @@ class ZuulDriver(Driver, TriggerInterface):
         event.patch_number = change.patchset
         event.ref = change.ref
         event.zuul_event_id = str(uuid4().hex)
+        event.timestamp = time.time()
         self.sched.addEvent(event)
 
     def _createParentChangeEnqueuedEvents(self, change, pipeline, tenant,
