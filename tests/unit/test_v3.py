@@ -2138,6 +2138,34 @@ class TestInRepoConfig(ZuulTestCase):
                       A.messages[0],
                       "A should have an error reported")
 
+    def test_pipeline_supercedes_error(self):
+        with open(os.path.join(FIXTURE_DIR,
+                               'config/in-repo/git/',
+                               'common-config/zuul.yaml')) as f:
+            base_common_config = f.read()
+
+        in_repo_conf_A = textwrap.dedent(
+            """
+            - pipeline:
+                name: periodic
+                manager: independent
+                supercedes: doesnotexist
+                trigger: {}
+            """)
+
+        file_dict = {'zuul.yaml': None,
+                     'zuul.d/main.yaml': base_common_config,
+                     'zuul.d/test1.yaml': in_repo_conf_A}
+        A = self.fake_gerrit.addFakeChange('common-config', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertEqual(A.reported, 1,
+                         "A should report failure")
+        self.assertIn('supercedes an unknown',
+                      A.messages[0],
+                      "A should have an error reported")
+
     def test_change_series_error(self):
         with open(os.path.join(FIXTURE_DIR,
                                'config/in-repo/git/',

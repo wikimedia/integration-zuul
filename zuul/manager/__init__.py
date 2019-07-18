@@ -334,6 +334,7 @@ class PipelineManager(object):
             tenant = self.pipeline.tenant
             zuul_driver.onChangeEnqueued(
                 tenant, item.change, self.pipeline, event)
+            self.dequeueSupercededItems(item)
             return True
 
     def dequeueItem(self, item):
@@ -350,6 +351,23 @@ class PipelineManager(object):
         self.cancelJobs(item)
         self.dequeueItem(item)
         self.reportStats(item)
+
+    def dequeueSupercededItems(self, item):
+        for other_name in self.pipeline.supercedes:
+            other_pipeline = self.pipeline.tenant.layout.pipelines.get(
+                other_name)
+            if not other_pipeline:
+                continue
+
+            found = None
+            for other_item in other_pipeline.getAllItems():
+                if other_item.live and other_item.change.equals(item.change):
+                    found = other_item
+                    break
+            if found:
+                self.log.info("Item %s is superceded by %s, removing" %
+                              (found, item))
+                other_pipeline.manager.removeItem(found)
 
     def updateCommitDependencies(self, change, change_queue, event):
         log = get_annotated_logger(self.log, event)

@@ -1164,6 +1164,7 @@ class PipelineParser(object):
         pipeline = {vs.Required('name'): str,
                     vs.Required('manager'): manager,
                     'precedence': precedence,
+                    'supercedes': to_list(str),
                     'description': str,
                     'success-message': str,
                     'failure-message': str,
@@ -1198,6 +1199,7 @@ class PipelineParser(object):
         pipeline.source_context = conf['_source_context']
         pipeline.start_mark = conf['_start_mark']
         pipeline.description = conf.get('description')
+        pipeline.supercedes = as_list(conf.get('supercedes', []))
 
         precedence = model.PRECEDENCE_MAP[conf.get('precedence')]
         pipeline.precedence = precedence
@@ -1959,6 +1961,10 @@ class TenantParser(object):
             for job in jobs:
                 with reference_exceptions('job', job, layout.loading_errors):
                     job.validateReferences(layout)
+        for pipeline in layout.pipelines.values():
+            with reference_exceptions(
+                    'pipeline', pipeline, layout.loading_errors):
+                pipeline.validateReferences(layout)
 
         if skip_semaphores:
             # We should not actually update the layout with new
