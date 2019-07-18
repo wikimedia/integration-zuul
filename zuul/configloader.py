@@ -521,7 +521,8 @@ class NodeSetParser(object):
                                                      conf_group['name'])
             if conf_group['name'] in group_names:
                 raise DuplicateGroupError(conf['name'], conf_group['name'])
-            group = model.Group(conf_group['name'], conf_group['nodes'])
+            group = model.Group(conf_group['name'],
+                                as_list(conf_group['nodes']))
             ns.addGroup(group)
             group_names.add(conf_group['name'])
         ns.freeze()
