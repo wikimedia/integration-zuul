@@ -18,6 +18,7 @@ import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Panel } from 'react-bootstrap'
 
+import Artifact from './Artifact'
 import BuildOutput from './BuildOutput'
 
 
@@ -34,7 +35,7 @@ class Build extends React.Component {
       'job_name', 'result', 'voting',
       'pipeline', 'start_time', 'end_time', 'duration',
       'project', 'branch', 'change', 'patchset', 'oldrev', 'newrev',
-      'ref', 'new_rev', 'ref_url', 'log_url']
+      'ref', 'new_rev', 'ref_url', 'log_url', 'artifacts']
 
     myColumns.forEach(column => {
       let label = column
@@ -62,6 +63,15 @@ class Build extends React.Component {
       }
       if (column === 'ref_url') {
         label = 'ref url'
+      }
+      if (column === 'artifacts') {
+        value = (
+          <div>
+            {value.map((item, index) => (
+              <Artifact key={index} artifact={item}/>
+            ))}
+          </div>
+        )
       }
       if (value) {
         rows.push({key: label, value: value})
