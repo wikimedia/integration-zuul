@@ -68,7 +68,7 @@ class StreamPage extends React.Component {
     // correctly so we derive this directly from the window height.
     const geometry = this.term.proposeGeometry()
     if (geometry) {
-      const cellHeight = this.term._core.renderer.dimensions.actualCellHeight
+      const cellHeight = this.term._core._renderCoordinator.dimensions.actualCellHeight
       const height = window.innerHeight - this.term.element.offsetTop - 10
 
       const rows = Math.max(Math.floor(height / cellHeight), 10)
