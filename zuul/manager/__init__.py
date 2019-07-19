@@ -1051,18 +1051,25 @@ class PipelineManager(object):
             source = item.change.project.source
             if merged:
                 merged = source.isMerged(item.change, item.change.branch)
-            log.info("Reported change %s status: all-succeeded: %s, "
-                     "merged: %s", item.change, succeeded, merged)
             change_queue = item.queue
             if not (succeeded and merged):
-                log.debug("Reported change %s failed tests or failed to merge",
-                          item.change)
+                if not item.job_graph or not item.job_graph.jobs:
+                    error_reason = "did not have any jobs configured"
+                elif not merged:
+                    error_reason = "failed to merge"
+                else:
+                    error_reason = "failed tests"
+                log.info("Reported change %s did not merge because it %s,"
+                         "status: all-succeeded: %s, merged: %s",
+                         item.change, error_reason, succeeded, merged)
                 change_queue.decreaseWindowSize()
                 log.debug("%s window size decreased to %s",
                           change_queue, change_queue.window)
                 raise exceptions.MergeFailure(
                     "Change %s failed to merge" % item.change)
             else:
+                log.info("Reported change %s status: all-succeeded: %s, "
+                         "merged: %s", item.change, succeeded, merged)
                 change_queue.increaseWindowSize()
                 log.debug("%s window size increased to %s",
                           change_queue, change_queue.window)
