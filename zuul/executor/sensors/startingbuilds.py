@@ -25,9 +25,12 @@ class StartingBuildsSensor(SensorInterface):
     def __init__(self, executor, max_load_avg, config=None):
         self.executor = executor
 
+        coefficient = 2 if multiprocessing.cpu_count() <= 4 else 1
+        max_default = int(max_load_avg * coefficient)
+
         self.max_starting_builds = get_default(
-            config, 'executor', 'max_starting_builds', int(max_load_avg * 2)) \
-            if config is not None else int(max_load_avg * 2)
+            config, 'executor', 'max_starting_builds', max_default) \
+            if config is not None else max_default
 
         self.min_starting_builds = min(
             max(int(multiprocessing.cpu_count() / 2), 1),

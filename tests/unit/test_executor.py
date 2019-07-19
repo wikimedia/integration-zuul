@@ -474,7 +474,9 @@ class TestStartingBuildsSensor(ZuulTestCase):
         sensor = StartingBuildsSensor(None, cores * 2.5, None)
 
         # Then
-        self.assertEqual(sensor.max_starting_builds, int(cores * 2.5 * 2))
+        coefficient = 2 if multiprocessing.cpu_count() <= 4 else 1
+        max_default = int(cores * 2.5 * coefficient)
+        self.assertEqual(sensor.max_starting_builds, max_default)
         self.assertEqual(sensor.min_starting_builds, max(int(cores / 2), 1))
 
     def test_configuration_not_exists(self):
@@ -485,7 +487,9 @@ class TestStartingBuildsSensor(ZuulTestCase):
         sensor = StartingBuildsSensor(None, cores * 2.5, self.config)
 
         # Then
-        self.assertEqual(sensor.max_starting_builds, int(cores * 2.5 * 2))
+        coefficient = 2 if multiprocessing.cpu_count() <= 4 else 1
+        max_default = int(cores * 2.5 * coefficient)
+        self.assertEqual(sensor.max_starting_builds, max_default)
         self.assertEqual(sensor.min_starting_builds, max(int(cores / 2), 1))
 
     def test_configuration_override(self):
