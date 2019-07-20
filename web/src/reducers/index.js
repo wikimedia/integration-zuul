@@ -22,6 +22,7 @@ import info from './info'
 import job from './job'
 import jobs from './jobs'
 import labels from './labels'
+import logfile from './logfile'
 import nodes from './nodes'
 import project from './project'
 import projects from './projects'
@@ -37,6 +38,7 @@ const reducers = {
   job,
   jobs,
   labels,
+  logfile,
   nodes,
   project,
   projects,

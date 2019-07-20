@@ -80,6 +80,16 @@ a.refresh {
     padding: 8px 12px;
 }
 
+.zuul-log-output {
+    color: black;
+}
+
+.zuul-log-output a,
+.zuul-log-output a:hover {
+    color: black;
+    text-decoration: none;
+}
+
 .form-inline > .form-group {
     padding-right: 5px;
 }

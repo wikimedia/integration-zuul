@@ -21,6 +21,7 @@ import JobsPage from './pages/Jobs'
 import LabelsPage from './pages/Labels'
 import NodesPage from './pages/Nodes'
 import BuildPage from './pages/Build'
+import ViewPage from './pages/View'
 import BuildsPage from './pages/Builds'
 import BuildsetsPage from './pages/Buildsets'
 import ConfigErrorsPage from './pages/ConfigErrors'
@@ -87,6 +88,10 @@ const routes = () => [
   {
     to: '/build/:buildId',
     component: BuildPage
+  },
+  {
+    to: '/build/:buildId/view/:file*',
+    component: ViewPage
   },
   {
     to: '/config-errors',
