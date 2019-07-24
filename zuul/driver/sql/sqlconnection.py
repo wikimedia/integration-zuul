@@ -74,8 +74,19 @@ class DatabaseSession(object):
             outerjoin(self.connection.providesModel).\
             options(orm.contains_eager(self.connection.buildModel.buildset),
                     orm.selectinload(self.connection.buildModel.provides),
-                    orm.selectinload(self.connection.buildModel.artifacts)).\
-            with_hint(build_table, 'USE INDEX (PRIMARY)', 'mysql')
+                    orm.selectinload(self.connection.buildModel.artifacts))
+        # If the query planner isn't able to reduce either the number
+        # of rows returned by the buildset or build tables, then it
+        # tends to produce a very slow query.  This hint produces
+        # better results, but only in those cases.  When we can narrow
+        # things down with indexes, it's better to omit the hint.
+        # job_name is a tricky one.  It is indexed, but if there are a
+        # lot of rows, it is better to include the hint, but if there
+        # are few, it is better to not include it.  We include the hint
+        # regardless of whether job_name is specified (optimizing for
+        # the more common case).
+        if not (project or change or uuid):
+            q = q.with_hint(build_table, 'USE INDEX (PRIMARY)', 'mysql')
 
         q = self.listFilter(q, buildset_table.c.tenant, tenant)
         q = self.listFilter(q, buildset_table.c.project, project)
@@ -114,8 +125,10 @@ class DatabaseSession(object):
 
         buildset_table = self.connection.zuul_buildset_table
 
-        q = self.session().query(self.connection.buildSetModel).\
-            with_hint(buildset_table, 'USE INDEX (PRIMARY)', 'mysql')
+        # See note above about the hint.
+        q = self.session().query(self.connection.buildSetModel)
+        if not (project or change or uuid):
+            q = q.with_hint(buildset_table, 'USE INDEX (PRIMARY)', 'mysql')
 
         q = self.listFilter(q, buildset_table.c.tenant, tenant)
         q = self.listFilter(q, buildset_table.c.project, project)
@@ -146,8 +159,7 @@ class DatabaseSession(object):
             options(orm.joinedload(self.connection.buildSetModel.builds).
                     subqueryload(self.connection.buildModel.artifacts)).\
             options(orm.joinedload(self.connection.buildSetModel.builds).
-                    subqueryload(self.connection.buildModel.provides)).\
-            with_hint(buildset_table, 'USE INDEX (PRIMARY)', 'mysql')
+                    subqueryload(self.connection.buildModel.provides))
 
         q = self.listFilter(q, buildset_table.c.tenant, tenant)
         q = self.listFilter(q, buildset_table.c.uuid, uuid)

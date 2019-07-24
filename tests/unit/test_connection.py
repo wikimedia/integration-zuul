@@ -103,8 +103,8 @@ class TestSQLConnection(ZuulDBTestCase):
         indexes_build = [x for x in indexes_build
                          if x['name'] != 'buildset_id']
 
-        self.assertEqual(3, len(indexes_buildset))
-        self.assertEqual(1, len(indexes_build))
+        self.assertEqual(4, len(indexes_buildset))
+        self.assertEqual(2, len(indexes_build))
 
         # check if all indexes are prefixed
         if table_prefix:
