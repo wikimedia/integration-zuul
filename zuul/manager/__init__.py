@@ -310,6 +310,17 @@ class PipelineManager(object):
                           (change, change.project))
                 return False
 
+            if history and change in history:
+                log.debug("Dependency cycle detected for "
+                          "change %s in project %s" % (
+                              change, change.project))
+                item = model.QueueItem(self, change, event)
+                item.warning("Dependency cycle detected")
+                actions = self.pipeline.failure_actions
+                item.setReportedResult('FAILURE')
+                self.sendReport(actions, item)
+                return False
+
             if not self.enqueueChangesAhead(change, event, quiet,
                                             ignore_requirements,
                                             change_queue, history=history):

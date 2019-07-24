@@ -183,7 +183,10 @@ class TestGerritToGithubCRD(ZuulTestCase):
         self.fake_gerrit.addEvent(A.addApproval('Approved', 1))
         self.waitUntilSettled()
 
-        self.assertEqual(A.reported, 0)
+        self.assertEqual(A.reported, 1)
+        self.assertEqual(
+            A.messages[0],
+            "Build failed.\n\n\nWarning:\n  Dependency cycle detected\n")
         self.assertEqual(len(B.comments), 0)
         self.assertEqual(A.data['status'], 'NEW')
         self.assertFalse(B.is_merged)
@@ -469,8 +472,8 @@ class TestGerritToGithubCRD(ZuulTestCase):
         self.fake_github.emitEvent(A.getPullRequestEditedEvent())
         self.waitUntilSettled()
 
-        # Dependency cycle injected so zuul should not have reported again on A
-        self.assertEqual(len(A.comments), 1)
+        # Dependency cycle injected so zuul should have reported again on A
+        self.assertEqual(len(A.comments), 2)
 
         # Now if we update B to remove the depends-on, everything
         # should be okay.  B; A->B
@@ -481,7 +484,7 @@ class TestGerritToGithubCRD(ZuulTestCase):
         self.waitUntilSettled()
 
         # Cycle was removed so now zuul should have reported again on A
-        self.assertEqual(len(A.comments), 2)
+        self.assertEqual(len(A.comments), 3)
 
         self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(2))
         self.waitUntilSettled()
@@ -634,7 +637,7 @@ class TestGithubToGerritCRD(ZuulTestCase):
         self.fake_github.emitEvent(A.addLabel('approved'))
         self.waitUntilSettled()
 
-        self.assertEqual(len(A.comments), 0)
+        self.assertEqual(len(A.comments), 1)
         self.assertEqual(B.reported, 0)
         self.assertFalse(A.is_merged)
         self.assertEqual(B.data['status'], 'NEW')
@@ -930,8 +933,8 @@ class TestGithubToGerritCRD(ZuulTestCase):
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
 
-        # Dependency cycle injected so zuul should not have reported again on A
-        self.assertEqual(A.reported, 1)
+        # Dependency cycle injected so zuul should have reported again on A
+        self.assertEqual(A.reported, 2)
 
         # Now if we update B to remove the depends-on, everything
         # should be okay.  B; A->B
@@ -942,7 +945,7 @@ class TestGithubToGerritCRD(ZuulTestCase):
         self.waitUntilSettled()
 
         # Cycle was removed so now zuul should have reported again on A
-        self.assertEqual(A.reported, 2)
+        self.assertEqual(A.reported, 3)
 
         self.fake_github.emitEvent(B.getPullRequestEditedEvent())
         self.waitUntilSettled()

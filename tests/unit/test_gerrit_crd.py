@@ -335,7 +335,7 @@ class TestGerritCRD(ZuulTestCase):
         self.fake_gerrit.addEvent(A.addApproval('Approved', 1))
         self.waitUntilSettled()
 
-        self.assertEqual(A.reported, 0)
+        self.assertEqual(A.reported, 1)
         self.assertEqual(B.reported, 0)
         self.assertEqual(A.data['status'], 'NEW')
         self.assertEqual(B.data['status'], 'NEW')
@@ -698,8 +698,8 @@ class TestGerritCRD(ZuulTestCase):
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(2))
         self.waitUntilSettled()
 
-        # Dependency cycle injected so zuul should not have reported again on A
-        self.assertEqual(A.reported, 1)
+        # Dependency cycle injected so zuul should have reported again on A
+        self.assertEqual(A.reported, 2)
 
         # Now if we update B to remove the depends-on, everything
         # should be okay.  B; A->B
@@ -710,7 +710,7 @@ class TestGerritCRD(ZuulTestCase):
         self.waitUntilSettled()
 
         # Cycle was removed so now zuul should have reported again on A
-        self.assertEqual(A.reported, 2)
+        self.assertEqual(A.reported, 3)
 
         self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(2))
         self.waitUntilSettled()
