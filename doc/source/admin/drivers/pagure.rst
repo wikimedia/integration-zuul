@@ -189,14 +189,16 @@ As described in :attr:`pipeline.require` pipelines may specify that items meet
 certain conditions in order to be enqueued into the pipeline.  These conditions
 vary according to the source of the project in question.  To supply
 requirements for changes from a Pagure source named ``pagure``, create a
-configuration such as the following::
+configuration such as the following:
 
-  pipeline:
-    require:
-      pagure:
-        score: 1
-        merged: false
-        status: success
+.. code-block:: yaml
+
+   pipeline:
+     require:
+       pagure:
+         score: 1
+         merged: false
+         status: success
 
 This indicates that changes originating from the Pagure connection
 must have a score of *1*, a CI status *success* and not being already merged.
@@ -227,79 +229,7 @@ must have a score of *1*, a CI status *success* and not being already merged.
 Reference pipelines configuration
 ---------------------------------
 
-Here is an example of standard pipelines you may want to define::
+Here is an example of standard pipelines you may want to define:
 
-  - pipeline:
-      name: check
-      manager: independent
-      require:
-        pagure.io:
-          merged: False
-      trigger:
-        pagure.io:
-          - event: pg_pull_request
-            action: comment
-            comment: (?i)^\s*recheck\s*$
-          - event: pg_pull_request
-            action:
-              - opened
-              - changed
-      start:
-        pagure.io:
-          status: 'pending'
-          comment: false
-        sqlreporter:
-      success:
-        pagure.io:
-          status: 'success'
-        sqlreporter:
-      failure:
-        pagure.io:
-          status: 'failure'
-        sqlreporter:
-
-  - pipeline:
-      name: gate
-      manager: dependent
-      precedence: high
-      require:
-        pagure.io:
-          score: 1
-          merged: False
-          status: success
-        sqlreporter:
-      trigger:
-         pagure.io:
-           - event: pg_pull_request
-             action: status
-             status: success
-           - event: pg_pull_request_review
-             action: thumbsup
-      start:
-        pagure.io:
-          status: 'pending'
-          comment: false
-        sqlreporter:
-      success:
-        pagure.io:
-          status: 'success'
-          merge: true
-          comment: true
-        sqlreporter:
-      failure:
-        pagure.io:
-          status: 'failure'
-          comment: true
-        sqlreporter:
-
-  - pipeline:
-      name: post
-      post-review: true
-      manager: independent
-      precedence: low
-      trigger:
-        pagure.io:
-          - event: pg_push
-            ref: ^refs/heads/.*$
-      success:
-        sqlreporter:
+.. literalinclude:: ../examples/zuul-config/zuul.d/pagure-reference-pipelines.yaml
+   :language: yaml
