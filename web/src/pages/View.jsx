@@ -15,6 +15,7 @@
 import * as React from 'react'
 import { connect } from 'react-redux'
 import PropTypes from 'prop-types'
+import { parse } from 'query-string'
 
 import { fetchLogfileIfNeeded } from '../actions/logfile'
 import Refreshable from '../containers/Refreshable'
@@ -44,12 +45,13 @@ class ViewPage extends Refreshable {
   render () {
     const { remoteData } = this.props
     const build = this.props.build.builds[this.props.match.params.buildId]
+    const severity = parse(this.props.location.search).severity
     return (
       <React.Fragment>
         <div style={{float: 'right'}}>
           {this.renderSpinner()}
         </div>
-        {remoteData.data && <View build={build} data={remoteData.data}/>}
+        {remoteData.data && <View build={build} data={remoteData.data} severity={severity}/>}
       </React.Fragment>
     )
   }

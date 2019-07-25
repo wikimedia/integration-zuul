@@ -16,31 +16,37 @@ import * as React from 'react'
 import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
 import { Panel } from 'react-bootstrap'
-
-const linkify = (ln, num) => {
-  return (<a name={num+1} href={'#'+(num+1)}>{ln}</a>)
-}
+import { Link } from 'react-router-dom'
 
 class View extends React.Component {
   static propTypes = {
     build: PropTypes.object,
     item: PropTypes.object,
     tenant: PropTypes.object,
-    data: PropTypes.string,
+    data: PropTypes.array,
+    severity: PropTypes.string
   }
 
   render () {
-    const { build, data } = this.props
-
+    const { build, data, severity } = this.props
     return (
       <Panel>
         <Panel.Heading>Build result {build.uuid}</Panel.Heading>
         <Panel.Body>
+          <Link to="?">All</Link>&nbsp;
+          <Link to="?severity=1">Debug</Link>&nbsp;
+          <Link to="?severity=2">Info</Link>&nbsp;
+          <Link to="?severity=3">Warning</Link>&nbsp;
+          <Link to="?severity=4">Error</Link>&nbsp;
+          <Link to="?severity=5">Trace</Link>&nbsp;
+          <Link to="?severity=6">Audit</Link>&nbsp;
+          <Link to="?severity=7">Critical</Link>&nbsp;
           <pre className="zuul-log-output">
-            {data.split(/\r?\n/).map((line, idx) => (
-              <span key={idx}>
-                {linkify(line, idx)}{'\n'}
-              </span>
+            {data.map((line) => (
+              ((!severity || (line.severity >= severity)) &&
+              <span key={line.index}>
+                <a name={line.index} href={'#'+(line.index)}>{line.text+'\n'}</a>
+              </span>)
             ))}
           </pre>
         </Panel.Body>

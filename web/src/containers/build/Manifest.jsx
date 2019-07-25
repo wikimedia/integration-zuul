@@ -19,12 +19,12 @@ import {
 } from 'patternfly-react'
 import { Link } from 'react-router-dom'
 
-const renderTree = (tenant, build, obj) => {
+const renderTree = (tenant, build, path, obj) => {
   const node = {}
   let name = obj.name
 
   if ('children' in obj && obj.children) {
-    node.nodes = obj.children.map(n => renderTree(tenant, build, n))
+    node.nodes = obj.children.map(n => renderTree(tenant, build, path+'/'+obj.name, n))
   }
   if (obj.mimetype === 'application/directory') {
     name = obj.name + '/'
@@ -32,9 +32,9 @@ const renderTree = (tenant, build, obj) => {
     node.icon = 'fa fa-file-o'
   }
   if (obj.mimetype === 'text/plain') {
-    node.text = (<Link to={tenant.linkPrefix + '/build/' + build.uuid + '/view/' + name}>{obj.name}</Link>)
+    node.text = (<Link to={tenant.linkPrefix + '/build/' + build.uuid + '/view' + path + '/' + name}>{obj.name}</Link>)
   } else {
-    node.text = (<a href={build.log_url + name}>{obj.name}</a>)
+    node.text = (<a href={build.log_url + path + '/' + name}>{obj.name}</a>)
   }
   return node
 }
@@ -48,7 +48,7 @@ class Manifest extends React.Component {
   render() {
     const { tenant, build } = this.props
 
-    const nodes = build.manifest.tree.map(n => renderTree(tenant, build, n))
+    const nodes = build.manifest.tree.map(n => renderTree(tenant, build, '', n))
 
     return (
       <div className="tree-view-container">
