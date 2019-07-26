@@ -32,9 +32,20 @@ const renderTree = (tenant, build, path, obj) => {
     node.icon = 'fa fa-file-o'
   }
   if (obj.mimetype === 'text/plain') {
-    node.text = (<Link to={tenant.linkPrefix + '/build/' + build.uuid + '/view' + path + '/' + name}>{obj.name}</Link>)
+    node.text = (
+      <span>
+        <Link to={tenant.linkPrefix + '/build/' + build.uuid + '/view' + path + '/' + name}>{obj.name}</Link>
+        &nbsp;&nbsp;
+        (<a href={build.log_url + path + '/' + name}>raw</a>
+        &nbsp;<span className="fa fa-external-link"/>)
+      </span>)
   } else {
-    node.text = (<a href={build.log_url + path + '/' + name}>{obj.name}</a>)
+    node.text = (
+      <span>
+        <a href={build.log_url + path + '/' + name}>{obj.name}</a>
+        &nbsp;<span className="fa fa-external-link"/>
+      </span>
+    )
   }
   return node
 }
