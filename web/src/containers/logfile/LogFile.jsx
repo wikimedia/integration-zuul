@@ -18,7 +18,7 @@ import { connect } from 'react-redux'
 import { Panel } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
 
-class View extends React.Component {
+class LogFile extends React.Component {
   static propTypes = {
     build: PropTypes.object,
     item: PropTypes.object,
@@ -56,4 +56,4 @@ class View extends React.Component {
 }
 
 
-export default connect(state => ({tenant: state.tenant}))(View)
+export default connect(state => ({tenant: state.tenant}))(LogFile)

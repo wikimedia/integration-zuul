@@ -34,7 +34,7 @@ const renderTree = (tenant, build, path, obj) => {
   if (obj.mimetype === 'text/plain') {
     node.text = (
       <span>
-        <Link to={tenant.linkPrefix + '/build/' + build.uuid + '/view' + path + '/' + name}>{obj.name}</Link>
+        <Link to={tenant.linkPrefix + '/build/' + build.uuid + '/log' + path + '/' + name}>{obj.name}</Link>
         &nbsp;&nbsp;
         (<a href={build.log_url + path + '/' + name}>raw</a>
         &nbsp;<span className="fa fa-external-link"/>)
