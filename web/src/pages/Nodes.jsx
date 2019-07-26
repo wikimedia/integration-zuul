@@ -44,6 +44,7 @@ class NodesPage extends Refreshable {
 
     const headerFormat = value => <Table.Heading>{value}</Table.Heading>
     const cellFormat = value => <Table.Cell>{value}</Table.Cell>
+    const cellLabelsFormat = value => <Table.Cell>{value.join(',')}</Table.Cell>
     const cellPreFormat = value => (
       <Table.Cell style={{fontFamily: 'Menlo,Monaco,Consolas,monospace'}}>
         {value}
@@ -55,14 +56,15 @@ class NodesPage extends Refreshable {
 
     const columns = []
     const myColumns = [
-      'id', 'label', 'connection', 'server', 'provider', 'state',
+      'id', 'labels', 'connection', 'server', 'provider', 'state',
       'age', 'comment'
     ]
     myColumns.forEach(column => {
       let formatter = cellFormat
       let prop = column
-      if (column === 'label') {
+      if (column === 'labels') {
         prop = 'type'
+        formatter = cellLabelsFormat
       } else if (column === 'connection') {
         prop = 'connection_type'
       } else if (column === 'server') {
