@@ -44,7 +44,7 @@ class View extends React.Component {
           <pre className="zuul-log-output">
             {data.map((line) => (
               ((!severity || (line.severity >= severity)) &&
-              <span key={line.index}>
+              <span key={line.index} className={'zuul-log-sev-'+(line.severity||0)}>
                 <a name={line.index} href={'#'+(line.index)}>{line.text+'\n'}</a>
               </span>)
             ))}
