@@ -37,13 +37,15 @@ class Build extends React.Component {
   }
 
   render () {
-    const { build } = this.props
+      const { build } = this.props
     const rows = []
     const myColumns = [
       'job_name', 'result', 'voting',
       'pipeline', 'start_time', 'end_time', 'duration',
       'project', 'branch', 'change', 'patchset', 'oldrev', 'newrev',
       'ref', 'new_rev', 'ref_url', 'log_url']
+
+    const defaultTab = window.location.hash.substring(1) || 'summary'
 
     myColumns.forEach(column => {
       let label = column
@@ -80,19 +82,19 @@ class Build extends React.Component {
       <Panel>
         <Panel.Heading>Build result {build.uuid}</Panel.Heading>
         <Panel.Body>
-          <TabContainer id="zuul-project" defaultActiveKey={1}>
+          <TabContainer id="zuul-project" defaultActiveKey={defaultTab}>
             <div>
               <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                <NavItem eventKey={1}>
+                <NavItem eventKey={'summary'} href="#summary">
                   Summary
                 </NavItem>
                 {build.manifest &&
-                 <NavItem eventKey={2}>
+                 <NavItem eventKey={'logs'} href="#logs">
                    Logs
                  </NavItem>}
               </Nav>
               <TabContent>
-                <TabPane eventKey={1}>
+                <TabPane eventKey={'summary'}>
                   <table className="table table-striped table-bordered">
                     <tbody>
                       {rows.map(item => (
@@ -107,7 +109,7 @@ class Build extends React.Component {
                   <ArtifactList build={build}/>
                 </TabPane>
                 {build.manifest &&
-                 <TabPane eventKey={2}>
+                 <TabPane eventKey={'logs'}>
                    <Manifest tenant={this.props.tenant} build={build}/>
                  </TabPane>}
               </TabContent>
