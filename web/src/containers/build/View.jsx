@@ -18,7 +18,7 @@ import { connect } from 'react-redux'
 import { Panel } from 'react-bootstrap'
 
 const linkify = (ln, num) => {
-  return (<a name={num} href={'#'+num}>{ln}</a>)
+  return (<a name={num+1} href={'#'+(num+1)}>{ln}</a>)
 }
 
 class View extends React.Component {
@@ -26,7 +26,7 @@ class View extends React.Component {
     build: PropTypes.object,
     item: PropTypes.object,
     tenant: PropTypes.object,
-    data: PropTypes.object,
+    data: PropTypes.string,
   }
 
   render () {
