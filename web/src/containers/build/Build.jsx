@@ -17,9 +17,17 @@ import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Panel } from 'react-bootstrap'
+import {
+  Nav,
+  NavItem,
+  TabContainer,
+  TabPane,
+  TabContent,
+} from 'patternfly-react'
 
 import Artifact from './Artifact'
 import BuildOutput from './BuildOutput'
+import Manifest from './Manifest'
 
 
 class Build extends React.Component {
@@ -81,16 +89,37 @@ class Build extends React.Component {
       <Panel>
         <Panel.Heading>Build result {build.uuid}</Panel.Heading>
         <Panel.Body>
-          <table className="table table-striped table-bordered">
-            <tbody>
-              {rows.map(item => (
-                <tr key={item.key}>
-                  <td>{item.key}</td>
-                  <td>{item.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <TabContainer id="zuul-project" defaultActiveKey={1}>
+            <div>
+              <Nav bsClass="nav nav-tabs nav-tabs-pf">
+                <NavItem eventKey={1}>
+                  Summary
+                </NavItem>
+                {build.manifest &&
+                 <NavItem eventKey={2}>
+                   Logs
+                 </NavItem>}
+              </Nav>
+              <TabContent>
+                <TabPane eventKey={1}>
+                  <table className="table table-striped table-bordered">
+                    <tbody>
+                      {rows.map(item => (
+                        <tr key={item.key}>
+                          <td>{item.key}</td>
+                          <td>{item.value}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </TabPane>
+                {build.manifest &&
+                 <TabPane eventKey={2}>
+                   <Manifest tenant={this.props.tenant} build={build}/>
+                 </TabPane>}
+              </TabContent>
+            </div>
+          </TabContainer>
           {build.output && <BuildOutput output={build.output}/>}
         </Panel.Body>
       </Panel>
