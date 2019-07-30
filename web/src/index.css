@@ -86,8 +86,33 @@ a.refresh {
 
 .zuul-log-output a,
 .zuul-log-output a:hover {
-    color: black;
+    color: inherit;
     text-decoration: none;
+}
+
+.zuul-log-sev-0 {
+    color: black;
+}
+.zuul-log-sev-1 {
+    color: black;
+}
+.zuul-log-sev-2 {
+    color: #0000aa;
+}
+.zuul-log-sev-3 {
+    color: #883300;
+}
+.zuul-log-sev-4 {
+    color: #aa0000;
+}
+.zuul-log-sev-5 {
+    color: #aa0000;
+}
+.zuul-log-sev-6 {
+    color: #aa0000;
+}
+.zuul-log-sev-7 {
+    color: #aa0000;
 }
 
 .form-inline > .form-group {
