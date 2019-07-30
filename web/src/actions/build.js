@@ -39,10 +39,13 @@ export const receiveBuild = (buildId, build) => ({
   receivedAt: Date.now()
 })
 
-const failedBuild = error => ({
-  type: BUILD_FETCH_FAIL,
-  error
-})
+const failedBuild = (error, url) => {
+  error.url = url
+  return {
+    type: BUILD_FETCH_FAIL,
+    error
+  }
+}
 
 export const requestBuildOutput = () => ({
   type: BUILD_OUTPUT_REQUEST
@@ -93,10 +96,13 @@ const receiveBuildOutput = (buildId, output) => {
   }
 }
 
-const failedBuildOutput = error => ({
-  type: BUILD_OUTPUT_FAIL,
-  error
-})
+const failedBuildOutput = (error, url) => {
+  error.url = url
+  return {
+    type: BUILD_OUTPUT_FAIL,
+    error
+  }
+}
 
 export const requestBuildManifest = () => ({
   type: BUILD_MANIFEST_REQUEST
@@ -124,10 +130,13 @@ const receiveBuildManifest = (buildId, manifest) => {
   }
 }
 
-const failedBuildManifest = error => ({
-  type: BUILD_MANIFEST_FAIL,
-  error
-})
+const failedBuildManifest = (error, url) => {
+  error.url = url
+  return {
+    type: BUILD_MANIFEST_FAIL,
+    error
+  }
+}
 
 export const fetchBuild = (tenant, buildId, state, force) => dispatch => {
   const build = state.build.builds[buildId]
@@ -139,7 +148,7 @@ export const fetchBuild = (tenant, buildId, state, force) => dispatch => {
     .then(response => {
       dispatch(receiveBuild(buildId, response.data))
     })
-    .catch(error => dispatch(failedBuild(error)))
+    .catch(error => dispatch(failedBuild(error, tenant.apiPrefix)))
 }
 
 const fetchBuildOutput = (buildId, state, force) => dispatch => {
@@ -160,7 +169,7 @@ const fetchBuildOutput = (buildId, state, force) => dispatch => {
         .then(response => dispatch(receiveBuildOutput(
           buildId, response.data)))
     })
-    .catch(error => dispatch(failedBuildOutput(error)))
+    .catch(error => dispatch(failedBuildOutput(error, url)))
 }
 
 export const fetchBuildManifest = (buildId, state, force) => dispatch => {
@@ -178,7 +187,7 @@ export const fetchBuildManifest = (buildId, state, force) => dispatch => {
         .then(manifest => {
           dispatch(receiveBuildManifest(buildId, manifest.data))
         })
-        .catch(error => dispatch(failedBuildManifest(error)))
+        .catch(error => dispatch(failedBuildManifest(error, artifact.url)))
     }
   }
   dispatch(failedBuildManifest('no manifest found'))
