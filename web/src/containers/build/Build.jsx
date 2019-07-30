@@ -25,7 +25,7 @@ import {
   TabContent,
 } from 'patternfly-react'
 
-import Artifact from './Artifact'
+import ArtifactList from './Artifact'
 import BuildOutput from './BuildOutput'
 import Manifest from './Manifest'
 
@@ -43,7 +43,7 @@ class Build extends React.Component {
       'job_name', 'result', 'voting',
       'pipeline', 'start_time', 'end_time', 'duration',
       'project', 'branch', 'change', 'patchset', 'oldrev', 'newrev',
-      'ref', 'new_rev', 'ref_url', 'log_url', 'artifacts']
+      'ref', 'new_rev', 'ref_url', 'log_url']
 
     myColumns.forEach(column => {
       let label = column
@@ -71,15 +71,6 @@ class Build extends React.Component {
       }
       if (column === 'ref_url') {
         label = 'ref url'
-      }
-      if (column === 'artifacts') {
-        value = (
-          <div>
-            {value.map((item, index) => (
-              <Artifact key={index} artifact={item}/>
-            ))}
-          </div>
-        )
       }
       if (value) {
         rows.push({key: label, value: value})
@@ -112,6 +103,8 @@ class Build extends React.Component {
                       ))}
                     </tbody>
                   </table>
+                  <h3>Artifacts</h3>
+                  <ArtifactList build={build}/>
                 </TabPane>
                 {build.manifest &&
                  <TabPane eventKey={2}>

@@ -14,6 +14,9 @@
 
 import React from 'react'
 import PropTypes from 'prop-types'
+import {
+  TreeView,
+} from 'patternfly-react'
 
 
 class Artifact extends React.Component {
@@ -25,9 +28,6 @@ class Artifact extends React.Component {
     const { artifact } = this.props
     return (
       <table className="table table-striped table-bordered" style={{width:'50%'}}>
-        <thead>
-          <tr><th colSpan="2"><a href={artifact.url}>{artifact.name}</a></th></tr>
-        </thead>
         <tbody>
           {Object.keys(artifact.metadata).map(key => (
             <tr key={key}>
@@ -41,4 +41,29 @@ class Artifact extends React.Component {
   }
 }
 
-export default Artifact
+class ArtifactList extends React.Component {
+  static propTypes = {
+    build: PropTypes.object.isRequired
+  }
+
+  render() {
+    const { build } = this.props
+
+    const nodes = build.artifacts.map((artifact, index) => (
+      {text: <a href={artifact.url}>{artifact.name}</a>,
+       icon: null,
+       nodes: [{text: <Artifact key={index} artifact={artifact}/>,
+                icon: ''}]}
+    ))
+
+    return (
+      <div className="tree-view-container">
+        <TreeView
+          nodes={nodes}
+        />
+      </div>
+    )
+  }
+}
+
+export default ArtifactList
