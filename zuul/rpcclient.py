@@ -62,7 +62,8 @@ class RPCClient(object):
                 'node_hold_expiration': node_hold_expiration}
         return not self.submitJob('zuul:autohold', data).failure
 
-    def autohold_list(self):
+    # todo allow filtering per tenant, like in the REST API
+    def autohold_list(self, *args, **kwargs):
         data = {}
         job = self.submitJob('zuul:autohold_list', data)
         if job.failure:

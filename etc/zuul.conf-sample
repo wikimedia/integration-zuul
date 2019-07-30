@@ -40,6 +40,10 @@ port=9000
 static_cache_expiry=0
 status_url=https://zuul.example.com/status
 
+[webclient]
+url=https://zuul.example.com
+verify_ssl=true
+
 [auth zuul_operator]
 driver=HS256
 allow_authz_override=true
