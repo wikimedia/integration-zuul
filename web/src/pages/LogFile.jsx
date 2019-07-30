@@ -19,10 +19,10 @@ import { parse } from 'query-string'
 
 import { fetchLogfileIfNeeded } from '../actions/logfile'
 import Refreshable from '../containers/Refreshable'
-import View from '../containers/build/View'
+import LogFile from '../containers/logfile/LogFile'
 
 
-class ViewPage extends Refreshable {
+class LogFilePage extends Refreshable {
   static propTypes = {
     match: PropTypes.object.isRequired,
     remoteData: PropTypes.object,
@@ -38,7 +38,7 @@ class ViewPage extends Refreshable {
   }
 
   componentDidMount () {
-    document.title = 'Zuul Build Viewer'
+    document.title = 'Zuul Build Logfile'
     super.componentDidMount()
   }
 
@@ -51,7 +51,7 @@ class ViewPage extends Refreshable {
         <div style={{float: 'right'}}>
           {this.renderSpinner()}
         </div>
-        {remoteData.data && <View build={build} data={remoteData.data} severity={severity}/>}
+        {remoteData.data && <LogFile build={build} data={remoteData.data} severity={severity}/>}
       </React.Fragment>
     )
   }
@@ -61,4 +61,4 @@ export default connect(state => ({
   tenant: state.tenant,
   remoteData: state.logfile,
   build: state.build
-}))(ViewPage)
+}))(LogFilePage)
