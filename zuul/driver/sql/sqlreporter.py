@@ -66,6 +66,9 @@ class SQLReporter(BaseReporter):
                     build.end_time = time.time()
 
                 (result, url) = item.formatJobResult(job)
+                log_url = build.result_data.get('zuul', {}).get('log_url')
+                if log_url and log_url[-1] != '/':
+                    log_url = log_url + '/'
                 start = end = None
                 if build.start_time:
                     start = datetime.datetime.fromtimestamp(
@@ -83,7 +86,7 @@ class SQLReporter(BaseReporter):
                     start_time=start,
                     end_time=end,
                     voting=build.job.voting,
-                    log_url=url,
+                    log_url=log_url,
                     node_name=build.node_name,
                 )
 
