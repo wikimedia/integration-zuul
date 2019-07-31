@@ -24,13 +24,19 @@ export const addError = error => ({
   error
 })
 
-export const addApiError = error => (
-  addError({
-    url: error.request.responseURL,
-    status: error.response.status,
-    text: error.response.statusText,
-  })
-)
+export const addApiError = error => {
+  const d = {
+    url: error.request.responseURL || error.url
+  }
+  if (error.response) {
+    d.text = error.response.statusText
+    d.status = error.response.status
+  } else {
+    d.status = 'Unable to fetch URL, check your network connectivity, browser plugins, and ad-blockers'
+    d.text = error.message
+  }
+  return addError(d)
+}
 
 export const clearError = id => ({
   type: CLEAR_ERROR,

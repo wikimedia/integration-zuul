@@ -71,10 +71,13 @@ const receiveLogfile = (data) => {
   }
 }
 
-const failedLogfile = error => ({
-  type: LOGFILE_FETCH_FAIL,
-  error
-})
+const failedLogfile = (error, url) => {
+  error.url = url
+  return {
+    type: LOGFILE_FETCH_FAIL,
+    error
+  }
+}
 
 const fetchLogfile = (buildId, file, state, force) => dispatch => {
   const build = state.build.builds[buildId]
@@ -91,7 +94,7 @@ const fetchLogfile = (buildId, file, state, force) => dispatch => {
   if (item.mimetype === 'text/plain') {
     return Axios.get(url, {transformResponse: []})
       .then(response => dispatch(receiveLogfile(response.data)))
-      .catch(error => dispatch(failedLogfile(error)))
+      .catch(error => dispatch(failedLogfile(error, url)))
   }
   dispatch(failedLogfile(null))
 }
