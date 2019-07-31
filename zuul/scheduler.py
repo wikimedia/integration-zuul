@@ -959,8 +959,14 @@ class Scheduler(threading.Thread):
 
     def _doDequeueEvent(self, event):
         tenant = self.abide.tenants.get(event.tenant_name)
-        pipeline = tenant.layout.pipelines[event.pipeline_name]
+        if tenant is None:
+            raise ValueError('Unknown tenant %s' % event.tenant_name)
+        pipeline = tenant.layout.pipelines.get(event.pipeline_name)
+        if pipeline is None:
+            raise ValueError('Unknown pipeline %s' % event.pipeline_name)
         (trusted, project) = tenant.getProject(event.project_name)
+        if project is None:
+            raise ValueError('Unknown project %s' % event.project_name)
         change = project.source.getChange(event, project)
         if change.project.name != project.name:
             if event.change:
