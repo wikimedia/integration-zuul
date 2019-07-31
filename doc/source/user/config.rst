@@ -244,7 +244,8 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       :default: Starting {pipeline.name} jobs.
 
       The introductory text in reports when jobs are started.
-      Two replacement fields are available ``status_url`` and ``pipeline``.
+      Three replacement fields are available ``status_url``, ``pipeline`` and
+      ``change``.
 
    .. attr:: merge-failure-message
       :default: Merge failed.
