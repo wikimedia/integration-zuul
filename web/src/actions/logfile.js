@@ -89,7 +89,7 @@ const fetchLogfile = (buildId, file, state, force) => dispatch => {
   }
   dispatch(requestLogfile())
   if (item.mimetype === 'text/plain') {
-    return Axios.get(url)
+    return Axios.get(url, {transformResponse: []})
       .then(response => dispatch(receiveLogfile(response.data)))
       .catch(error => dispatch(failedLogfile(error)))
   }
