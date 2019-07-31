@@ -19,6 +19,43 @@ import jwt
 
 from zuul import exceptions
 import zuul.driver.auth.jwt as auth_jwt
+from zuul.configloader import AuthorizationRuleParser
+
+
+"""AuthN/AuthZ related library, used by zuul-web."""
+
+
+class AuthorizationRegistry(object):
+    """Registry of authorization rules.
+
+    reconfigure(rules) takes a JSON list to create the ruleset; typically
+    provided by the scheduler."""
+
+    log = logging.getLogger("Zuul.AuthorizationRegistry")
+
+    def __init__(self):
+        self.ruleset = {}
+
+    def reconfigure(self, rules):
+        if not isinstance(rules, list):
+            raise Exception('Authorizations file must be a list of rules')
+        new_ruleset = {}
+        ruleparser = AuthorizationRuleParser()
+        for rule in rules:
+            if not isinstance(rule, dict):
+                raise Exception('Invalid rule format for rule "%r"' % rule)
+            if len(rule.keys()) > 1:
+                raise Exception('Rules must consist of "rule" element only')
+            if 'rule' in rule:
+                rule_tree = ruleparser.fromYaml(rule['rule'])
+                if rule_tree.name in new_ruleset:
+                    raise Exception(
+                        'Rule "%s" is defined at least twice' % rule_tree.name)
+                else:
+                    new_ruleset[rule_tree.name] = rule_tree
+            else:
+                raise Exception('Unknown element "%s"' % rule.keys()[0])
+        self.ruleset = new_ruleset
 
 
 class AuthenticatorRegistry(object):

@@ -2529,8 +2529,9 @@ class ZuulWebFixture(fixtures.Fixture):
             include_drivers=[zuul.driver.sql.SQLDriver,
                              zuul.driver.github.GithubDriver,
                              zuul.driver.pagure.PagureDriver])
-        self.auths = zuul.lib.auth.AuthenticatorRegistry()
-        self.auths.configure(config)
+        self.authenticators = zuul.lib.auth.AuthenticatorRegistry()
+        self.authenticators.configure(config)
+        self.authorizations = zuul.lib.auth.AuthorizationRegistry()
         if info is None:
             self.info = zuul.model.WebInfo()
         else:
@@ -2547,7 +2548,8 @@ class ZuulWebFixture(fixtures.Fixture):
             connections=self.connections,
             zk_hosts=self.zk_hosts,
             command_socket=os.path.join(self.test_root, 'web.socket'),
-            auths=self.auths)
+            authenticators=self.authenticators,
+            authorizations=self.authorizations)
         self.web.start()
         self.addCleanup(self.stop)
 
@@ -3194,6 +3196,8 @@ class ZuulTestCase(BaseTestCase):
         with open(os.path.join(FIXTURE_DIR, path)) as f:
             tenant_config = yaml.safe_load(f.read())
         for tenant in tenant_config:
+            if 'tenant' not in tenant.keys():
+                continue
             sources = tenant['tenant']['source']
             for source, conf in sources.items():
                 for project in conf.get('config-projects', []):

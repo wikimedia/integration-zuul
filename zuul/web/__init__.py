@@ -240,7 +240,7 @@ class ZuulWebAPI(object):
             return None
         error_header = '''Bearer realm="%s"
        error="%s"
-       error_description="%s"''' % (self.zuulweb.auths.default_realm,
+       error_description="%s"''' % (self.zuulweb.authenticators.default_realm,
                                     e,
                                     e_desc)
         cherrypy.response.status = status
@@ -259,7 +259,7 @@ class ZuulWebAPI(object):
         # AuthN/AuthZ
         rawToken = cherrypy.request.headers['Authorization'][len('Bearer '):]
         try:
-            uid, authz = self.zuulweb.auths.authenticate(rawToken)
+            uid, authz = self.zuulweb.authenticators.authenticate(rawToken)
         except exceptions.AuthTokenException as e:
             for header, contents in e.getAdditionalHeaders().items():
                 cherrypy.response.headers[header] = contents
@@ -303,7 +303,7 @@ class ZuulWebAPI(object):
         # AuthN/AuthZ
         rawToken = cherrypy.request.headers['Authorization'][len('Bearer '):]
         try:
-            uid, authz = self.zuulweb.auths.authenticate(rawToken)
+            uid, authz = self.zuulweb.authenticators.authenticate(rawToken)
         except exceptions.AuthTokenException as e:
             for header, contents in e.getAdditionalHeaders().items():
                 cherrypy.response.headers[header] = contents
@@ -380,7 +380,7 @@ class ZuulWebAPI(object):
             rawToken = \
                 cherrypy.request.headers['Authorization'][len('Bearer '):]
             try:
-                uid, authz = self.zuulweb.auths.authenticate(rawToken)
+                uid, authz = self.zuulweb.authenticators.authenticate(rawToken)
             except exceptions.AuthTokenException as e:
                 for header, contents in e.getAdditionalHeaders().items():
                     cherrypy.response.headers[header] = contents
@@ -967,8 +967,10 @@ class ZuulWeb(object):
                  info=None,
                  static_path=None,
                  zk_hosts=None,
+                 authenticators=None,
+                 authorizations=None,
                  command_socket=None,
-                 auths=None):
+                 ):
         self.start_time = time.time()
         self.listen_address = listen_address
         self.listen_port = listen_port
@@ -985,7 +987,8 @@ class ZuulWeb(object):
         if zk_hosts:
             self.zk.connect(hosts=zk_hosts, read_only=True)
         self.connections = connections
-        self.auths = auths
+        self.authenticators = authenticators
+        self.authorizations = authorizations
         self.stream_manager = StreamManager()
 
         self.command_socket = commandsocket.CommandSocket(command_socket)
@@ -1019,7 +1022,7 @@ class ZuulWeb(object):
         route_map.connect('api', '/api/tenant/{tenant}/job/{job_name}',
                           controller=api, action='job')
         # if no auth configured, deactivate admin routes
-        if self.auths.authenticators:
+        if self.authenticators.authenticators:
             # route order is important, put project actions before the more
             # generic tenant/{tenant}/project/{project} route
             route_map.connect(
@@ -1158,11 +1161,11 @@ class ZuulWeb(object):
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     import zuul.lib.connections
-    import zuul.lib.authenticators
+    import zuul.lib.auth.authenticators
     connections = zuul.lib.connections.ConnectionRegistry()
-    auths = zuul.lib.authenticators.AuthenticatorRegistry()
+    auths = zuul.lib.auth.authenticators.AuthenticatorRegistry()
     z = ZuulWeb(listen_address="127.0.0.1", listen_port=9000,
                 gear_server="127.0.0.1", gear_port=4730,
-                connections=connections, auths=auths)
+                connections=connections, authenticators=auths)
     z.start()
     cherrypy.engine.block()
