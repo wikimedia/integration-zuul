@@ -107,6 +107,37 @@ class TestSchedulerZone(ZuulTestCase):
                          'label1')
 
 
+class TestAuthorizeViaRPC(ZuulTestCase):
+    tenant_config_file = 'config/authorization/single-tenant/main.yaml'
+
+    def test_authorize_via_rpc(self):
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+        claims = {'__zuul_uid_claim': 'venkman'}
+        authorized = client.submitJob('zuul:authorize_user',
+                                      {'tenant': 'tenant-one',
+                                       'claims': claims}).data[0]
+        self.assertTrue(json.loads(authorized))
+        claims = {'sub': 'gozer'}
+        authorized = client.submitJob('zuul:authorize_user',
+                                      {'tenant': 'tenant-one',
+                                       'claims': claims}).data[0]
+        self.assertTrue(not json.loads(authorized))
+        claims = {'sub': 'stantz',
+                  'iss': 'columbia.edu'}
+        authorized = client.submitJob('zuul:authorize_user',
+                                      {'tenant': 'tenant-one',
+                                       'claims': claims}).data[0]
+        self.assertTrue(json.loads(authorized))
+        claims = {'sub': 'slimer',
+                  'groups': ['ghostbusters', 'ectoplasms']}
+        authorized = client.submitJob('zuul:authorize_user',
+                                      {'tenant': 'tenant-one',
+                                       'claims': claims}).data[0]
+        self.assertTrue(json.loads(authorized))
+
+
 class TestScheduler(ZuulTestCase):
     tenant_config_file = 'config/single-tenant/main.yaml'
 

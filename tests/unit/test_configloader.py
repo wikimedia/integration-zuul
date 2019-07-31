@@ -427,6 +427,13 @@ class TestAuthorizationRuleParser(ZuulTestCase):
         rules = self.sched.abide.admin_rules
         self.assertTrue('auth-rule-one' in rules, self.sched.abide)
         self.assertTrue('auth-rule-two' in rules, self.sched.abide)
+        claims_1 = {'sub': 'venkman'}
+        claims_2 = {'sub': 'gozer',
+                    'iss': 'another_dimension'}
+        self.assertTrue(rules['auth-rule-one'](claims_1))
+        self.assertTrue(not rules['auth-rule-one'](claims_2))
+        self.assertTrue(not rules['auth-rule-two'](claims_1))
+        self.assertTrue(rules['auth-rule-two'](claims_2))
 
     def test_parse_simplest_rule_from_yaml(self):
         rule_d = {'name': 'my-rule',

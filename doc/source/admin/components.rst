@@ -830,6 +830,8 @@ sections of ``zuul.conf`` are used by the web server:
       The Cache-Control max-age response header value for static files served
       by the zuul-web. Set to 0 during development to disable Cache-Control.
 
+.. _web-server-tenant-scoped-api:
+
 Enabling tenant-scoped access to privileged actions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -853,8 +855,9 @@ protected endpoints and configure JWT validation:
    .. attr:: allow_authz_override
       :default: false
 
-      Allow a JWT to override predefined access rules. Since predefined access
-      rules are not supported yet, this should be set to ``true``.
+      Allow a JWT to override predefined access rules. See the section on
+      :ref:`JWT contents <jwt-format>` for more details on how to grant access
+      to tenants with a JWT.
 
    .. attr:: realm
 

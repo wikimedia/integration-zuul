@@ -54,6 +54,7 @@ class RPCListener(object):
             'key_get',
             'config_errors_list',
             'connection_list',
+            'authorize_user',
         ]
         for func in functions:
             f = getattr(self, 'handle_%s' % func)
@@ -280,6 +281,29 @@ class RPCListener(object):
             job_log_stream_address['server'] = build.worker.hostname
             job_log_stream_address['port'] = build.worker.log_port
         job.sendWorkComplete(json.dumps(job_log_stream_address))
+
+    def handle_authorize_user(self, job):
+        args = json.loads(job.arguments)
+        tenant_name = args['tenant']
+        claims = args['claims']
+        tenant = self.sched.abide.tenants.get(tenant_name)
+        authorized = False
+        if tenant:
+            rules = tenant.authorization_rules
+            for rule in rules:
+                if rule not in self.sched.abide.admin_rules.keys():
+                    self.log.error('Undefined rule "%s"' % rule)
+                    continue
+                debug_msg = 'Applying rule "%s" from tenant "%s" to claims %s'
+                self.log.debug(
+                    debug_msg % (rule, tenant, json.dumps(claims)))
+                authorized = self.sched.abide.admin_rules[rule](claims)
+                if authorized:
+                    debug_msg = '%s authorized on tenant "%s" by rule "%s"'
+                    self.log.debug(
+                        debug_msg % (json.dumps(claims), tenant, rule))
+                    break
+        job.sendWorkComplete(json.dumps(authorized))
 
     def handle_tenant_list(self, job):
         output = []

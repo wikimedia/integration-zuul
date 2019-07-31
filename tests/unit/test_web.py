@@ -1413,3 +1413,129 @@ class TestTenantScopedWebApi(BaseTestWeb):
         self.executor_server.release()
         self.waitUntilSettled()
         self.assertEqual(self.countJobResults(self.history, 'ABORTED'), 1)
+
+
+class TestTenantScopedWebApiWithAuthRules(BaseTestWeb):
+    config_file = 'zuul-admin-web-no-override.conf'
+    tenant_config_file = 'config/authorization/single-tenant/main.yaml'
+
+    def test_override_not_allowed(self):
+        """Test that authz cannot be overriden if config does not allow it"""
+        args = {"reason": "some reason",
+                "count": 1,
+                'job': 'project-test2',
+                'change': None,
+                'ref': None,
+                'node_hold_expiration': None}
+        authz = {'iss': 'zuul_operator',
+                 'aud': 'zuul.example.com',
+                 'sub': 'testuser',
+                 'zuul': {
+                     'admin': ['tenant-one', ],
+                 },
+                 'exp': time.time() + 3600}
+        token = jwt.encode(authz, key='NoDanaOnlyZuul',
+                           algorithm='HS256').decode('utf-8')
+        req = self.post_url(
+            'api/tenant/tenant-one/project/org/project/autohold',
+            headers={'Authorization': 'Bearer %s' % token},
+            json=args)
+        self.assertEqual(401, req.status_code, req.text)
+
+    def test_tenant_level_rule(self):
+        """Test that authz rules defined at tenant level are checked"""
+        path = "api/tenant/%(tenant)s/project/%(project)s/enqueue"
+
+        def _test_project_enqueue_with_authz(i, project, authz, expected):
+            f_ch = self.fake_gerrit.addFakeChange(project, 'master',
+                                                  '%s %i' % (project, i))
+            f_ch.addApproval('Code-Review', 2)
+            f_ch.addApproval('Approved', 1)
+            change = {'trigger': 'gerrit',
+                      'change': '%i,1' % i,
+                      'pipeline': 'gate', }
+            enqueue_args = {'tenant': 'tenant-one',
+                            'project': project, }
+
+            token = jwt.encode(authz, key='NoDanaOnlyZuul',
+                               algorithm='HS256').decode('utf-8')
+            req = self.post_url(path % enqueue_args,
+                                headers={'Authorization': 'Bearer %s' % token},
+                                json=change)
+            self.assertEqual(expected, req.status_code, req.text)
+            self.waitUntilSettled()
+
+        i = 0
+        for p in ['org/project', 'org/project1', 'org/project2']:
+            i += 1
+            # Authorized sub
+            authz = {'iss': 'zuul_operator',
+                     'aud': 'zuul.example.com',
+                     'sub': 'venkman',
+                     'exp': time.time() + 3600}
+            _test_project_enqueue_with_authz(i, p, authz, 200)
+            i += 1
+            # Unauthorized sub
+            authz = {'iss': 'zuul_operator',
+                     'aud': 'zuul.example.com',
+                     'sub': 'vigo',
+                     'exp': time.time() + 3600}
+            _test_project_enqueue_with_authz(i, p, authz, 403)
+            i += 1
+            # unauthorized issuer
+            authz = {'iss': 'columbia.edu',
+                     'aud': 'zuul.example.com',
+                     'sub': 'stantz',
+                     'exp': time.time() + 3600}
+            _test_project_enqueue_with_authz(i, p, authz, 401)
+        self.waitUntilSettled()
+
+    def test_group_rule(self):
+        """Test a group rule"""
+        A = self.fake_gerrit.addFakeChange('org/project2', 'master', 'A')
+        A.addApproval('Code-Review', 2)
+        A.addApproval('Approved', 1)
+
+        authz = {'iss': 'zuul_operator',
+                 'aud': 'zuul.example.com',
+                 'sub': 'melnitz',
+                 'groups': ['ghostbusters', 'secretary'],
+                 'exp': time.time() + 3600}
+        token = jwt.encode(authz, key='NoDanaOnlyZuul',
+                           algorithm='HS256').decode('utf-8')
+        path = "api/tenant/%(tenant)s/project/%(project)s/enqueue"
+        enqueue_args = {'tenant': 'tenant-one',
+                        'project': 'org/project2', }
+        change = {'trigger': 'gerrit',
+                  'change': '1,1',
+                  'pipeline': 'gate', }
+        req = self.post_url(path % enqueue_args,
+                            headers={'Authorization': 'Bearer %s' % token},
+                            json=change)
+        self.assertEqual(200, req.status_code, req.text)
+        self.waitUntilSettled()
+
+    def test_arbitrary_claim_rule(self):
+        """Test a rule based on a specific claim"""
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.addApproval('Code-Review', 2)
+        A.addApproval('Approved', 1)
+
+        authz = {'iss': 'zuul_operator',
+                 'aud': 'zuul.example.com',
+                 'sub': 'zeddemore',
+                 'car': 'ecto-1',
+                 'exp': time.time() + 3600}
+        token = jwt.encode(authz, key='NoDanaOnlyZuul',
+                           algorithm='HS256').decode('utf-8')
+        path = "api/tenant/%(tenant)s/project/%(project)s/enqueue"
+        enqueue_args = {'tenant': 'tenant-one',
+                        'project': 'org/project', }
+        change = {'trigger': 'gerrit',
+                  'change': '1,1',
+                  'pipeline': 'gate', }
+        req = self.post_url(path % enqueue_args,
+                            headers={'Authorization': 'Bearer %s' % token},
+                            json=change)
+        self.assertEqual(200, req.status_code, req.text)
+        self.waitUntilSettled()

@@ -1,5 +1,7 @@
 :title: Tenant Scoped REST API
 
+.. _tenant-scoped-rest-api:
+
 Tenant Scoped REST API
 ======================
 
@@ -36,8 +38,33 @@ and Tokens should be handed over with discernment.
 Configuration
 -------------
 
-See the Zuul Web Server component's section about enabling tenant-scoped access to
-privileged actions.
+To enable tenant-scoped access to privileged actions, see the Zuul Web Server
+component's section.
+
+To set access rules for a tenant, see :ref:`the documentation about tenant
+definition <admin_rule_definition>`.
+
+Most of the time, only one authenticator will be needed in Zuul's configuration;
+namely the configuration matching a third party identity provider service like
+dex, auth0, keycloak or others. It can be useful however to add another
+authenticator similar to this one:
+
+.. code-block:: ini
+
+    [auth zuul_operator]
+    driver=HS256
+    allow_authz_override=true
+    realm=zuul.example.com
+    client_id=zuul.example.com
+    issuer_id=zuul_operator
+    secret=NoDanaOnlyZuul
+
+With such an authenticator, a Zuul operator can use Zuul's CLI to
+issue Tokens overriding a tenant's access rules if need
+be. A user can then use these Tokens with Zuul's CLI to perform protected actions
+on a tenant temporarily, without having to modify a tenant's access rules.
+
+.. _jwt-format:
 
 JWT Format
 ----------
