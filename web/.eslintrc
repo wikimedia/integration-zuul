@@ -3,6 +3,7 @@ plugins:
   - standard
   - jest
 rules:
+  no-var: error
   no-console: off
   semi: [error, never]
   quotes: [error, single]
