@@ -161,10 +161,6 @@ class DependentPipelineManager(PipelineManager):
                             change_queue, history=None):
         log = get_annotated_logger(self.log, event)
 
-        if history and change in history:
-            # detected dependency cycle
-            log.warn("Dependency cycle detected")
-            return False
         if hasattr(change, 'number'):
             history = history or []
             history = history + [change]
