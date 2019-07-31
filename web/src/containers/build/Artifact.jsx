@@ -49,12 +49,15 @@ class ArtifactList extends React.Component {
   render() {
     const { build } = this.props
 
-    const nodes = build.artifacts.map((artifact, index) => (
-      {text: <a href={artifact.url}>{artifact.name}</a>,
-       icon: null,
-       nodes: [{text: <Artifact key={index} artifact={artifact}/>,
-                icon: ''}]}
-    ))
+    const nodes = build.artifacts.map((artifact, index) => {
+      const node = {text: <a href={artifact.url}>{artifact.name}</a>,
+                    icon: null}
+      if (artifact.metadata) {
+        node['nodes']= [{text: <Artifact key={index} artifact={artifact}/>,
+                         icon: ''}]
+      }
+      return node
+    })
 
     return (
       <div className="tree-view-container">
