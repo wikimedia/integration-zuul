@@ -16,6 +16,8 @@
 - job:
     name: zuul-stream-functional
     parent: multinode
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     nodeset: zuul-functional-temp-master
     pre-run: playbooks/zuul-stream/pre.yaml
     run: playbooks/zuul-stream/functional.yaml
@@ -30,30 +32,40 @@
 - job:
     name: zuul-stream-functional-2.5
     parent: zuul-stream-functional
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     vars:
       zuul_ansible_version: 2.5
 
 - job:
     name: zuul-stream-functional-2.6
     parent: zuul-stream-functional
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     vars:
       zuul_ansible_version: 2.6
 
 - job:
     name: zuul-stream-functional-2.7
     parent: zuul-stream-functional
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     vars:
       zuul_ansible_version: 2.7
 
 - job:
     name: zuul-stream-functional-2.8
     parent: zuul-stream-functional
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     vars:
       zuul_ansible_version: 2.8
 
 - job:
     name: zuul-tox-remote
     parent: tox
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     vars:
       tox_envlist: remote
       tox_environment:
@@ -64,7 +76,8 @@
 - job:
     name: zuul-build-dashboard
     parent: build-javascript-content
-    success-url: 'npm/html/'
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     files:
       - web/.*
       - playbooks/dashboard/.*
@@ -78,6 +91,8 @@
 - job:
     name: zuul-build-dashboard-multi-tenant
     parent: zuul-build-dashboard
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     vars:
       zuul_api_url: https://softwarefactory-project.io/zuul
       node_version: 10
@@ -89,6 +104,8 @@
 - job:
     name: zuul-quick-start
     description: Run the commands in the Zuul quick-start documentation.
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     run: playbooks/quick-start/run.yaml
     post-run: playbooks/quick-start/post.yaml
     requires: docker-image
@@ -116,6 +133,8 @@
     name: zuul-build-image
     parent: opendev-build-docker-image
     description: Build Docker images.
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     allowed-projects: zuul/zuul
     vars: &zuul_image_vars
       docker_images:
@@ -142,6 +161,8 @@
     name: zuul-upload-image
     parent: opendev-upload-docker-image
     description: Build Docker images and upload to Docker Hub.
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     allowed-projects: zuul/zuul
     secrets:
       name: docker_credentials
@@ -153,6 +174,8 @@
     name: zuul-promote-image
     parent: opendev-promote-docker-image
     description: Promote previously uploaded Docker images.
+    success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+    failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     allowed-projects: zuul/zuul
     secrets:
       name: docker_credentials
@@ -166,15 +189,23 @@
     check:
       jobs:
         - zuul-build-image
-        - zuul-tox-docs
-        - tox-pep8
+        - zuul-tox-docs:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+        - tox-pep8:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
         - tox-py35:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
             nodeset: ubuntu-xenial
             timeout: 3600  # 60 minutes
         - tox-py36:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
@@ -182,14 +213,17 @@
         - zuul-build-dashboard
         - zuul-build-dashboard-multi-tenant
         - nodejs-npm-run-lint:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             vars:
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
         - nodejs-npm-run-test:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             vars:
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
-            success-url: 'npm/reports/bundle.html'
             files:
               - web/.*
         - zuul-stream-functional-2.5
@@ -201,9 +235,15 @@
         - zuul-quick-start:
             dependencies: zuul-build-image
         - nodepool-zuul-functional:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             voting: false
-        - build-python-release
+        - build-python-release:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
         - build-javascript-content-tarball:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             vars:
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
@@ -211,29 +251,40 @@
     gate:
       jobs:
         - zuul-upload-image
-        - zuul-tox-docs
-        - tox-pep8
+        - zuul-tox-docs:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+        - tox-pep8:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
         - tox-py35:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
             nodeset: ubuntu-xenial
             timeout: 3600  # 60 minutes
         - tox-py36:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
             timeout: 3600  # 60 minutes
         - zuul-build-dashboard
         - nodejs-npm-run-lint:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             vars:
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
         - nodejs-npm-run-test:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             vars:
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
-            success-url: 'npm/reports/bundle.html'
             files:
               - web/.*
         - zuul-stream-functional-2.5
@@ -244,8 +295,12 @@
             timeout: 2700  # 45 minutes
         - zuul-quick-start:
             dependencies: zuul-upload-image
-        - build-python-release
+        - build-python-release:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
         - build-javascript-content-tarball:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
             vars:
               node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
@@ -254,8 +309,12 @@
       jobs:
         - zuul-promote-image
         - zuul-promote-docs
-        - opendev-promote-python
-        - opendev-promote-javascript-content
+        - opendev-promote-python:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+        - opendev-promote-javascript-content:
+            success-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
+            failure-url: 'http://zuul.opendev.org/t/zuul/build/{build.uuid}'
     release:
       jobs:
         - opendev-release-python
