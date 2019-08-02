@@ -28,6 +28,7 @@ import {
 import ArtifactList from './Artifact'
 import BuildOutput from './BuildOutput'
 import Manifest from './Manifest'
+import Console from './Console'
 
 
 class Build extends React.Component {
@@ -92,6 +93,10 @@ class Build extends React.Component {
                  <NavItem eventKey={'logs'} href="#logs">
                    Logs
                  </NavItem>}
+                {build.output &&
+                 <NavItem eventKey={'console'} href="#console">
+                   Console
+                 </NavItem>}
               </Nav>
               <TabContent>
                 <TabPane eventKey={'summary'}>
@@ -107,15 +112,20 @@ class Build extends React.Component {
                   </table>
                   <h3>Artifacts</h3>
                   <ArtifactList build={build}/>
+                  <h3>Results</h3>
+                  {build.hosts && <BuildOutput output={build.hosts}/>}
                 </TabPane>
                 {build.manifest &&
                  <TabPane eventKey={'logs'}>
                    <Manifest tenant={this.props.tenant} build={build}/>
                  </TabPane>}
+                {build.output &&
+                 <TabPane eventKey={'console'}>
+                   <Console output={build.output}/>
+                 </TabPane>}
               </TabContent>
             </div>
           </TabContainer>
-          {build.output && <BuildOutput output={build.output}/>}
         </Panel.Body>
       </Panel>
     )

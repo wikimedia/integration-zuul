@@ -91,7 +91,8 @@ const receiveBuildOutput = (buildId, output) => {
   return {
     type: BUILD_OUTPUT_SUCCESS,
     buildId: buildId,
-    output: hosts,
+    hosts: hosts,
+    output: output,
     receivedAt: Date.now()
   }
 }
