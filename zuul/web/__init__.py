@@ -733,6 +733,9 @@ class ZuulWebAPI(object):
                 'ref': buildset.ref,
                 'newrev': buildset.newrev,
                 'ref_url': buildset.ref_url,
+                'buildset': {
+                    'uuid': buildset.uuid,
+                },
             })
 
         for artifact in build.artifacts:
