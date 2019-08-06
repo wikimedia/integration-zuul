@@ -2444,7 +2444,9 @@ class ExecutorServer(object):
             'zuul.ExecutorServer',
             'executor',
             self.config,
-            self.executor_jobs)
+            self.executor_jobs,
+            worker_class=ExecutorExecuteWorker,
+            worker_args=[self])
 
     def _getMerger(self, root, cache_root, logger=None):
         return zuul.merger.merger.Merger(
