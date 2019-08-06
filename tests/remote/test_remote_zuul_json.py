@@ -191,3 +191,7 @@ class TestZuulJSON28(TestZuulJSON25):
 
             role_path = json_result[0]['plays'][0]['tasks'][1]['role']['path']
             self.assertEqual('json-role', os.path.basename(role_path))
+
+
+class TestZuulJSON29(TestZuulJSON28):
+    ansible_version = '2.9'

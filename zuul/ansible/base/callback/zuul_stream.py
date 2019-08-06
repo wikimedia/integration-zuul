@@ -19,6 +19,20 @@
 # so just put in the __future__ statement.
 from __future__ import absolute_import
 
+DOCUMENTATION = '''
+    callback: zuul_stream
+    short_description: This is the Zuul streaming callback
+    version_added: "2.4"
+    description:
+        - This callback is necessary for Zuul to properly stream logs from the
+          remote test node.
+    type: stdout
+    extends_documentation_fragment:
+      - default_callback
+    requirements:
+      - Set as stdout in config
+'''
+
 import datetime
 import logging
 import logging.config

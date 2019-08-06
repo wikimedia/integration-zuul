@@ -68,6 +68,14 @@
       test_ansible_version_major: 2
       test_ansible_version_minor: 8
 
+- job:
+    name: ansible-29
+    parent: ansible-version
+    ansible-version: 2.9
+    vars:
+      test_ansible_version_major: 2
+      test_ansible_version_minor: 9
+
 
 - project:
     name: common-config
@@ -78,6 +86,7 @@
         - ansible-26
         - ansible-27
         - ansible-28
+        - ansible-29
 
 - project:
     name: org/project
@@ -88,3 +97,4 @@
         - ansible-26
         - ansible-27
         - ansible-28
+        - ansible-29

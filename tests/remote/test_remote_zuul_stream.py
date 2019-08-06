@@ -275,3 +275,7 @@ class TestZuulStream28(TestZuulStream25):
             self.assertLogLine(
                 r'RUN END RESULT_NORMAL: \[untrusted : review.example.com/'
                 r'org/project/playbooks/command.yaml@master]', text)
+
+
+class TestZuulStream29(TestZuulStream28):
+    ansible_version = '2.9'
