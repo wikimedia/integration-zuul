@@ -2427,7 +2427,9 @@ class ExecutorServer(object):
             'zuul.ExecutorServer',
             'merger',
             self.config,
-            self.merger_jobs)
+            self.merger_jobs,
+            worker_class=ExecutorMergeWorker,
+            worker_args=[self])
 
         function_name = 'executor:execute'
         if self.zone:
