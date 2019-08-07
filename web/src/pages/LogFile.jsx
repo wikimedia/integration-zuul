@@ -42,6 +42,16 @@ class LogFilePage extends Refreshable {
     super.componentDidMount()
   }
 
+  componentDidUpdate () {
+    const line = this.props.location.hash.substring(1)
+    if (line) {
+      const element = document.getElementsByName(line)
+      if (element.length) {
+        element[0].scrollIntoView()
+      }
+    }
+  }
+
   render () {
     const { remoteData } = this.props
     const build = this.props.build.builds[this.props.match.params.buildId]
