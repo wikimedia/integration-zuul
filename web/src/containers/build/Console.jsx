@@ -47,6 +47,19 @@ function hostTaskStats (state, host) {
   else { state.ok += 1}
 }
 
+function hasInterestingKeys (obj, keys) {
+  let ret = false
+
+  Object.entries(obj).forEach(([k, v]) => {
+    if (keys.includes(k)) {
+      if (v !== '') {
+        ret = true
+      }
+    }
+  })
+  return ret
+}
+
 class TaskOutput extends React.Component {
   static propTypes = {
     data: PropTypes.object,
@@ -204,8 +217,10 @@ class HostTask extends React.Component {
     }
     ai.push(
       <ListView.InfoItem key="hostname">
-        <Icon type='pf' name='container-node' />
-        {hostname}
+        <span className="additionalinfo-icon">
+          <Icon type='pf' name='container-node' />
+          {hostname}
+        </span>
       </ListView.InfoItem>
     )
 
@@ -217,6 +232,11 @@ class HostTask extends React.Component {
     if (task.role) {
       name = task.role.name + ': ' + name
     }
+    const has_interesting_keys = hasInterestingKeys(this.props.host, INTERESTING_KEYS)
+    let lc = undefined
+    if (!has_interesting_keys) {
+      lc = []
+    }
     return (
       <React.Fragment>
         <ListView.Item
@@ -224,14 +244,17 @@ class HostTask extends React.Component {
           heading={name}
           initExpanded={expand}
           additionalInfo={ai}
+          leftContent={lc}
         >
-         <Row>
-           <Col sm={11}>
-             <pre>
-               <TaskOutput data={this.props.host} include={INTERESTING_KEYS}/>
-             </pre>
-           </Col>
-         </Row>
+          {has_interesting_keys &&
+           <Row>
+             <Col sm={11}>
+               <pre>
+                 <TaskOutput data={this.props.host} include={INTERESTING_KEYS}/>
+               </pre>
+             </Col>
+           </Row>
+          }
         </ListView.Item>
         <Modal key='modal' show={this.state.showModal} onHide={this.close}
                dialogClassName="zuul-console-task-detail">
@@ -271,7 +294,9 @@ class PlayBook extends React.Component {
     if (playbook.trusted) {
       ai.push(
         <ListView.InfoItem key="trusted" title="This playbook runs in a trusted execution context, which permits executing code on the Zuul executor and allows access to all Ansible features.">
-          <Icon type='pf' name='info' /> Trusted
+          <span className="additionalinfo-icon">
+            <Icon type='pf' name='info' /> Trusted
+          </span>
         </ListView.InfoItem>
       )
     }
