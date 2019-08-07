@@ -21,6 +21,8 @@ import JobsPage from './pages/Jobs'
 import LabelsPage from './pages/Labels'
 import NodesPage from './pages/Nodes'
 import BuildPage from './pages/Build'
+import BuildLogsPage from './pages/BuildLogs'
+import BuildConsolePage from './pages/BuildConsole'
 import LogFilePage from './pages/LogFile'
 import BuildsPage from './pages/Builds'
 import BuildsetsPage from './pages/Buildsets'
@@ -88,6 +90,14 @@ const routes = () => [
   {
     to: '/build/:buildId',
     component: BuildPage
+  },
+  {
+    to: '/build/:buildId/logs',
+    component: BuildLogsPage
+  },
+  {
+    to: '/build/:buildId/console',
+    component: BuildConsolePage
   },
   {
     to: '/build/:buildId/log/:file*',
