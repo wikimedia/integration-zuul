@@ -74,34 +74,53 @@ class TaskOutput extends React.Component {
     return ''
   }
 
+  shouldIncludeKey(key, value, ignore_underscore) {
+    if (ignore_underscore && key[0] === '_') {
+      return false
+    }
+    if (this.props.include) {
+      if (!this.props.include.includes(key)) {
+        return false
+      }
+      if (value === '') {
+        return false
+      }
+    }
+    return true
+  }
+
   renderResults(value) {
+    const interesting_results = []
+    value.forEach((result, idx) => {
+      const keys = Object.entries(result).filter(([key, value]) => this.shouldIncludeKey(key, value, true))
+      if (keys.length) {
+        interesting_results.push(idx)
+      }
+    })
+
     return (
       <div key='results'>
-        <h3 key='results-header'>results</h3>
-        {value.map((result, idx) => (
-          <div className='zuul-console-task-result' key={idx}>
-            <h2 key={idx}>{idx}: {this.findLoopLabel(result)}</h2>
-            {Object.entries(result).map(([key, value]) => (
-              this.renderData(key, value, true)
-            ))}
-          </div>
-        ))}
+        {interesting_results.length>0 &&
+         <React.Fragment>
+           <h5 key='results-header'>results</h5>
+           {interesting_results.map((idx) => (
+             <div className='zuul-console-task-result' key={idx}>
+               <h4 key={idx}>{idx}: {this.findLoopLabel(value[idx])}</h4>
+               {Object.entries(value[idx]).map(([key, value]) => (
+                 this.renderData(key, value, true)
+               ))}
+             </div>
+           ))}
+         </React.Fragment>
+        }
       </div>
     )
   }
 
   renderData(key, value, ignore_underscore) {
     let ret
-    if (ignore_underscore && key[0] === '_') {
+    if (!this.shouldIncludeKey(key, value, ignore_underscore)) {
       return (<React.Fragment key={key}/>)
-    }
-    if (this.props.include) {
-      if (!this.props.include.includes(key)) {
-        return (<React.Fragment key={key}/>)
-      }
-      if (value === '') {
-        return (<React.Fragment key={key}/>)
-      }
     }
     if (value === null) {
       ret = (
@@ -136,7 +155,7 @@ class TaskOutput extends React.Component {
 
     return (
       <div key={key}>
-        {ret && <h3>{key}</h3>}
+        {ret && <h5>{key}</h5>}
         {ret && ret}
       </div>
     )
