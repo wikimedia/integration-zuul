@@ -204,17 +204,24 @@ class HostTask extends React.Component {
     }
     ai.push(
       <ListView.InfoItem key="hostname">
+        <Icon type='pf' name='container-node' />
         {hostname}
       </ListView.InfoItem>
     )
 
     const expand = errorIds.has(task.task.id)
-
+    let name = task.task.name
+    if (!name) {
+      name = host.action
+    }
+    if (task.role) {
+      name = task.role.name + ': ' + name
+    }
     return (
       <React.Fragment>
         <ListView.Item
           key='header'
-          heading={task.task.name}
+          heading={name}
           initExpanded={expand}
           additionalInfo={ai}
         >
@@ -263,7 +270,7 @@ class PlayBook extends React.Component {
     const ai = []
     if (playbook.trusted) {
       ai.push(
-        <ListView.InfoItem key="trusted" title="Trusted">
+        <ListView.InfoItem key="trusted" title="This playbook runs in a trusted execution context, which permits executing code on the Zuul executor and allows access to all Ansible features.">
           <Icon type='pf' name='info' /> Trusted
         </ListView.InfoItem>
       )
@@ -277,16 +284,24 @@ class PlayBook extends React.Component {
         heading={playbook.phase[0].toUpperCase() + playbook.phase.slice(1) + ' playbook'}
         description={playbook.playbook}
       >
-        <Row>
-          <Col sm={12}>
-            {playbook.plays.map((play, idx) => (
-              play.tasks.map((task, idx2) => (
+          {playbook.plays.map((play, idx) => (
+            <React.Fragment key={idx}>
+              <Row key='play'>
+                <Col sm={12}>
+                  <strong>Play: {play.play.name}</strong>
+                </Col>
+              </Row>
+              {play.tasks.map((task, idx2) => (
                 Object.entries(task.hosts).map(([hostname, host]) => (
-                  <HostTask key={idx+'-'+idx2+hostname} hostname={hostname}
-                            task={task} host={host} errorIds={errorIds}/>
-                ))))))}
-          </Col>
-        </Row>
+                  <Row key={idx2+hostname}>
+                    <Col sm={12}>
+                      <HostTask hostname={hostname}
+                                task={task} host={host} errorIds={errorIds}/>
+                    </Col>
+                  </Row>
+                ))))}
+            </React.Fragment>
+          ))}
       </ListView.Item>
     )
   }
