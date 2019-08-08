@@ -163,7 +163,7 @@ create-auth-token
 
 Example::
 
-    zuul create-auth-token --auth-config zuul-operator --user venkman --tenant tenantA --expires-in 1800
+    zuul create-auth-token --auth-config zuul-operator --user alice --tenant tenantA --expires-in 1800
 
 The return value is the value of the ``Authorization`` header the user must set
 when querying a protected endpoint on Zuul's REST API.

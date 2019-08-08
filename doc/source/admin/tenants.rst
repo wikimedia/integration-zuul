@@ -353,16 +353,16 @@ Below are some examples of how access rules can be defined:
 .. code-block:: yaml
 
    - admin-rule:
-       name: ghostbuster_or_gozerian
+       name: affiliate_or_admin
        conditions:
-         - resources_access.account.roles: "ghostbuster"
-           iss: columbia_university
-         - resources_access.account.roles: "gozerian"
+         - resources_access.account.roles: "affiliate"
+           iss: external_institution
+         - resources_access.account.roles: "admin"
    - admin-rule:
-       name: venkman_or_stantz
+       name: alice_or_bob
        conditions:
-         - zuul_uid: venkman
-         - zuul_uid: stantz
+         - zuul_uid: alice
+         - zuul_uid: bob
 
 
 .. attr:: admin-rule
@@ -400,36 +400,36 @@ Below are some examples of how access rules can be defined:
         <web-server-tenant-scoped-api>` for Zuul web server.
 
         Under the above example, the following Token would match rules
-        ``ghostbuster_or_gozerian`` and ``venkman_or_stantz``:
+        ``affiliate_or_admin`` and ``alice_or_bob``:
 
         .. code-block:: javascript
 
           {
-           'iss': 'columbia_university',
+           'iss': 'external_institution',
            'aud': 'my_zuul_deployment',
            'exp': 1234567890,
            'iat': 1234556780,
-           'sub': 'venkman',
+           'sub': 'alice',
            'resources_access': {
                'account': {
-                   'roles': ['ghostbuster', 'played_by_bill_murray']
+                   'roles': ['affiliate', 'other_role']
                }
            },
           }
 
-        And this Token would only match rule ``ghostbuster_or_gozerian``:
+        And this Token would only match rule ``affiliate_or_admin``:
 
         .. code-block:: javascript
 
           {
-           'iss': 'some_hellish_dimension',
+           'iss': 'some_other_institution',
            'aud': 'my_zuul_deployment',
            'exp': 1234567890,
-           'sub': 'vinz_clortho',
+           'sub': 'carol',
            'iat': 1234556780,
            'resources_access': {
                'account': {
-                   'roles': ['gozerian', 'keymaster']
+                   'roles': ['admin', 'other_role']
                }
            },
           }

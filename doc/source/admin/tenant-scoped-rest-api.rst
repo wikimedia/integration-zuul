@@ -57,7 +57,7 @@ authenticator similar to this one:
     realm=zuul.example.com
     client_id=zuul.example.com
     issuer_id=zuul_operator
-    secret=NoDanaOnlyZuul
+    secret=exampleSecret
 
 With such an authenticator, a Zuul operator can use Zuul's CLI to
 issue Tokens overriding a tenant's access rules if need
@@ -78,7 +78,7 @@ Zuul can consume JWTs with the following minimal set of claims:
    'aud': 'my_zuul_deployment',
    'exp': 1234567890,
    'iat': 1234556780,
-   'sub': 'venkman'
+   'sub': 'alice'
   }
 
 * **iss** is the issuer of the Token. It can be used to filter

@@ -77,7 +77,7 @@ format:
    'aud': 'my_zuul_deployment',
    'exp': 1234567890,
    'iat': 1234556780,
-   'sub': 'venkman'
+   'sub': 'alice'
   }
 
 * **iss** is the issuer of the Authorization Token. This can be logged for
@@ -128,7 +128,7 @@ bearer:
    'aud': 'zuul.openstack.org',
    'exp': 1234567890,
    'iat': 1234556780,
-   'sub': 'venkman',
+   'sub': 'alice',
    'zuul': {
        'admin': ['tenantA', 'tenantB']
     }
@@ -139,8 +139,8 @@ bearer:
 * **zuul.admin** is a list of tenants on which the user is allowed privileged
   actions.
 
-In the previous example, user **venkman** can perform privileged actions
-on every project of **tenantA** and **tenantB**. This is on top of venkman's
+In the previous example, user **alice** can perform privileged actions
+on every project of **tenantA** and **tenantB**. This is on top of alice's
 default authorizations.
 
 These are intended to be **whitelists**: if a tenant is unlisted the user is
@@ -168,16 +168,16 @@ Here is an example of how rules can be defined:
 .. code-block:: yaml
 
   - admin-rule:
-      name: ghostbuster_or_gozerian
+      name: affiliate_or_admin
       conditions:
-        - resources_access.account.roles: "ghostbuster"
-          iss: columbia_university
-        - resources_access.account.roles: "gozerian"
+        - resources_access.account.roles: "affiliate"
+          iss: external_institution
+        - resources_access.account.roles: "admin"
   - admin-rule:
-      name: venkman_or_stantz
+      name: alice_or_bob
       conditions:
-        - zuul_uid: venkman
-        - zuul_uid: stantz
+        - zuul_uid: alice
+        - zuul_uid: bob
 
 * **name** is how the authorization rule will be refered as in Zuul's tenants
   configuration.
@@ -201,24 +201,24 @@ is set in the Authentication Token to define tenants on which privileged actions
 are allowed.
 
 Under the above example, the following Authentication Token would match rules
-``ghostbuster_or_gozerian`` and ``venkman_or_stantz``:
+``affiliate_or_admin`` and ``alice_or_bob``:
 
 .. code-block:: javascript
 
   {
-   'iss': 'columbia_university',
+   'iss': 'external_institution',
    'aud': 'my_zuul_deployment',
    'exp': 1234567890,
    'iat': 1234556780,
-   'sub': 'venkman',
+   'sub': 'alice',
    'resources_access': {
        'account': {
-           'roles': ['ghostbuster', 'played_by_bill_murray']
+           'roles': ['affiliate', 'other_role']
        }
    },
   }
 
-And this Authentication Token would only match rule ``ghostbuster_or_gozerian``:
+And this Authentication Token would only match rule ``affiliate_or_admin``:
 
 .. code-block:: javascript
 
@@ -226,11 +226,11 @@ And this Authentication Token would only match rule ``ghostbuster_or_gozerian``:
    'iss': 'some_hellish_dimension',
    'aud': 'my_zuul_deployment',
    'exp': 1234567890,
-   'sub': 'vinz_clortho',
+   'sub': 'carol',
    'iat': 1234556780,
    'resources_access': {
        'account': {
-           'roles': ['gozerian', 'keymaster']
+           'roles': ['admin', 'other_role']
        }
    },
   }
@@ -450,7 +450,7 @@ an Authorization Token for a third party. It will return the contents of the
 
 .. code-block:: bash
 
-    $ zuul create-auth-token --auth-config zuul-operator --user venkman --tenant tenantA --expires-in 1800
+    $ zuul create-auth-token --auth-config zuul-operator --user alice --tenant tenantA --expires-in 1800
     bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vbWFuYWdlc2Yuc2ZyZG90ZXN0aW5zdGFuY2Uub3JnIiwienV1bC50ZW5hbnRzIjp7ImxvY2FsIjoiKiJ9LCJleHAiOjE1Mzc0MTcxOTguMzc3NTQ0fQ.DLbKx1J84wV4Vm7sv3zw9Bw9-WuIka7WkPQxGDAHz7s
 
 The ``auth-config`` argument refers to the authenticator configuration to use
@@ -488,7 +488,7 @@ Here is an example defining the three supported types of authenticators:
     [auth "zuul_operator"]
     driver=HS256
     # symmetrical encryption only needs a shared secret
-    secret=NoDanaOnlyZuul
+    secret=exampleSecret
     # accept "zuul.actions" claim in Authentication Token
     allow_authz_override=true
     # what the "aud" claim must be in Authentication Token
