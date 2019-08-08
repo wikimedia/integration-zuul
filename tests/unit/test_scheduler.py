@@ -7597,3 +7597,46 @@ class TestPipelineSupersedes(ZuulTestCase):
             dict(name='test-job', result='ABORTED', changes='1,1'),
             dict(name='test-job', result='SUCCESS', changes='1,1'),
         ], ordered=False)
+
+
+class TestReportBuildPage(ZuulTestCase):
+    tenant_config_file = 'config/build-page/main.yaml'
+
+    def test_tenant_url(self):
+        """
+        Test that the tenant url is used in reporting the build page.
+        """
+        A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='python27', result='SUCCESS', changes='1,1'),
+        ])
+        self.assertIn('python27 https://one.example.com/build/',
+                      A.messages[0])
+
+    def test_base_url(self):
+        """
+        Test that the web base url is used in reporting the build page.
+        """
+        A = self.fake_gerrit.addFakeChange('org/project2', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='python27', result='SUCCESS', changes='1,1'),
+        ])
+        self.assertIn('python27 https://zuul.example.com/t/tenant-two/build/',
+                      A.messages[0])
+
+    def test_no_build_page(self):
+        """
+        Test that we fall back to the old behavior if the tenant is
+        not configured to report the build page
+        """
+        A = self.fake_gerrit.addFakeChange('org/project3', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='python27', result='SUCCESS', changes='1,1'),
+        ])
+        self.assertIn('python27 finger://', A.messages[0])

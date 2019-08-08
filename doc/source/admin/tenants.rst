@@ -42,6 +42,7 @@ configuration. Some examples of tenant definitions are:
        name: my-tenant
        max-nodes-per-job: 5
        exclude-unprotected-branches: false
+       report-build-page: true
        source:
          gerrit:
            config-projects:
@@ -306,6 +307,28 @@ configuration. Some examples of tenant definitions are:
       The list of labels regexp a tenant can use in job's nodeset. When set,
       this setting can be used to restrict what labels a tenant can use.
       Without this setting, the tenant can use any labels.
+
+   .. attr:: report-build-page
+      :default: false
+
+      If this is set to ``true``, then Zuul will use the URL of the
+      build page in Zuul's web interface when reporting to the code
+      review system.  In this case, :attr:`job.success-url` and
+      :attr:`job.failure-url` are ignored for the report (though they
+      are still used on the status page before the buildset is
+      complete and reported).
+
+      This requires that all the pipelines in the tenant have a
+      :ref:`SQL reporter<sql_reporter>` configured, and at least one of
+      :attr:`tenant.web-root` or :attr:`web.root` must be defined.
+
+   .. attr:: web-root
+
+      If this tenant has a whitelabeled installation of zuul-web, set
+      its externally visible URL here (e.g.,
+      ``https://tenant.example.com/``).  This will override the
+      :attr:`web.root` setting when constructing URLs for this tenant.
+
 
 .. _admin_rule_definition:
 

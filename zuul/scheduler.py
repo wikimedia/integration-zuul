@@ -25,6 +25,7 @@ import socket
 import sys
 import threading
 import time
+import urllib
 
 from zuul import configloader
 from zuul import model
@@ -330,6 +331,10 @@ class Scheduler(threading.Thread):
         if self.config.has_option('scheduler', 'relative_priority'):
             if self.config.getboolean('scheduler', 'relative_priority'):
                 self.use_relative_priority = True
+        web_root = get_default(self.config, 'web', 'root', None)
+        if web_root:
+            web_root = urllib.parse.urljoin(web_root, 't/{tenant.name}/')
+        self.web_root = web_root
 
         default_ansible_version = get_default(
             self.config, 'scheduler', 'default_ansible_version', None)

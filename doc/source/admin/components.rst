@@ -250,6 +250,15 @@ The following sections of ``zuul.conf`` are used by the scheduler:
 
 .. attr:: web
 
+   .. attr:: root
+      :required:
+
+      The root URL of the web service (e.g.,
+      ``https://zuul.example.com/``).
+
+      See :attr:`tenant.web-root` for additional options for
+      whitelabeled tenant configuration.
+
    .. attr:: status_url
 
       URL that will be posted in Zuul comments made to changes when

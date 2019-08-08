@@ -1454,6 +1454,8 @@ class TenantParser(object):
                   'default-parent': str,
                   'default-ansible-version': vs.Any(str, float),
                   'admin-rules': to_list(str),
+                  'report-build-page': bool,
+                  'web-root': str,
                   }
         return vs.Schema(tenant)
 
@@ -1469,6 +1471,9 @@ class TenantParser(object):
                 conf['exclude-unprotected-branches']
         if conf.get('admin-rules') is not None:
             tenant.authorization_rules = conf['admin-rules']
+        if conf.get('report-build-page') is not None:
+            tenant.report_build_page = conf['report-build-page']
+        tenant.web_root = conf.get('web-root', self.scheduler.web_root)
         tenant.allowed_triggers = conf.get('allowed-triggers')
         tenant.allowed_reporters = conf.get('allowed-reporters')
         tenant.allowed_labels = conf.get('allowed-labels')

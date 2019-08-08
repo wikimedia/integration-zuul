@@ -51,6 +51,8 @@ The connection options for the SQL driver are:
       if you rely on external databases which you don't have under control.
       The default is to have no prefix.
 
+.. _sql_reporter:
+
 Reporter Configuration
 ----------------------
 

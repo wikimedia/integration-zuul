@@ -2670,6 +2670,17 @@ class QueueItem(object):
         return url
 
     def formatJobResult(self, job):
+        if (self.pipeline.tenant.report_build_page and
+            self.pipeline.tenant.web_root):
+            build = self.current_build_set.getBuild(job.name)
+            pattern = urllib.parse.urljoin(self.pipeline.tenant.web_root,
+                                           'build/{build.uuid}')
+            url = self.formatUrlPattern(pattern, job, build)
+            return (build.result, url)
+        else:
+            return self.formatProvisionalJobResult(job)
+
+    def formatProvisionalJobResult(self, job):
         build = self.current_build_set.getBuild(job.name)
         result = build.result
         pattern = None
@@ -2764,7 +2775,7 @@ class QueueItem(object):
                     urlformat += '&websocket_url={websocket_url}'
                 build_url = urlformat.format(
                     build=build, websocket_url=websocket_url)
-                (unused, report_url) = self.formatJobResult(job)
+                (unused, report_url) = self.formatProvisionalJobResult(job)
                 if build.start_time:
                     if build.end_time:
                         elapsed = int((build.end_time -
@@ -4217,6 +4228,7 @@ class Tenant(object):
         self.max_job_timeout = 10800
         self.exclude_unprotected_branches = False
         self.default_base_job = None
+        self.report_build_page = False
         self.layout = None
         # The unparsed configuration from the main zuul config for
         # this tenant.
