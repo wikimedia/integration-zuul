@@ -184,6 +184,10 @@ pre.version {
 {
     padding: 0;
 }
+.zuul-console .list-view-pf-left
+{
+    padding-right: 17px;
+}
 .zuul-console .list-group-item-heading
 {
     line-height: 20px;
@@ -195,24 +199,32 @@ pre.version {
     color: white;
     background-color: #00729b;
     width: 6em;
+    cursor: pointer;
 }
 .zuul-console .task-changed
 {
     color: white;
     background-color: #a28301;
     width: 6em;
+    cursor: pointer;
 }
 .zuul-console .task-ok
 {
     color: white;
     background-color: #018200;
     width: 6em;
+    cursor: pointer;
 }
 .zuul-console .task-failed
 {
     color: white;
     background-color: #9b0000;
     width: 6em;
+    cursor: pointer;
+}
+.zuul-console .additionalinfo-icon
+{
+    cursor: default;
 }
 .zuul-console-task-detail
 {
