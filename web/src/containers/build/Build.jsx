@@ -17,115 +17,47 @@ import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Panel } from 'react-bootstrap'
-import {
-  Nav,
-  NavItem,
-  TabContainer,
-  TabPane,
-  TabContent,
-} from 'patternfly-react'
-
-import ArtifactList from './Artifact'
-import BuildOutput from './BuildOutput'
-import Manifest from './Manifest'
-import Console from './Console'
-
 
 class Build extends React.Component {
   static propTypes = {
     build: PropTypes.object,
     tenant: PropTypes.object,
+    active: PropTypes.string,
+    children: PropTypes.object,
   }
 
   render () {
-      const { build } = this.props
-    const rows = []
-    const myColumns = [
-      'job_name', 'result', 'voting',
-      'pipeline', 'start_time', 'end_time', 'duration',
-      'project', 'branch', 'change', 'patchset', 'oldrev', 'newrev',
-      'ref', 'new_rev', 'ref_url', 'log_url']
-
-    const defaultTab = window.location.hash.substring(1) || 'summary'
-
-    myColumns.forEach(column => {
-      let label = column
-      let value = build[column]
-      if (column === 'job_name') {
-        label = 'job'
-        value = (
-          <Link to={this.props.tenant.linkPrefix + '/job/' + value}>
-            {value}
-          </Link>
-        )
-      }
-      if (column === 'voting') {
-        if (value) {
-          value = 'true'
-        } else {
-          value = 'false'
-        }
-      }
-      if (value && (column === 'log_url' || column === 'ref_url')) {
-        value = <a href={value}>{value}</a>
-      }
-      if (column === 'log_url') {
-        label = 'log url'
-      }
-      if (column === 'ref_url') {
-        label = 'ref url'
-      }
-      if (value) {
-        rows.push({key: label, value: value})
-      }
-    })
+    const { build, active } = this.props
     return (
       <Panel>
         <Panel.Heading>Build result {build.uuid}</Panel.Heading>
         <Panel.Body>
-          <TabContainer id="zuul-project" defaultActiveKey={defaultTab}>
             <div>
-              <Nav bsClass="nav nav-tabs nav-tabs-pf">
-                <NavItem eventKey={'summary'} href="#summary">
-                  Summary
-                </NavItem>
+              <ul className="nav nav-tabs nav-tabs-pf">
+                <li className={active==='summary'?'active':undefined}>
+                  <Link to={this.props.tenant.linkPrefix + '/build/' + build.uuid}>
+                    Summary
+                  </Link>
+                </li>
                 {build.manifest &&
-                 <NavItem eventKey={'logs'} href="#logs">
-                   Logs
-                 </NavItem>}
+                 <li className={active==='logs'?'active':undefined}>
+                   <Link to={this.props.tenant.linkPrefix + '/build/' + build.uuid + '/logs'}>
+                     Logs
+                   </Link>
+                 </li>}
                 {build.output &&
-                 <NavItem eventKey={'console'} href="#console">
-                   Console
-                 </NavItem>}
-              </Nav>
-              <TabContent>
-                <TabPane eventKey={'summary'}>
-                  <table className="table table-striped table-bordered">
-                    <tbody>
-                      {rows.map(item => (
-                        <tr key={item.key}>
-                          <td>{item.key}</td>
-                          <td>{item.value}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <h3>Artifacts</h3>
-                  <ArtifactList build={build}/>
-                  <h3>Results</h3>
-                  {build.hosts && <BuildOutput output={build.hosts}/>}
-                </TabPane>
-                {build.manifest &&
-                 <TabPane eventKey={'logs'}>
-                   <Manifest tenant={this.props.tenant} build={build}/>
-                 </TabPane>}
-                {build.output &&
-                 <TabPane eventKey={'console'}>
-                   <Console output={build.output}/>
-                 </TabPane>}
-              </TabContent>
+                 <li className={active==='console'?'active':undefined}>
+                   <Link
+                     to={this.props.tenant.linkPrefix + '/build/' + build.uuid + '/console'}>
+                     Console
+                   </Link>
+                 </li>}
+
+              </ul>
+              <div>
+                {this.props.children}
+              </div>
             </div>
-          </TabContainer>
         </Panel.Body>
       </Panel>
     )

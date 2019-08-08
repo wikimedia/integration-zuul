@@ -68,11 +68,14 @@ class Manifest extends React.Component {
     const nodes = build.manifest.tree.map(n => renderTree(tenant, build, '', n))
 
     return (
-      <div className="tree-view-container">
-        <TreeView
-          nodes={nodes}
-        />
-      </div>
+      <React.Fragment>
+        <br/>
+        <div className="tree-view-container">
+          <TreeView
+            nodes={nodes}
+          />
+        </div>
+      </React.Fragment>
     )
   }
 }

@@ -19,10 +19,10 @@ import PropTypes from 'prop-types'
 import { fetchBuildIfNeeded } from '../actions/build'
 import Refreshable from '../containers/Refreshable'
 import Build from '../containers/build/Build'
-import Summary from '../containers/build/Summary'
+import Manifest from '../containers/build/Manifest'
 
 
-class BuildPage extends Refreshable {
+class BuildLogsPage extends Refreshable {
   static propTypes = {
     match: PropTypes.object.isRequired,
     remoteData: PropTypes.object,
@@ -47,10 +47,10 @@ class BuildPage extends Refreshable {
         <div style={{float: 'right'}}>
           {this.renderSpinner()}
         </div>
-      {build &&
-       <Build build={build} active='summary'>
-         <Summary build={build}/>
-       </Build>}
+        {build && build.manifest &&
+         <Build build={build} active='logs'>
+           <Manifest tenant={this.props.tenant} build={build}/>
+         </Build>}
       </React.Fragment>
     )
   }
@@ -59,4 +59,4 @@ class BuildPage extends Refreshable {
 export default connect(state => ({
   tenant: state.tenant,
   remoteData: state.build,
-}))(BuildPage)
+}))(BuildLogsPage)
