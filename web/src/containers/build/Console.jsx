@@ -23,18 +23,9 @@ import {
   Modal,
 } from 'patternfly-react'
 
-import { didTaskFail } from '../../actions/build'
-
 
 const INTERESTING_KEYS = ['msg', 'stdout', 'stderr']
 
-
-function hostTaskStats (state, host) {
-  if (didTaskFail(host)) { state.failed += 1}
-  else if (host.changed) { state.changed += 1}
-  else if (host.skip_reason) { state.skipped += 1}
-  else { state.ok += 1}
-}
 
 function hasInterestingKeys (obj, keys) {
   let ret = false
@@ -189,10 +180,10 @@ class HostTask extends React.Component {
 
   state = {
     showModal: false,
-    failed: 0,
-    changed: 0,
-    skipped: 0,
-    ok: 0
+    failed: false,
+    changed: false,
+    skipped: false,
+    ok: false
   }
 
   open = () => {
@@ -206,9 +197,17 @@ class HostTask extends React.Component {
   constructor (props) {
     super(props)
 
-    const { host, taskPath, displayPath } = this.props
+    const { host, task, taskPath, displayPath, errorIds } = this.props
 
-    hostTaskStats(this.state, host)
+    if (errorIds.has(task.task.id)) {
+      this.state.failed = true
+    } else if (host.changed) {
+      this.state.changed = true
+    } else if (host.skip_reason) {
+      this.state.skipped = true
+    } else {
+      this.state.ok = true
+    }
 
     if (taskPathMatches(taskPath, displayPath))
       this.state.showModal = true
@@ -218,25 +217,22 @@ class HostTask extends React.Component {
     const { hostname, task, host, taskPath, errorIds } = this.props
 
     const ai = []
-    if (this.state.skipped) {
-      ai.push(
-        <ListView.InfoItem key="skipped" title="Click for details">
-          <span className="task-skipped" onClick={this.open}>SKIPPED</span>
-        </ListView.InfoItem>)
-    }
-    if (this.state.changed) {
-      ai.push(
-        <ListView.InfoItem key="changed" title="Click for details">
-          <span className="task-changed" onClick={this.open}>CHANGED</span>
-        </ListView.InfoItem>)
-    }
     if (this.state.failed) {
       ai.push(
         <ListView.InfoItem key="failed" title="Click for details">
           <span className="task-failed" onClick={this.open}>FAILED</span>
         </ListView.InfoItem>)
-    }
-    if (this.state.ok) {
+    } else if (this.state.changed) {
+      ai.push(
+        <ListView.InfoItem key="changed" title="Click for details">
+          <span className="task-changed" onClick={this.open}>CHANGED</span>
+        </ListView.InfoItem>)
+    } else if (this.state.skipped) {
+      ai.push(
+        <ListView.InfoItem key="skipped" title="Click for details">
+          <span className="task-skipped" onClick={this.open}>SKIPPED</span>
+        </ListView.InfoItem>)
+    } else if (this.state.ok) {
       ai.push(
         <ListView.InfoItem key="ok" title="Click for details">
           <span className="task-ok" onClick={this.open}>OK</span>
