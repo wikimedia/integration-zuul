@@ -92,17 +92,6 @@ configuration. Some examples of tenant definitions are:
       characters (ASCII letters, numbers, hyphen and underscore) and
       you should avoid changing it unless necessary.
 
-   .. attr:: admin-rules
-
-      A list of access rules for the tenant. These rules are checked to grant
-      privileged actions to users at the tenant level, through Zuul's REST API.
-
-      At least one rule in the list must match for the user to be allowed the
-      privileged action.
-
-      More information on tenant-scoped actions can be found in
-      :ref:`this section <tenant-scoped-rest-api>`.
-
    .. attr:: source
       :required:
 
@@ -328,6 +317,17 @@ configuration. Some examples of tenant definitions are:
       its externally visible URL here (e.g.,
       ``https://tenant.example.com/``).  This will override the
       :attr:`web.root` setting when constructing URLs for this tenant.
+
+   .. attr:: admin-rules
+
+      A list of access rules for the tenant. These rules are checked to grant
+      privileged actions to users at the tenant level, through Zuul's REST API.
+
+      At least one rule in the list must match for the user to be allowed the
+      privileged action.
+
+      More information on tenant-scoped actions can be found in
+      :ref:`tenant-scoped-rest-api`.
 
 
 .. _admin_rule_definition:
