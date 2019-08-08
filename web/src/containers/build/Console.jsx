@@ -60,6 +60,20 @@ function hasInterestingKeys (obj, keys) {
   return ret
 }
 
+function makeTaskPath (path) {
+  return path.join('/')
+}
+
+function taskPathMatches (ref, test) {
+  if (test.length < ref.length)
+    return false
+  for (let i=0; i < ref.length; i++) {
+    if (ref[i] !== test[i])
+      return false
+  }
+  return true
+}
+
 class TaskOutput extends React.Component {
   static propTypes = {
     data: PropTypes.object,
@@ -180,6 +194,8 @@ class HostTask extends React.Component {
     task: PropTypes.object,
     host: PropTypes.object,
     errorIds: PropTypes.object,
+    taskPath: PropTypes.array,
+    displayPath: PropTypes.array,
   }
 
   state = {
@@ -201,13 +217,16 @@ class HostTask extends React.Component {
   constructor (props) {
     super(props)
 
-    const { host } = this.props
+    const { host, taskPath, displayPath } = this.props
 
     hostTaskStats(this.state, host)
+
+    if (taskPathMatches(taskPath, displayPath))
+      this.state.showModal = true
   }
 
   render () {
-    const { hostname, task, host, errorIds } = this.props
+    const { hostname, task, host, taskPath, errorIds } = this.props
 
     const ai = []
     if (this.state.skipped) {
@@ -244,6 +263,7 @@ class HostTask extends React.Component {
     )
 
     const expand = errorIds.has(task.task.id)
+
     let name = task.task.name
     if (!name) {
       name = host.action
@@ -286,7 +306,13 @@ class HostTask extends React.Component {
             >
               <Icon type="pf" name="close" />
             </button>
-            <Modal.Title>{hostname}</Modal.Title>
+            <Modal.Title>{hostname}
+              <span className="zuul-console-modal-header-link">
+                <a href={'#'+makeTaskPath(taskPath)}>
+                  <Icon type="fa" name="link" title="Permalink" />
+                </a>
+              </span>
+            </Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <TaskOutput data={host}/>
@@ -301,13 +327,17 @@ class PlayBook extends React.Component {
   static propTypes = {
     playbook: PropTypes.object,
     errorIds: PropTypes.object,
+    taskPath: PropTypes.array,
+    displayPath: PropTypes.array,
   }
 
   render () {
-    const { playbook, errorIds } = this.props
+    const { playbook, errorIds, taskPath, displayPath } = this.props
 
     const expandAll = (playbook.phase === 'run')
-    const expand = (expandAll || errorIds.has(playbook.phase + playbook.index))
+    const expand = (expandAll ||
+                    errorIds.has(playbook.phase + playbook.index) ||
+                    taskPathMatches(taskPath, displayPath))
 
     const ai = []
     if (playbook.trusted) {
@@ -340,7 +370,10 @@ class PlayBook extends React.Component {
                   <Row key={idx2+hostname}>
                     <Col sm={12}>
                       <HostTask hostname={hostname}
-                                task={task} host={host} errorIds={errorIds}/>
+                                taskPath={taskPath.concat([
+                                  idx.toString(), idx2.toString(), hostname])}
+                                displayPath={displayPath} task={task} host={host}
+                                errorIds={errorIds}/>
                     </Col>
                   </Row>
                 ))))}
@@ -354,6 +387,7 @@ class PlayBook extends React.Component {
 class Console extends React.Component {
   static propTypes = {
     output: PropTypes.array,
+    displayPath: PropTypes.array,
   }
 
   constructor (props) {
@@ -394,13 +428,14 @@ class Console extends React.Component {
   }
 
   render () {
-    const { output } = this.props
+    const { output, displayPath } = this.props
 
     return (
       <React.Fragment>
         <ListView key="playbooks" className="zuul-console">
           {output.map((playbook, idx) => (
-            <PlayBook key={idx} playbook={playbook} errorIds={this.errorIds}/>))}
+            <PlayBook key={idx} playbook={playbook} taskPath={[idx.toString()]}
+                      displayPath={displayPath} errorIds={this.errorIds}/>))}
         </ListView>
       </React.Fragment>
     )
