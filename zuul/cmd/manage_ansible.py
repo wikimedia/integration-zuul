@@ -52,6 +52,8 @@ class ManageAnsible(zuul.cmd.ZuulApp):
                             help='upgrade ansible versions')
         parser.add_argument('-l', dest='list_supported', action='store_true',
                             help='list supported versions')
+        parser.add_argument('-r', dest='install_root', default=None,
+                            help='root path for ansible venv installations')
         return parser
 
     def _setup_logging(self):
@@ -71,7 +73,7 @@ class ManageAnsible(zuul.cmd.ZuulApp):
             pass
         self._setup_logging()
 
-        manager = AnsibleManager()
+        manager = AnsibleManager(runtime_install_root=self.args.install_root)
 
         if self.args.list_supported:
             versions = []

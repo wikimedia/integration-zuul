@@ -105,7 +105,8 @@ class ManagedAnsible:
 
     @property
     def venv_path(self):
-        for root in self._ansible_roots:
+        for root in reversed(self._ansible_roots):
+            # Check user configured paths first
             venv_path = os.path.join(root, self.version)
             if os.path.exists(venv_path):
                 return venv_path
@@ -147,11 +148,11 @@ class AnsibleManager:
     log = logging.getLogger('zuul.ansible_manager')
 
     def __init__(self, zuul_ansible_dir=None, default_version=None,
-                 runtime_install_path=None):
+                 runtime_install_root=None):
         self._supported_versions = {}
         self.default_version = None
         self.zuul_ansible_dir = zuul_ansible_dir
-        self.runtime_install_root = runtime_install_path
+        self.runtime_install_root = runtime_install_root
 
         self.load_ansible_config()
 
