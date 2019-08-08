@@ -51,7 +51,11 @@ class BuildConsolePage extends Refreshable {
         </div>
         {build && build.output &&
          <Build build={build} active='console'>
-           <Console output={build.output} displayPath={hash.length>0?hash:undefined}/>
+           <Console
+             output={build.output}
+             errorIds={build.errorIds}
+             displayPath={hash.length>0?hash:undefined}
+           />
          </Build>}
       </React.Fragment>
     )
