@@ -226,6 +226,11 @@ pre.version {
 {
     cursor: default;
 }
+.zuul-console-modal-header-link
+{
+    margin-left: 2em;
+    font-size: 18px;
+}
 .zuul-console-task-detail
 {
     width: 80%;

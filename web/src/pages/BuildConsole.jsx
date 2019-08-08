@@ -42,6 +42,8 @@ class BuildConsolePage extends Refreshable {
   render () {
     const { remoteData } = this.props
     const build = remoteData.builds[this.props.match.params.buildId]
+    const hash = this.props.location.hash.substring(1).split('/')
+
     return (
       <React.Fragment>
         <div style={{float: 'right'}}>
@@ -49,7 +51,7 @@ class BuildConsolePage extends Refreshable {
         </div>
         {build && build.output &&
          <Build build={build} active='console'>
-           <Console output={build.output}/>
+           <Console output={build.output} displayPath={hash.length>0?hash:undefined}/>
          </Build>}
       </React.Fragment>
     )
