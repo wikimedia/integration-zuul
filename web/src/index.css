@@ -165,3 +165,60 @@ pre.version {
 .swagger-ui .servers {
     padding-top: 5px
 }
+
+/* Console */
+.zuul-console .list-group-item-header,
+.zuul-console .list-view-pf-actions,
+.zuul-console .list-view-pf-expand,
+.zuul-console .list-view-pf-main-info
+{
+    margin-top: 1px;
+    margin-bottom: 1px;
+}
+.zuul-console .list-view-pf-main-info
+{
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+.zuul-console .list-view-pf-expand
+{
+    padding: 0;
+}
+.zuul-console .list-group-item-heading
+{
+    line-height: 20px;
+    font-size: 12px;
+    margin-bottom: 0;
+}
+.zuul-console .task-skipped
+{
+    color: white;
+    background-color: #00729b;
+    width: 6em;
+}
+.zuul-console .task-changed
+{
+    color: white;
+    background-color: #a28301;
+    width: 6em;
+}
+.zuul-console .task-ok
+{
+    color: white;
+    background-color: #018200;
+    width: 6em;
+}
+.zuul-console .task-failed
+{
+    color: white;
+    background-color: #9b0000;
+    width: 6em;
+}
+.zuul-console-task-detail
+{
+    width: 80%;
+}
+.zuul-console-task-result
+{
+    padding-left: 4em;
+}
