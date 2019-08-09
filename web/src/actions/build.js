@@ -61,6 +61,13 @@ export function didTaskFail(task) {
   if ('rc' in task && task.rc) {
     return true
   }
+  if (task.results) {
+    for (let result of task.results) {
+      if (didTaskFail(result)) {
+        return true
+      }
+    }
+  }
   return false
 }
 
@@ -112,15 +119,6 @@ const receiveBuildOutput = (buildId, output) => {
     playbook.plays.forEach(play => {
       play.tasks.forEach(task => {
         Object.entries(task.hosts).forEach(([, host]) => {
-          if (host.results) {
-            host.results.forEach(result => {
-              if (didTaskFail(result)) {
-                errorIds.add(task.task.id)
-                errorIds.add(play.play.id)
-                errorIds.add(playbook.phase + playbook.index)
-              }
-            })
-          }
           if (didTaskFail(host)) {
             errorIds.add(task.task.id)
             errorIds.add(play.play.id)
