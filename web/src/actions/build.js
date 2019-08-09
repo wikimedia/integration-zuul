@@ -20,6 +20,10 @@ export const BUILD_FETCH_REQUEST = 'BUILD_FETCH_REQUEST'
 export const BUILD_FETCH_SUCCESS = 'BUILD_FETCH_SUCCESS'
 export const BUILD_FETCH_FAIL = 'BUILD_FETCH_FAIL'
 
+export const BUILDSET_FETCH_REQUEST = 'BUILDSET_FETCH_REQUEST'
+export const BUILDSET_FETCH_SUCCESS = 'BUILDSET_FETCH_SUCCESS'
+export const BUILDSET_FETCH_FAIL =    'BUILDSET_FETCH_FAIL'
+
 export const BUILD_OUTPUT_REQUEST = 'BUILD_OUTPUT_FETCH_REQUEST'
 export const BUILD_OUTPUT_SUCCESS = 'BUILD_OUTPUT_FETCH_SUCCESS'
 export const BUILD_OUTPUT_FAIL = 'BUILD_OUTPUT_FETCH_FAIL'
@@ -242,4 +246,50 @@ export const fetchBuildIfNeeded = (tenant, buildId, force) => (dispatch, getStat
       dispatch(fetchBuildOutput(buildId, getState(), force))
       dispatch(fetchBuildManifest(buildId, getState(), force))
     })
+}
+
+export const requestBuildset = () => ({
+  type: BUILDSET_FETCH_REQUEST
+})
+
+export const receiveBuildset = (buildsetId, buildset) => ({
+  type: BUILDSET_FETCH_SUCCESS,
+  buildsetId: buildsetId,
+  buildset: buildset,
+  receivedAt: Date.now()
+})
+
+const failedBuildset = error => ({
+  type: BUILDSET_FETCH_FAIL,
+  error
+})
+
+const fetchBuildset = (tenant, buildset) => dispatch => {
+  dispatch(requestBuildset())
+  return API.fetchBuildset(tenant.apiPrefix, buildset)
+    .then(response => {
+      response.data.builds.forEach(build => {
+        dispatch(receiveBuild(build.uuid, build))
+      })
+      dispatch(receiveBuildset(buildset, response.data))
+    })
+    .catch(error => dispatch(failedBuildset(error)))
+}
+
+const shouldFetchBuildset = (buildsetId, state) => {
+  const buildset = state.build.buildsets[buildsetId]
+  if (!buildset) {
+    return true
+  }
+  if (buildset.isFetching) {
+    return false
+  }
+  return false
+}
+
+export const fetchBuildsetIfNeeded = (tenant, buildsetId, force) => (
+  dispatch, getState) => {
+    if (force || shouldFetchBuildset(buildsetId, getState())) {
+      return dispatch(fetchBuildset(tenant, buildsetId))
+    }
 }
