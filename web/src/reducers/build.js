@@ -49,7 +49,8 @@ export default (state = {
     return update(state, {$merge: {isFetchingOutput: true}})
   case BUILD_OUTPUT_SUCCESS:
     state.builds = update(
-      state.builds, {[action.buildId]: {$merge: {hosts: action.hosts,
+      state.builds, {[action.buildId]: {$merge: {errorIds: action.errorIds,
+                                                 hosts: action.hosts,
                                                  output: action.output}}})
     return update(state, {$merge: {isFetchingOutput: false}})
   case BUILD_OUTPUT_FAIL:

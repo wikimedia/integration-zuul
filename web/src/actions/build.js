@@ -51,6 +51,19 @@ export const requestBuildOutput = () => ({
   type: BUILD_OUTPUT_REQUEST
 })
 
+export function didTaskFail(task) {
+  if (task.failed) {
+    return true
+  }
+  if ('failed_when_result' in task && !task.failed_when_result) {
+    return false
+  }
+  if ('rc' in task && task.rc) {
+    return true
+  }
+  return false
+}
+
 const receiveBuildOutput = (buildId, output) => {
   const hosts = {}
   // Compute stats
@@ -88,11 +101,42 @@ const receiveBuildOutput = (buildId, output) => {
       }
     })
   })
+
+  // Identify all of the hosttasks (and therefore tasks, plays, and
+  // playbooks) which have failed.  The errorIds are either task or
+  // play uuids, or the phase+index for the playbook.  Since they are
+  // different formats, we can store them in the same set without
+  // collisions.
+  const errorIds = new Set()
+  output.forEach(playbook => {
+    playbook.plays.forEach(play => {
+      play.tasks.forEach(task => {
+        Object.entries(task.hosts).forEach(([, host]) => {
+          if (host.results) {
+            host.results.forEach(result => {
+              if (didTaskFail(result)) {
+                errorIds.add(task.task.id)
+                errorIds.add(play.play.id)
+                errorIds.add(playbook.phase + playbook.index)
+              }
+            })
+          }
+          if (didTaskFail(host)) {
+            errorIds.add(task.task.id)
+            errorIds.add(play.play.id)
+            errorIds.add(playbook.phase + playbook.index)
+          }
+        })
+      })
+    })
+  })
+
   return {
     type: BUILD_OUTPUT_SUCCESS,
     buildId: buildId,
     hosts: hosts,
     output: output,
+    errorIds: errorIds,
     receivedAt: Date.now()
   }
 }

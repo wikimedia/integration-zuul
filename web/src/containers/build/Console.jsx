@@ -23,22 +23,11 @@ import {
   Modal,
 } from 'patternfly-react'
 
+import { didTaskFail } from '../../actions/build'
+
 
 const INTERESTING_KEYS = ['msg', 'stdout', 'stderr']
 
-
-function didTaskFail(task) {
-  if (task.failed) {
-    return true
-  }
-  if ('failed_when_result' in task && !task.failed_when_result) {
-    return false
-  }
-  if ('rc' in task && task.rc) {
-    return true
-  }
-  return false
-}
 
 function hostTaskStats (state, host) {
   if (didTaskFail(host)) { state.failed += 1}
@@ -386,56 +375,20 @@ class PlayBook extends React.Component {
 
 class Console extends React.Component {
   static propTypes = {
+    errorIds: PropTypes.object,
     output: PropTypes.array,
     displayPath: PropTypes.array,
   }
 
-  constructor (props) {
-    super(props)
-
-    const { output } = this.props
-
-    const errorIds = new Set()
-    this.errorIds = errorIds
-
-    // Identify all of the hosttasks (and therefore tasks, plays, and
-    // playbooks) which have failed.  The errorIds are either task or
-    // play uuids, or the phase+index for the playbook.  Since they are
-    // different formats, we can store them in the same set without
-    // collisions.
-    output.forEach(playbook => {
-      playbook.plays.forEach(play => {
-        play.tasks.forEach(task => {
-          Object.entries(task.hosts).forEach(([, host]) => {
-            if (host.results) {
-              host.results.forEach(result => {
-                if (didTaskFail(result)) {
-                  errorIds.add(task.task.id)
-                  errorIds.add(play.play.id)
-                  errorIds.add(playbook.phase + playbook.index)
-                }
-              })
-            }
-            if (didTaskFail(host)) {
-              errorIds.add(task.task.id)
-              errorIds.add(play.play.id)
-              errorIds.add(playbook.phase + playbook.index)
-            }
-          })
-        })
-      })
-    })
-  }
-
   render () {
-    const { output, displayPath } = this.props
+    const { errorIds, output, displayPath } = this.props
 
     return (
       <React.Fragment>
         <ListView key="playbooks" className="zuul-console">
           {output.map((playbook, idx) => (
             <PlayBook key={idx} playbook={playbook} taskPath={[idx.toString()]}
-                      displayPath={displayPath} errorIds={this.errorIds}/>))}
+                      displayPath={displayPath} errorIds={errorIds}/>))}
         </ListView>
       </React.Fragment>
     )
