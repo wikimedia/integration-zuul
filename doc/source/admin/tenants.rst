@@ -343,7 +343,7 @@ or **dequeue**.
 
 .. note::
 
-   Rules can be overridden by the ``zuul.admin`` claim in a Token if if matches
+   Rules can be overridden by the ``zuul.admin`` claim in a token if if matches
    an authenticator configuration where `allow_authz_override` is set to true.
    See :ref:`Zuul web server's configuration <web-server-tenant-scoped-api>` for
    more details.
@@ -381,10 +381,10 @@ Below are some examples of how access rules can be defined:
       This is the list of conditions that define a rule. A JWT must match **at
       least one** of the conditions for the rule to apply. A condition is a
       dictionary where keys are claims. **All** the associated values must
-      match the claims in the user's Token.
+      match the claims in the user's token.
 
       Zuul's authorization engine will adapt matching tests depending on the
-      nature of the claim in the Token, eg:
+      nature of the claim in the token, eg:
 
       * if the claim is a JSON list, check that the condition value is in the
         claim
@@ -396,10 +396,10 @@ Below are some examples of how access rules can be defined:
 
         The special ``zuul_uid`` claim refers to the ``uid_claim`` setting in an
         authenticator's configuration. By default it refers to the ``sub`` claim
-        of a Token. For more details see the :ref:`configuration section
+        of a token. For more details see the :ref:`configuration section
         <web-server-tenant-scoped-api>` for Zuul web server.
 
-        Under the above example, the following Token would match rules
+        Under the above example, the following token would match rules
         ``affiliate_or_admin`` and ``alice_or_bob``:
 
         .. code-block:: javascript
@@ -417,7 +417,7 @@ Below are some examples of how access rules can be defined:
            },
           }
 
-        And this Token would only match rule ``affiliate_or_admin``:
+        And this token would only match rule ``affiliate_or_admin``:
 
         .. code-block:: javascript
 
