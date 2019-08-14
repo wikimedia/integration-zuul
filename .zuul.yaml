@@ -162,6 +162,20 @@
       nodes: []
     vars: *zuul_image_vars
 
+- job:
+    name: zuul-build-python-release
+    parent: build-python-release
+    pre-run: playbooks/release/pre.yaml
+    vars: &zuul_build_vars
+      node_version: 10
+      release_python: python3
+
+- job:
+    name: zuul-release-python
+    parent: opendev-release-python
+    pre-run: playbooks/release/pre.yaml
+    vars: *zuul_build_vars
+
 - project:
     check:
       jobs:
@@ -202,7 +216,7 @@
             dependencies: zuul-build-image
         - nodepool-zuul-functional:
             voting: false
-        - build-python-release
+        - zuul-build-python-release
         - build-javascript-content-tarball:
             vars:
               node_version: 10
@@ -244,7 +258,7 @@
             timeout: 2700  # 45 minutes
         - zuul-quick-start:
             dependencies: zuul-upload-image
-        - build-python-release
+        - zuul-build-python-release
         - build-javascript-content-tarball:
             vars:
               node_version: 10
@@ -258,5 +272,5 @@
         - opendev-promote-javascript-content
     release:
       jobs:
-        - opendev-release-python
+        - zuul-release-python
         - zuul-publish-tox-docs
