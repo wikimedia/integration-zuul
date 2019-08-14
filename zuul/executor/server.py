@@ -375,7 +375,7 @@ class JobDir(object):
             tmpdir = root
         else:
             tmpdir = tempfile.gettempdir()
-        self.root = os.path.join(tmpdir, build_uuid)
+        self.root = os.path.realpath(os.path.join(tmpdir, build_uuid))
         os.mkdir(self.root, 0o700)
         self.work_root = os.path.join(self.root, 'work')
         os.makedirs(self.work_root)
