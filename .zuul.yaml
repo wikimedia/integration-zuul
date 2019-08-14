@@ -268,7 +268,9 @@
       jobs:
         - zuul-promote-image
         - zuul-promote-docs
-        - opendev-promote-python
+        - opendev-promote-python:
+            vars:
+              download_artifact_job: zuul-build-python-release
         - opendev-promote-javascript-content
     release:
       jobs:
