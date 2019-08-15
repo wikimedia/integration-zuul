@@ -30,27 +30,29 @@ class LogFile extends React.Component {
   render () {
     const { build, data, severity } = this.props
     return (
-      <Panel>
-        <Panel.Heading>Build result {build.uuid}</Panel.Heading>
-        <Panel.Body>
-          <Link to="?">All</Link>&nbsp;
-          <Link to="?severity=1">Debug</Link>&nbsp;
-          <Link to="?severity=2">Info</Link>&nbsp;
-          <Link to="?severity=3">Warning</Link>&nbsp;
-          <Link to="?severity=4">Error</Link>&nbsp;
-          <Link to="?severity=5">Trace</Link>&nbsp;
-          <Link to="?severity=6">Audit</Link>&nbsp;
-          <Link to="?severity=7">Critical</Link>&nbsp;
-          <pre className="zuul-log-output">
-            {data.map((line) => (
-              ((!severity || (line.severity >= severity)) &&
-              <span key={line.index} className={'zuul-log-sev-'+(line.severity||0)}>
-                <a name={line.index} href={'#'+(line.index)}>{line.text+'\n'}</a>
-              </span>)
-            ))}
-          </pre>
-        </Panel.Body>
-      </Panel>
+      <React.Fragment>
+        <Panel>
+          <Panel.Heading>Build result {build.uuid}</Panel.Heading>
+          <Panel.Body>
+            <Link to="?">All</Link>&nbsp;
+            <Link to="?severity=1">Debug</Link>&nbsp;
+            <Link to="?severity=2">Info</Link>&nbsp;
+            <Link to="?severity=3">Warning</Link>&nbsp;
+            <Link to="?severity=4">Error</Link>&nbsp;
+            <Link to="?severity=5">Trace</Link>&nbsp;
+            <Link to="?severity=6">Audit</Link>&nbsp;
+            <Link to="?severity=7">Critical</Link>&nbsp;
+          </Panel.Body>
+        </Panel>
+        <pre className="zuul-log-output">
+          {data.map((line) => (
+            ((!severity || (line.severity >= severity)) &&
+             <span key={line.index} className={'zuul-log-sev-'+(line.severity||0)}>
+               <a name={line.index} href={'#'+(line.index)}>{line.text+'\n'}</a>
+             </span>)
+          ))}
+        </pre>
+      </React.Fragment>
     )
   }
 }
