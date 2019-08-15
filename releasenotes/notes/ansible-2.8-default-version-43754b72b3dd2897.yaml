@@ -1,0 +1,8 @@
+---
+upgrade:
+  - |
+    The default version of Ansible used by Zuul jobs has been changed to 2.8.
+    See :attr:`job.ansible-version` for more information.
+  - |
+    Ansible 2.6 for Zuul jobs has been marked deprecated and will be removed in
+    a future release.

@@ -27,7 +27,9 @@ services:
       - "sshkey:/var/ssh:z"
       - "nodessh:/var/node:z"
       - "./playbooks/:/var/playbooks/:z"
-    command: "/usr/local/lib/zuul/ansible/2.5/bin/ansible-playbook /var/playbooks/setup.yaml"
+    # NOTE(pabelanger): Be sure to update this line each time we change the
+    # default version of ansible for Zuul.
+    command: "/usr/local/lib/zuul/ansible/2.8/bin/ansible-playbook /var/playbooks/setup.yaml"
   zk:
     image: zookeeper
   mysql:
