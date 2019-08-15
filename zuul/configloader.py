@@ -1474,6 +1474,8 @@ class TenantParser(object):
         if conf.get('report-build-page') is not None:
             tenant.report_build_page = conf['report-build-page']
         tenant.web_root = conf.get('web-root', self.scheduler.web_root)
+        if tenant.web_root and not tenant.web_root.endswith('/'):
+            tenant.web_root += '/'
         tenant.allowed_triggers = conf.get('allowed-triggers')
         tenant.allowed_reporters = conf.get('allowed-reporters')
         tenant.allowed_labels = conf.get('allowed-labels')
