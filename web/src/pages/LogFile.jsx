@@ -49,7 +49,8 @@ class LogFilePage extends Refreshable {
       if (element.length) {
         const header = document.getElementsByClassName('navbar')
         if (header.length) {
-          window.scroll(0, element[0].offsetTop - header[0].offsetHeight)
+          element[0].scrollIntoView()
+          window.scroll(0, window.scrollY - header[0].offsetHeight)
         }
       }
     }

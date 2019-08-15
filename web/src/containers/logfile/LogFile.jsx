@@ -45,12 +45,25 @@ class LogFile extends React.Component {
           </Panel.Body>
         </Panel>
         <pre className="zuul-log-output">
-          {data.map((line) => (
-            ((!severity || (line.severity >= severity)) &&
-             <span key={line.index} className={'zuul-log-sev-'+(line.severity||0)}>
-               <a name={line.index} href={'#'+(line.index)}>{line.text+'\n'}</a>
-             </span>)
-          ))}
+          <table>
+            <tbody>
+              {data.map((line) => (
+                ((!severity || (line.severity >= severity)) &&
+                 <tr key={line.index}>
+                   <td className="line-number">
+                     <a name={line.index} href={'#'+(line.index)}>
+                       {line.index}
+                     </a>
+                   </td>
+                   <td>
+                     <span className={'zuul-log-sev-'+(line.severity||0)}>
+                       {line.text+'\n'}
+                     </span>
+                   </td>
+                 </tr>
+                )))}
+            </tbody>
+          </table>
         </pre>
       </React.Fragment>
     )

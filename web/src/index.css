@@ -245,3 +245,13 @@ pre.zuul-log-output
     background-color: inherit;
     border: none;
 }
+.zuul-log-output .line-number
+{
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  text-align: right;
+  padding-right: 1em;
+  color: #555;
+}
