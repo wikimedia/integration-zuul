@@ -42,7 +42,7 @@ Suspected security vulnerabilities are most appreciated if first
 reported privately following any of the supported mechanisms
 described at https://zuul-ci.org/docs/zuul/user/vulnerabilities.html
 
-Code reviews are handled by gerrit at https://review.openstack.org
+Code reviews are handled by gerrit at https://review.opendev.org
 
 After creating a Gerrit account, use `git review` to submit patches.
 Example::
