@@ -4,13 +4,13 @@
 # start.
 
 wait_for_gearman() {
-    echo "Wait for gearman to start"
+    echo `date -Iseconds` "Wait for gearman to start"
     for i in $(seq 1 120); do
         cat < /dev/null > /dev/tcp/scheduler/4730 && return
         sleep 1
     done
 
-    echo "Timeout waiting for mysql"
+    echo `date -Iseconds` "Timeout waiting for gearman"
     exit 1
 }
 

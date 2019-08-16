@@ -8,16 +8,16 @@
     - name: Save docker log files
       become: true
       shell: |
-        docker logs examples_gerrit_1 > {{ ansible_user_dir }}/logs/gerrit.log
-        docker logs examples_gerritconfig_1 > {{ ansible_user_dir }}/logs/gerritconfig.log
-        docker logs examples_zk_1 > {{ ansible_user_dir }}/logs/zk.log
-        docker logs examples_mysql_1 > {{ ansible_user_dir }}/logs/mysql.log
-        docker logs examples_scheduler_1 > {{ ansible_user_dir }}/logs/scheduler.log
-        docker logs examples_web_1 > {{ ansible_user_dir }}/logs/web.log
-        docker logs examples_executor_1 > {{ ansible_user_dir }}/logs/executor.log
-        docker logs examples_node_1 > {{ ansible_user_dir }}/logs/node.log
-        docker logs examples_launcher_1 > {{ ansible_user_dir }}/logs/launcher.log
-        docker logs examples_logs_1 > {{ ansible_user_dir }}/logs/logs.log
+        docker logs examples_gerrit_1 > {{ ansible_user_dir }}/logs/gerrit.log 2>&1
+        docker logs examples_gerritconfig_1 > {{ ansible_user_dir }}/logs/gerritconfig.log 2>&1
+        docker logs examples_zk_1 > {{ ansible_user_dir }}/logs/zk.log 2>&1
+        docker logs examples_mysql_1 > {{ ansible_user_dir }}/logs/mysql.log 2>&1
+        docker logs examples_scheduler_1 > {{ ansible_user_dir }}/logs/scheduler.log 2>&1
+        docker logs examples_web_1 > {{ ansible_user_dir }}/logs/web.log 2>&1
+        docker logs examples_executor_1 > {{ ansible_user_dir }}/logs/executor.log 2>&1
+        docker logs examples_node_1 > {{ ansible_user_dir }}/logs/node.log 2>&1
+        docker logs examples_launcher_1 > {{ ansible_user_dir }}/logs/launcher.log 2>&1
+        docker logs examples_logs_1 > {{ ansible_user_dir }}/logs/logs.log 2>&1
     - name: Copy docker log files to executor
       synchronize:
         mode: pull
