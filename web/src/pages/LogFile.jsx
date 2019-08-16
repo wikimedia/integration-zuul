@@ -48,7 +48,7 @@ class LogFilePage extends Refreshable {
 
   highlightDidUpdate = (lines) => {
     const getLine = (nr) => {
-      return document.getElementsByName(nr)[0].parentNode.parentNode
+      return document.getElementsByClassName('ln-' + nr)[0]
     }
     const getEnd = (lines) => {
       if (lines.length > 1 && lines[1] > lines[0]) {
@@ -87,7 +87,7 @@ class LogFilePage extends Refreshable {
   componentDidUpdate () {
     const lines = this.props.location.hash.substring(1).split('-').map(Number)
     if (lines.length > 0) {
-      const element = document.getElementsByName(lines[0])
+      const element = document.getElementsByClassName('ln-' + lines[0])
       // Lines are loaded
       if (element.length > 0) {
         // Move line into view

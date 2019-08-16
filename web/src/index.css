@@ -247,12 +247,16 @@ pre.zuul-log-output
 }
 .zuul-log-output .line-number
 {
+  display: inline;
+  -webkit-touch-callout: none;
+  -khtml-user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
   text-align: right;
   padding-right: 1em;
+  cursor: pointer;
   color: #555;
 }
 
