@@ -95,7 +95,7 @@ class LogFilePage extends Refreshable {
           const header = document.getElementsByClassName('navbar')
           if (header.length) {
             element[0].scrollIntoView()
-            window.scroll(0, window.scrollY - header[0].offsetHeight)
+            window.scroll(0, window.scrollY - header[0].offsetHeight - 8)
           }
         }
         // Add highlight to the selection range
