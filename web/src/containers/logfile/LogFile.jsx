@@ -20,8 +20,23 @@ import { Link } from 'react-router-dom'
 
 
 function updateSelection (event) {
+  const lines = window.location.hash.substring(1).split('-').map(Number)
   const lineClicked = Number(event.currentTarget.innerText)
-  window.location.hash = '#' + lineClicked
+  if (!event.shiftKey || lines.length === 0) {
+    // First line clicked
+    lines[0] = [lineClicked]
+    lines.splice(1, 1)
+  } else {
+    // Second line shift-clicked
+    const distances = lines.map((pos) => (Math.abs(lineClicked - pos)))
+    // Adjust the range based on the edge distance
+    if (distances[0] < distances[1]) {
+      lines[0] = lineClicked
+    } else {
+      lines[1] = lineClicked
+    }
+  }
+  window.location.hash = '#' + lines.sort().join('-')
 }
 
 
