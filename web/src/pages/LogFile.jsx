@@ -30,7 +30,8 @@ class LogFilePage extends Refreshable {
   }
 
   state = {
-    lines: []
+    lines: [],
+    initialScroll: false,
   }
 
   updateData = (force) => {
@@ -77,7 +78,7 @@ class LogFilePage extends Refreshable {
         dehighlight(this.state.lines)
       }
       // Store the current lines selection, this trigger highlight update
-      this.setState({lines: lines})
+      this.setState({lines: lines, initialScroll: true})
     } else {
       // Add highlight to the selected line
       highlight(this.state.lines)
@@ -90,8 +91,8 @@ class LogFilePage extends Refreshable {
       const element = document.getElementsByClassName('ln-' + lines[0])
       // Lines are loaded
       if (element.length > 0) {
-        // Move line into view
-        if (window.scrollY === 0) {
+        if (!this.state.initialScroll) {
+          // Move line into view
           const header = document.getElementsByClassName('navbar')
           if (header.length) {
             element[0].scrollIntoView()
