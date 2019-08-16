@@ -91,10 +91,12 @@ class LogFilePage extends Refreshable {
       // Lines are loaded
       if (element.length > 0) {
         // Move line into view
-        const header = document.getElementsByClassName('navbar')
-        if (header.length) {
-          element[0].scrollIntoView()
-          window.scroll(0, window.scrollY - header[0].offsetHeight)
+        if (window.scrollY === 0) {
+          const header = document.getElementsByClassName('navbar')
+          if (header.length) {
+            element[0].scrollIntoView()
+            window.scroll(0, window.scrollY - header[0].offsetHeight)
+          }
         }
         // Add highlight to the selection range
         this.highlightDidUpdate(lines)
