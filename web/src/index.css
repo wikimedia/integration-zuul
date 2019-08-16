@@ -255,3 +255,7 @@ pre.zuul-log-output
   padding-right: 1em;
   color: #555;
 }
+
+.highlight {
+  background: rgb(255, 255, 204);
+}

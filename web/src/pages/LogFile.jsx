@@ -29,6 +29,10 @@ class LogFilePage extends Refreshable {
     tenant: PropTypes.object,
   }
 
+  state = {
+    lines: []
+  }
+
   updateData = (force) => {
     this.props.dispatch(fetchLogfileIfNeeded(
       this.props.tenant,
@@ -42,16 +46,58 @@ class LogFilePage extends Refreshable {
     super.componentDidMount()
   }
 
+  highlightDidUpdate = (lines) => {
+    const getLine = (nr) => {
+      return document.getElementsByName(nr)[0].parentNode.parentNode
+    }
+    const getEnd = (lines) => {
+      if (lines.length > 1 && lines[1] > lines[0]) {
+        return lines[1]
+      } else {
+        return lines[0]
+      }
+    }
+    const dehighlight = (lines) => {
+      const end = getEnd(lines)
+      for (let idx = lines[0]; idx <= end; idx++) {
+        getLine(idx).classList.remove('highlight')
+      }
+    }
+    const highlight = (lines) => {
+      const end = getEnd(lines)
+      for (let idx = lines[0]; idx <= end; idx++) {
+        getLine(idx).classList.add('highlight')
+      }
+    }
+    if (this.state.lines.length === 0 ||
+        this.state.lines[0] !== lines[0] ||
+        this.state.lines[1] !== lines[1]) {
+      if (this.state.lines.length > 0) {
+        // Reset previous selection
+        dehighlight(this.state.lines)
+      }
+      // Store the current lines selection, this trigger highlight update
+      this.setState({lines: lines})
+    } else {
+      // Add highlight to the selected line
+      highlight(this.state.lines)
+    }
+  }
+
   componentDidUpdate () {
-    const line = this.props.location.hash.substring(1)
-    if (line) {
-      const element = document.getElementsByName(line)
-      if (element.length) {
+    const lines = this.props.location.hash.substring(1).split('-').map(Number)
+    if (lines.length > 0) {
+      const element = document.getElementsByName(lines[0])
+      // Lines are loaded
+      if (element.length > 0) {
+        // Move line into view
         const header = document.getElementsByClassName('navbar')
         if (header.length) {
           element[0].scrollIntoView()
           window.scroll(0, window.scrollY - header[0].offsetHeight)
         }
+        // Add highlight to the selection range
+        this.highlightDidUpdate(lines)
       }
     }
   }
