@@ -80,6 +80,7 @@ Monty Taylor            mordred
 Paul Belanger           pabelanger
 Ricardo Carrillo Cruz   rcarrillocruz
 Tobias Henkel           tobiash
+Tristan Cacqueray       tristanC
 ======================  =============
 
 Zuul Project Lead
