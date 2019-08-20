@@ -42,7 +42,8 @@ class SMTPReporter(BaseReporter):
             subject = self.config['subject'].format(
                 change=item.change)
         else:
-            subject = "Report for change %s" % item.change
+            subject = "Report for change {change} against {ref}".format(
+                change=item.change, ref=item.change.ref)
 
         self.connection.sendMail(subject, message, from_email, to_email,
                                  zuul_event_id=item.event)
