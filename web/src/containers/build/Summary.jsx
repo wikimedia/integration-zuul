@@ -31,10 +31,15 @@ class Summary extends React.Component {
     const { build } = this.props
     const rows = []
     const myColumns = [
-      'job_name', 'result', 'voting',
+      'job_name', 'result', 'buildset', 'voting',
       'pipeline', 'start_time', 'end_time', 'duration',
       'project', 'branch', 'change', 'patchset', 'oldrev', 'newrev',
       'ref', 'new_rev', 'ref_url', 'log_url']
+
+    if (!build.buildset) {
+      // Safely handle missing buildset information
+      myColumns.splice(myColumns.indexOf('buildset'), 1)
+    }
 
     myColumns.forEach(column => {
       let label = column
@@ -44,6 +49,13 @@ class Summary extends React.Component {
         value = (
           <Link to={this.props.tenant.linkPrefix + '/job/' + value}>
             {value}
+          </Link>
+        )
+      }
+      if (column === 'buildset') {
+        value = (
+          <Link to={this.props.tenant.linkPrefix + '/buildset/' + value.uuid}>
+            {value.uuid}
           </Link>
         )
       }
