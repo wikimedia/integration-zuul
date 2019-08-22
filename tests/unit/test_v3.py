@@ -3695,6 +3695,21 @@ class TestDataReturn(AnsibleZuulTestCase):
         self.assertIn('data-return : SKIPPED', A.messages[-1])
         self.assertIn('Build succeeded', A.messages[-1])
 
+    def test_data_return_skip_all_child_jobs_with_soft_dependencies(self):
+        A = self.fake_gerrit.addFakeChange('org/project-soft', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='data-return-cd', result='SUCCESS', changes='1,1'),
+            dict(name='data-return-c', result='SUCCESS', changes='1,1'),
+            dict(name='data-return-d', result='SUCCESS', changes='1,1'),
+        ])
+        self.assertIn('- data-return-cd http://example.com/test/log/url/',
+                      A.messages[-1])
+        self.assertIn('data-return-a : SKIPPED', A.messages[-1])
+        self.assertIn('data-return-b : SKIPPED', A.messages[-1])
+        self.assertIn('Build succeeded', A.messages[-1])
+
     def test_several_zuul_return(self):
         A = self.fake_gerrit.addFakeChange('org/project4', 'master', 'A')
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))

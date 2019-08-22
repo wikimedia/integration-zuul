@@ -37,6 +37,26 @@
     success-url: docs/index.html
     run: playbooks/data-return-relative.yaml
 
+- job:
+    name: data-return-a
+    run: playbooks/data-return-a.yaml
+
+- job:
+    name: data-return-b
+    run: playbooks/data-return-b.yaml
+
+- job:
+    name: data-return-c
+    run: playbooks/data-return-c.yaml
+
+- job:
+    name: data-return-d
+    run: playbooks/data-return-d.yaml
+
+- job:
+    name: data-return-cd
+    run: playbooks/data-return-cd.yaml
+
 # This child job will be skipped in the test case test_data_return_child_jobs.
 # In order to verify that this doesn't lead to node leaks attach a nodeset to
 # it. Each test case automatically verifies that there are no open node
@@ -110,3 +130,25 @@
         - data-return:
             dependencies:
               - several-zuul-return-child
+
+- project:
+    name: org/project-soft
+    check:
+      jobs:
+        - data-return-cd
+        - data-return-a:
+            dependencies:
+              - data-return-cd
+        - data-return-b:
+            dependencies:
+              - data-return-cd
+        - data-return-c:
+            dependencies:
+              - data-return-cd
+        - data-return-d:
+            dependencies:
+              - name: data-return-b
+                soft: true
+              - name: data-return-c
+                soft: true
+
