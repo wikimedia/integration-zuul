@@ -70,24 +70,6 @@ class TestBranchMatcher(BaseTestMatcher):
         self.assertFalse(self.matcher.matches(self.change))
 
 
-class TestFileMatcher(BaseTestMatcher):
-
-    def setUp(self):
-        super(TestFileMatcher, self).setUp()
-        self.matcher = cm.FileMatcher('filename')
-
-    def test_matches_returns_true(self):
-        self.change.files = ['filename']
-        self.assertTrue(self.matcher.matches(self.change))
-
-    def test_matches_returns_false_when_no_files(self):
-        self.assertFalse(self.matcher.matches(self.change))
-
-    def test_matches_returns_false_when_files_attr_missing(self):
-        delattr(self.change, 'files')
-        self.assertFalse(self.matcher.matches(self.change))
-
-
 class TestAbstractMatcherCollection(BaseTestMatcher):
 
     def test_str(self):
@@ -99,16 +81,19 @@ class TestAbstractMatcherCollection(BaseTestMatcher):
         self.assertEqual(repr(matcher), '<MatchAll>')
 
 
-class TestMatchAllFiles(BaseTestMatcher):
-
-    def setUp(self):
-        super(TestMatchAllFiles, self).setUp()
-        self.matcher = cm.MatchAllFiles([cm.FileMatcher('^docs/.*$')])
+class BaseTestFilesMatcher(BaseTestMatcher):
 
     def _test_matches(self, expected, files=None):
         if files is not None:
             self.change.files = files
         self.assertEqual(expected, self.matcher.matches(self.change))
+
+
+class TestMatchAllFiles(BaseTestFilesMatcher):
+
+    def setUp(self):
+        super(TestMatchAllFiles, self).setUp()
+        self.matcher = cm.MatchAllFiles([cm.FileMatcher('^docs/.*$')])
 
     def test_matches_returns_false_when_files_attr_missing(self):
         delattr(self.change, 'files')
@@ -131,6 +116,32 @@ class TestMatchAllFiles(BaseTestMatcher):
 
     def test_matches_returns_true_when_single_file_matches(self):
         self._test_matches(True, files=['docs/foo'])
+
+
+class TestMatchAnyFiles(BaseTestFilesMatcher):
+
+    def setUp(self):
+        super(TestMatchAnyFiles, self).setUp()
+        self.matcher = cm.MatchAnyFiles([cm.FileMatcher('^docs/.*$')])
+
+    def test_matches_returns_true_when_files_attr_missing(self):
+        delattr(self.change, 'files')
+        self._test_matches(True)
+
+    def test_matches_returns_true_when_no_files(self):
+        self._test_matches(True)
+
+    def test_matches_returns_true_when_only_commit_message(self):
+        self._test_matches(True, files=['/COMMIT_MSG'])
+
+    def test_matches_returns_true_when_some_files_match(self):
+        self._test_matches(True, files=['/COMMIT_MSG', 'docs/foo', 'foo/bar'])
+
+    def test_matches_returns_true_when_single_file_matches(self):
+        self._test_matches(True, files=['docs/foo'])
+
+    def test_matches_returns_false_when_no_matching_files(self):
+        self._test_matches(False, files=['/COMMIT_MSG', 'foo/bar'])
 
 
 class TestMatchAll(BaseTestMatcher):

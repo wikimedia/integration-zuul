@@ -1420,7 +1420,7 @@ class Job(ConfigObject):
         matchers = []
         for fn in files:
             matchers.append(change_matcher.FileMatcher(fn))
-        self.file_matcher = change_matcher.MatchAny(matchers)
+        self.file_matcher = change_matcher.MatchAnyFiles(matchers)
 
     def setIrrelevantFileMatcher(self, irrelevant_files):
         # Set the irrelevant file matcher to match any of the change files
