@@ -236,7 +236,7 @@ class ChangePanel extends React.Component {
     const { tenant } = this.props
     let job_name = job.name
     if (job.tries > 1) {
-      job_name = job_name + ' (' + job.tries + ')'
+      job_name = job_name + ' (' + job.tries + '. attempt)'
     }
     let name = ''
     if (job.result !== null) {
