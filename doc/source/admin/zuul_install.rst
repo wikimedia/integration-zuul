@@ -42,6 +42,9 @@ required.
    $ zypper install -y $(bindep -b compile)
 
    # All:
+   $ tools/install-js-tools.sh
+
+   # All:
    $ sudo pip3 install .
    $ sudo zuul-manage-ansible
    $ popd

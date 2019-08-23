@@ -37,6 +37,9 @@ elif type yum; then
     $SUDO curl https://dl.yarnpkg.com/rpm/yarn.repo -o /etc/yum.repos.d/yarn.repo
     $SUDO $(dirname $0)/install-js-repos-rpm.sh
     $SUDO yum -y install nodejs yarn
+elif type zypper; then
+    $SUDO zypper install -y nodejs10 npm10
+    $SUDO npm install yarn
 elif type brew; then
     brew install nodejs yarn
 else
