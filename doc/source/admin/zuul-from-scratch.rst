@@ -43,11 +43,15 @@ Zuul
 Write the Zuul config file.  Note that this configures Zuul's web
 server to listen on all public addresses.  This is so that Zuul may
 receive webhook events from GitHub.  You may wish to proxy this or
-further restrict public access.
+further restrict public access.  You should set the GIT_USER variables
+to appropriate values for your setup.
 
 .. code-block:: shell
 
-   sudo bash -c "cat > /etc/zuul/zuul.conf <<EOF
+   export GIT_USER_NAME=CHANGE ME
+   export GIT_USER_EMAIL=change@me.com
+   sudo --preserve-env=GIT_USER_NAME,GIT_USER_EMAIL bash -c \
+   "cat > /etc/zuul/zuul.conf <<EOF
    [gearman]
    server=127.0.0.1
 
@@ -59,6 +63,10 @@ further restrict public access.
 
    [executor]
    private_key_file=/var/lib/zuul/.ssh/nodepool_rsa
+
+   [merger]
+   git_user_name=$GIT_USER_NAME
+   git_user_email=$GIT_USER_EMAIL
 
    [web]
    listen_address=0.0.0.0
