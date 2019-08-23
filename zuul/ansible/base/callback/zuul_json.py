@@ -156,6 +156,14 @@ class CallbackModule(CallbackBase):
         self.results[-1]['play']['duration']['end'] = end_time
         self.results[-1]['tasks'][-1]['hosts'][host.name]['action'] = action
 
+    def v2_runner_on_failed(self, result, **kwargs):
+        self.v2_runner_on_ok(result, **kwargs)
+        result._host.setdefault('failed', True)
+
+    def v2_runner_on_skipped(self, result, **kwargs):
+        self.v2_runner_on_ok(result, **kwargs)
+        result._host.setdefault('skipped', True)
+
     def v2_playbook_on_stats(self, stats):
         """Display info about playbook statistics"""
         hosts = sorted(stats.processed.keys())
@@ -179,6 +187,4 @@ class CallbackModule(CallbackBase):
         json.dump(output, open(self.output_path, 'w'),
                   indent=4, sort_keys=True, separators=(',', ': '))
 
-    v2_runner_on_failed = v2_runner_on_ok
     v2_runner_on_unreachable = v2_runner_on_ok
-    v2_runner_on_skipped = v2_runner_on_ok
