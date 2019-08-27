@@ -472,7 +472,11 @@ class Repo(object):
 
     def isUpdateNeeded(self, repo_state, zuul_event_id=None):
         repo = self.createRepoObject(zuul_event_id)
-        for rev in repo_state.values():
+        refs = [x.path for x in repo.refs]
+        for ref, rev in repo_state.items():
+            # Check that each ref exists and that each commit exists
+            if ref not in refs:
+                return True
             try:
                 repo.commit(rev)
             except Exception:
