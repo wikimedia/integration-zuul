@@ -1371,6 +1371,9 @@ class GithubConnection(BaseConnection):
                     "Failed to get pull request #%s of %s/%s; retrying" %
                     (number, owner, proj))
             time.sleep(1)
+        else:
+            raise Exception("Failed to get pull request #%s of %s/%s" % (
+                number, owner, proj))
         pr = probj.as_dict()
         try:
             pr['files'] = [f.filename for f in probj.files()]
