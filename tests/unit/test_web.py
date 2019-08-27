@@ -1539,3 +1539,26 @@ class TestTenantScopedWebApiWithAuthRules(BaseTestWeb):
                             json=change)
         self.assertEqual(200, req.status_code, req.text)
         self.waitUntilSettled()
+
+
+class TestWebMulti(BaseTestWeb):
+    config_file = 'zuul-gerrit-github.conf'
+
+    def test_web_connections_list_multi(self):
+        data = self.get_url('api/connections').json()
+        gerrit_connection = {
+            'driver': 'gerrit',
+            'name': 'gerrit',
+            'baseurl': 'https://review.example.com',
+            'canonical_hostname': 'review.example.com',
+            'server': 'review.example.com',
+            'port': 29418,
+        }
+        github_connection = {
+            'baseurl': 'https://api.github.com',
+            'canonical_hostname': 'github.com',
+            'driver': 'github',
+            'name': 'github',
+            'server': 'github.com',
+        }
+        self.assertEqual([gerrit_connection, github_connection], data)

@@ -771,7 +771,7 @@ class GithubConnection(BaseConnection):
     def toDict(self):
         d = super().toDict()
         d.update({
-            "baseurl": self.baseurl,
+            "baseurl": self.base_url,
             "canonical_hostname": self.canonical_hostname,
             "server": self.server,
         })
