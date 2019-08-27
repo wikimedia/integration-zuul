@@ -186,10 +186,10 @@ class CallbackModule(CallbackBase):
             self._append_playbook(outfile, first_time)
 
     def _append_playbook(self, outfile, first_time):
-        outfile.seek(0, 2)
+        file_len = outfile.seek(0, os.SEEK_END)
         # Remove three bytes to eat the trailing newline written by the
         # json.dump. This puts the ',' on the end of lines.
-        outfile.seek(outfile.tell() - 3)
+        outfile.seek(file_len - 3)
         if not first_time:
             outfile.write(',\n')
         json.dump(self.playbook, outfile,
