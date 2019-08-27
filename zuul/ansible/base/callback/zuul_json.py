@@ -176,15 +176,24 @@ class CallbackModule(CallbackBase):
         self.playbook['plays'] = self.results
         self.playbook['stats'] = summary
 
-        # For now, just read in the old file and write it all out again
-        # This may well not scale from a memory perspective- but let's see how
-        # it goes.
-        output = []
-        if os.path.exists(self.output_path):
-            output = json.load(open(self.output_path, 'r'))
-        output.append(self.playbook)
+        first_time = not os.path.exists(self.output_path)
 
-        json.dump(output, open(self.output_path, 'w'),
+        if first_time:
+            with open(self.output_path, 'w') as outfile:
+                outfile.write('[\n\n]\n')
+
+        with open(self.output_path, 'r+') as outfile:
+            self._append_playbook(outfile, first_time)
+
+    def _append_playbook(self, outfile, first_time):
+        outfile.seek(0, 2)
+        # Remove three bytes to eat the trailing newline written by the
+        # json.dump. This puts the ',' on the end of lines.
+        outfile.seek(outfile.tell() - 3)
+        if not first_time:
+            outfile.write(',\n')
+        json.dump(self.playbook, outfile,
                   indent=4, sort_keys=True, separators=(',', ': '))
+        outfile.write('\n]\n')
 
     v2_runner_on_unreachable = v2_runner_on_ok
