@@ -55,6 +55,7 @@ export const requestBuildOutput = () => ({
   type: BUILD_OUTPUT_REQUEST
 })
 
+// job-output processing functions
 export function didTaskFail(task) {
   if (task.failed) {
     return true
@@ -74,6 +75,47 @@ export function didTaskFail(task) {
   }
   return false
 }
+
+export function hasInterestingKeys (obj, keys) {
+  return Object.entries(obj).filter(
+    ([k, v]) => (keys.includes(k) && v !== '')
+  ).length > 0
+}
+
+export function findLoopLabel(item) {
+  const label = item._ansible_item_label
+  return typeof(label) === 'string' ? label : ''
+}
+
+export function shouldIncludeKey(key, value, ignore_underscore, included) {
+  if (ignore_underscore && key[0] === '_') {
+    return false
+  }
+  if (included) {
+    if (!included.includes(key)) {
+      return false
+    }
+    if (value === '') {
+      return false
+    }
+  }
+  return true
+}
+
+export function makeTaskPath (path) {
+  return path.join('/')
+}
+
+export function taskPathMatches (ref, test) {
+  if (test.length < ref.length)
+    return false
+  for (let i=0; i < ref.length; i++) {
+    if (ref[i] !== test[i])
+      return false
+  }
+  return true
+}
+
 
 const receiveBuildOutput = (buildId, output) => {
   const hosts = {}
