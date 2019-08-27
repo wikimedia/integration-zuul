@@ -129,6 +129,7 @@ class JobVariant extends React.Component {
           <span style={{whiteSpace: 'pre'}}>
             <ReactJson
               src={value}
+              name={null}
               sortKeys={true}
               enableClipboard={false}
               displayDataTypes={false}/>
