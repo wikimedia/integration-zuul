@@ -19,41 +19,8 @@ import {
 } from 'patternfly-react'
 import { Link } from 'react-router-dom'
 
-const renderTree = (tenant, build, path, obj) => {
-  const node = {}
-  let name = obj.name
+import { renderTree } from '../../actions/build'
 
-  if ('children' in obj && obj.children) {
-    node.nodes = obj.children.map(n => renderTree(tenant, build, path+obj.name+'/', n))
-  }
-  if (obj.mimetype === 'application/directory') {
-    name = obj.name + '/'
-  } else {
-    node.icon = 'fa fa-file-o'
-  }
-
-  let log_url = build.log_url
-  if (log_url.endsWith('/')) {
-    log_url = log_url.slice(0, -1)
-  }
-  if (obj.mimetype === 'text/plain') {
-    node.text = (
-      <span>
-        <Link to={tenant.linkPrefix + '/build/' + build.uuid + '/log' + path + name}>{obj.name}</Link>
-        &nbsp;&nbsp;
-        (<a href={log_url + path + name}>raw</a>
-        &nbsp;<span className="fa fa-external-link"/>)
-      </span>)
-  } else {
-    node.text = (
-      <span>
-        <a href={log_url + path + name}>{obj.name}</a>
-        &nbsp;<span className="fa fa-external-link"/>
-      </span>
-    )
-  }
-  return node
-}
 
 class Manifest extends React.Component {
   static propTypes = {
@@ -64,7 +31,24 @@ class Manifest extends React.Component {
   render() {
     const { tenant, build } = this.props
 
-    const nodes = build.manifest.tree.map(n => renderTree(tenant, build, '/', n))
+    const nodes = build.manifest.tree.map(
+      n => renderTree(
+        tenant, build, '/', n,
+        (tenant, build, path, name, log_url, obj) => (
+          <span>
+            <Link
+              to={tenant.linkPrefix + '/build/' + build.uuid + '/log' + path + name}>
+              {obj.name}
+            </Link>
+            &nbsp;&nbsp;(<a href={log_url + path + name}>raw</a>
+            &nbsp;<span className="fa fa-external-link"/>)
+          </span>),
+        (log_url, path, name, obj) => (
+          <span>
+            <a href={log_url + path + name}>{obj.name}</a>
+            &nbsp;<span className="fa fa-external-link"/>
+          </span>
+        )))
 
     return (
       <React.Fragment>

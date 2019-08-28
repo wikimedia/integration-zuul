@@ -24,4 +24,13 @@ it('processes job-output properly', () => {
 
   expect(buildAction.hasInterestingKeys({rc: 42}, ['rc'])).toEqual(true)
   expect(buildAction.hasInterestingKeys({noop: 42}, ['rc'])).toEqual(false)
+
+  // Check trailing / are removed
+  let obj = {children: [], mimetype: 'test', name: 'test'}
+  let tree = buildAction.renderTree(
+    {linkPrefix: 'test/'},
+    {log_url: 'http://test/', uuid: 'test'},
+    '/', obj, (a) => (a), (a) => (a))
+  expect(tree).toEqual(
+    {'icon': 'fa fa-file-o', 'nodes': [], 'text': 'http://test'})
 })

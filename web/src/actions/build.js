@@ -56,6 +56,33 @@ export const requestBuildOutput = () => ({
 })
 
 // job-output processing functions
+export function renderTree(tenant, build, path, obj, textRenderer, defaultRenderer) {
+  const node = {}
+  let name = obj.name
+
+  if ('children' in obj && obj.children) {
+    node.nodes = obj.children.map(
+      n => renderTree(tenant, build, path+obj.name+'/', n,
+                     textRenderer, defaultRenderer))
+  }
+  if (obj.mimetype === 'application/directory') {
+    name = obj.name + '/'
+  } else {
+    node.icon = 'fa fa-file-o'
+  }
+
+  let log_url = build.log_url
+  if (log_url.endsWith('/')) {
+    log_url = log_url.slice(0, -1)
+  }
+  if (obj.mimetype === 'text/plain') {
+    node.text = textRenderer(tenant, build, path, name, log_url, obj)
+  } else {
+    node.text = defaultRenderer(log_url, path, name, obj)
+  }
+  return node
+}
+
 export function didTaskFail(task) {
   if (task.failed) {
     return true
