@@ -980,17 +980,17 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
         self.session = None
         self.pull_requests = pull_requests_db
 
-    def gen_error(self):
+    def gen_error(self, verb):
         return {
             'error': 'some error',
             'error_code': 'some error code'
-        }
+        }, 503, "", verb
 
     def _get_pr(self, match):
         project, number = match.groups()
         pr = self.pull_requests.get(project, {}).get(number)
         if not pr:
-            return self.gen_error()
+            return self.gen_error("GET")
         return pr
 
     def get(self, url):
@@ -1009,22 +1009,22 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
                 'commit_stop': pr.commit_stop,
                 'threshold_reached': pr.threshold_reached,
                 'cached_merge_status': pr.cached_merge_status
-            }
+            }, 200, "", "GET"
 
         match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/flag$', url)
         if match:
             pr = self._get_pr(match)
-            return {'flags': pr.flags}
+            return {'flags': pr.flags}, 200, "", "GET"
 
         match = re.match('.+/api/0/(.+)/git/branches$', url)
         if match:
             # project = match.groups()[0]
-            return {'branches': ['master']}
+            return {'branches': ['master']}, 200, "", "GET"
 
         match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/diffstats$', url)
         if match:
             pr = self._get_pr(match)
-            return pr.files
+            return pr.files, 200, "", "GET"
 
     def post(self, url, params=None):
 
@@ -1036,9 +1036,10 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
             pr = self._get_pr(match)
             pr.status = 'Merged'
             pr.is_merged = True
+            return {}, 200, "", "POST"
 
         if not params:
-            return self.gen_error()
+            return self.gen_error("POST")
 
         match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/flag$', url)
         if match:
@@ -1049,6 +1050,8 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
         if match:
             pr = self._get_pr(match)
             pr.addComment(params['comment'])
+
+        return {}, 200, "", "POST"
 
 
 class FakePagureConnection(pagureconnection.PagureConnection):
