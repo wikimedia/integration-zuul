@@ -193,7 +193,7 @@ class TestPagureDriver(ZuulTestCase):
         self.assertEqual('project-post-job', zuulvars['job'])
         self.assertEqual('master', zuulvars['branch'])
         self.assertEqual(
-            'https://pagure/org/project/commit/%s' % zuulvars['newrev'],
+            'https://pagure/org/project/c/%s' % zuulvars['newrev'],
             zuulvars['change_url'])
         self.assertEqual(expected_newrev, zuulvars['newrev'])
 

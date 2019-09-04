@@ -653,7 +653,7 @@ class PagureConnection(BaseConnection):
     def getGitwebUrl(self, project, sha=None):
         url = '%s/%s' % (self.baseurl, project)
         if sha is not None:
-            url += '/commit/%s' % sha
+            url += '/c/%s' % sha
         return url
 
     def getProjectBranches(self, project, tenant):
