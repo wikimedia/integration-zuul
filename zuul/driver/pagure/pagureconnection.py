@@ -68,8 +68,6 @@ from zuul.driver.pagure.paguremodel import PagureTriggerEvent, PullRequest
 # api_token=QX29SXAW96C2CTLUNA5JKEEU65INGWTO2B5NHBDBRMF67S7PYZWCS0L1AKHXXXXX
 #
 # Current Non blocking issues:
-# - Pagure does not send event when git tag is added/removed
-#   https://pagure.io/pagure/issue/4400 (merged so need to be used)
 # - Pagure does not send the oldrev info when a branch is updated/created
 #   https://pagure.io/pagure/issue/4401
 # - Pagure does not send an event when a branch is deleted
@@ -209,7 +207,8 @@ class PagureEventConnector(threading.Thread):
             'pull-request.initial_comment.edited':
                 self._event_issue_initial_comment,
             'pull-request.tag.added':
-                self._event_pull_request_tags_changed
+                self._event_pull_request_tags_changed,
+            'git.tag.creation': self._event_tag_created,
         }
 
     def stop(self):
@@ -334,6 +333,15 @@ class PagureEventConnector(threading.Thread):
         event, data = self._event_base(body)
         event.status = data['flag']['status']
         event.action = 'status'
+        return event
+
+    def _event_tag_created(self, body):
+        event, data = self._event_base(body)
+        event.project_name = data.get('project_fullname')
+        event.tag = data.get('tag')
+        event.ref = 'refs/tags/%s' % event.tag
+        event.oldrev = None
+        event.newrev = data.get('rev')
         return event
 
     def _event_ref_updated(self, body):
@@ -726,16 +734,17 @@ class PagureConnection(BaseConnection):
                 project, event.ref))
             if event.ref and event.ref.startswith('refs/tags/'):
                 change = Tag(project)
-                change.tag = event.ref[len('refs/tags/'):]
+                change.tag = event.tag
+                change.branch = None
             elif event.ref and event.ref.startswith('refs/heads/'):
                 change = Branch(project)
-                change.branch = event.ref[len('refs/heads/'):]
+                change.branch = event.branch
             else:
                 change = Ref(project)
+
             change.ref = event.ref
             change.oldrev = event.oldrev
             change.newrev = event.newrev
-            change.branch = event.branch
             change.url = self.getGitwebUrl(project, sha=event.newrev)
 
             # Pagure does not send files details in the git-receive event.
@@ -744,6 +753,7 @@ class PagureConnection(BaseConnection):
             change.files = None
 
             change.source_event = event
+
         return change
 
     def _getChange(self, project, number, patchset=None,
