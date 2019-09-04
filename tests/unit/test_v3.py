@@ -4911,6 +4911,7 @@ class TestJobOutput(AnsibleZuulTestCase):
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
+
         self.assertHistory([
             dict(name='job-output', result='SUCCESS', changes='1,1'),
         ], ordered=False)
@@ -4921,6 +4922,10 @@ class TestJobOutput(AnsibleZuulTestCase):
         self.assertEqual(token,
                          j[0]['plays'][0]['tasks'][0]
                          ['hosts']['localhost']['stdout'])
+        self.assertTrue(j[0]['plays'][0]['tasks'][1]
+                        ['hosts']['localhost']['skipped'])
+        self.assertTrue(j[0]['plays'][0]['tasks'][2]
+                        ['hosts']['localhost']['failed'])
 
         self.log.info(self._get_file(self.history[0],
                                      'work/logs/job-output.txt'))

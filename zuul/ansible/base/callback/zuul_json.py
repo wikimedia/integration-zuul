@@ -158,11 +158,13 @@ class CallbackModule(CallbackBase):
 
     def v2_runner_on_failed(self, result, **kwargs):
         self.v2_runner_on_ok(result, **kwargs)
-        result._host.setdefault('failed', True)
+        self.results[-1]['tasks'][-1]['hosts'][result._host.name].\
+            setdefault('failed', True)
 
     def v2_runner_on_skipped(self, result, **kwargs):
         self.v2_runner_on_ok(result, **kwargs)
-        result._host.setdefault('skipped', True)
+        self.results[-1]['tasks'][-1]['hosts'][result._host.name].\
+            setdefault('skipped', True)
 
     def v2_playbook_on_stats(self, stats):
         """Display info about playbook statistics"""
