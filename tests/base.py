@@ -851,6 +851,7 @@ class FakePagurePullRequest(object):
                     'commit_start': self.commit_start,
                     'commit_stop': self.commit_stop,
                     'date_created': '0',
+                    'initial_comment': self.initial_comment,
                     'id': self.number,
                     'project': {
                         'fullname': self.project,
@@ -881,6 +882,11 @@ class FakePagurePullRequest(object):
     def getPullRequestCommentedEvent(self, message):
         self.addComment(message)
         return self._getPullRequestEvent('pull-request.comment.added')
+
+    def getPullRequestInitialCommentEvent(self, message):
+        self.initial_comment = message
+        self._updateTimeStamp()
+        return self._getPullRequestEvent('pull-request.initial_comment.edited')
 
     def getPullRequestStatusSetEvent(self, status):
         self.addFlag(

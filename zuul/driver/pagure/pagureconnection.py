@@ -75,8 +75,6 @@ from zuul.driver.pagure.paguremodel import PagureTriggerEvent, PullRequest
 #   https://pagure.io/pagure/issue/4399 (merged so need to be used)
 # - Pagure does not reset the score when a PR code is updated
 #   https://pagure.io/pagure/issue/3985
-#   Pagure does not send an event when initial_comment is updated
-#   https://pagure.io/pagure/issue/4398 (merged need to be used)
 # - CI status flag updated field unit is second, better to have millisecond
 #   unit to avoid unpossible sorting to get last status if two status set the
 #   same second.
@@ -201,6 +199,8 @@ class PagureEventConnector(threading.Thread):
             'pull-request.new': self._event_pull_request,
             'pull-request.flag.added': self._event_flag_added,
             'git.receive': self._event_ref_updated,
+            'pull-request.initial_comment.edited':
+                self._event_issue_initial_comment
         }
 
     def stop(self):
@@ -264,6 +264,12 @@ class PagureEventConnector(threading.Thread):
             data = body['msg']
             event.type = 'pg_push'
         return event, data
+
+    def _event_issue_initial_comment(self, body):
+        """ Handles pull request initial comment change """
+        event, _ = self._event_base(body)
+        event.action = 'changed'
+        return event
 
     def _event_issue_comment(self, body):
         """ Handles pull request comments """

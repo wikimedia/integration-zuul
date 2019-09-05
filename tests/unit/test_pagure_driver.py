@@ -140,6 +140,11 @@ class TestPagureDriver(ZuulTestCase):
         self.waitUntilSettled()
         self.assertEqual(4, len(self.history))
 
+        self.fake_pagure.emitEvent(
+            A.getPullRequestInitialCommentEvent('Initial comment edited'))
+        self.waitUntilSettled()
+        self.assertEqual(6, len(self.history))
+
     @simple_layout('layouts/basic-pagure.yaml', driver='pagure')
     def test_pull_request_with_dyn_reconf(self):
 
