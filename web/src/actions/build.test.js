@@ -17,10 +17,6 @@ import * as buildAction from './build'
 
 it('processes job-output properly', () => {
   expect(buildAction.didTaskFail({failed: true})).toEqual(true)
-  expect(buildAction.didTaskFail({failed_when_result: true})).toEqual(false)
-  expect(buildAction.didTaskFail({failed_when_result: false})).toEqual(false)
-  expect(buildAction.didTaskFail({failed: false, rc: 1})).toEqual(true)
-  expect(buildAction.didTaskFail({results: [{rc: 1}]})).toEqual(true)
 
   expect(buildAction.hasInterestingKeys({rc: 42}, ['rc'])).toEqual(true)
   expect(buildAction.hasInterestingKeys({noop: 42}, ['rc'])).toEqual(false)

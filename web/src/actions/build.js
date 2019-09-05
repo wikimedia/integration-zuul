@@ -87,12 +87,6 @@ export function didTaskFail(task) {
   if (task.failed) {
     return true
   }
-  if ('failed_when_result' in task && !task.failed_when_result) {
-    return false
-  }
-  if ('rc' in task && task.rc) {
-    return true
-  }
   if (task.results) {
     for (let result of task.results) {
       if (didTaskFail(result)) {
