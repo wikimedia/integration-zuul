@@ -61,7 +61,7 @@ class GerritReporter(BaseReporter):
         item.change._ref_sha = item.change.project.source.getRefSha(
             item.change.project, 'refs/heads/' + item.change.branch)
 
-        return self.connection.review(item.change, message, self.config,
+        return self.connection.review(item, message, self.config,
                                       comments, zuul_event_id=item.event)
 
     def getSubmitAllowNeeds(self):

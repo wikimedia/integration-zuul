@@ -334,10 +334,158 @@ order to be enqueued into the pipeline.
              approval:
                - Code-Review: [-1, -2]
 
-Reference pipelines configuration
+Reference Pipelines Configuration
 ---------------------------------
 
 Here is an example of standard pipelines you may want to define:
 
 .. literalinclude:: ../examples/zuul-config/zuul.d/gerrit-reference-pipelines.yaml
    :language: yaml
+
+Checks Plugin Support (Experimental)
+------------------------------------
+
+The Gerrit driver has experimental support for Gerrit's `checks`
+plugin.  Neither the `checks` plugin itself nor Zuul's support for it
+are stable yet, and this is not recommended for production use.  If
+you wish to help develop this support, you should expect to be able to
+upgrade both Zuul and Gerrit frequently as the two systems evolve.  No
+backward-compatible support will be provided and configurations may
+need to be updated frequently.
+
+Caveats include (but are not limited to):
+
+* This documentation is brief.
+
+* Access control for the `checks` API in Gerrit depends on a single
+  global administrative permission, ``administrateCheckers``.  This is
+  required in order to use the `checks` API and can not be restricted
+  by project.  This means that any system using the `checks` API can
+  interfere with any other.
+
+* Checkers are restricted to a single project.  This means that a
+  system with many projects will require many checkers to be defined
+  in Gerrit -- one for each project+pipeline.
+
+* No support is provided for attaching checks to tags or commits,
+  meaning that tag, release, and post pipelines are unable to be used
+  with the `checks` API and must rely on `stream-events`.
+
+* Sub-checks are not implemented yet, so in order to see the results
+  of individual jobs on a change, users must either follow the
+  buildset link, or the pipeline must be configured to leave a
+  traditional comment.
+
+* Familiarity with the `checks` API is recommended.
+
+* Checkers may not be permanently deleted from Gerrit (only
+  "soft-deleted" so they no longer apply), so any experiments you
+  perform on a production system will leave data there forever.
+
+In order to use the `checks` API, you must have HTTP access configured
+in `zuul.conf`.
+
+There are two ways to configure a pipeline for the `checks` API:
+directly referencing the checker UUID, or referencing it's scheme.  It
+is hoped that once multi-repository checks are supported, that an
+administrator will be able to configure a single checker in Gerrit for
+each Zuul pipeline, and those checkers can apply to all repositories.
+If and when that happens, we will be able to reference the checker
+UUID directly in Zuul's pipeline configuration.  If you only have a
+single project, you may find this approach acceptable now.
+
+To use this approach, create a checker named ``zuul:check`` and
+configure a pipeline like this:
+
+.. code-block:: yaml
+
+   - pipeline:
+       name: check
+       manager: independent
+       trigger:
+         gerrit:
+           - event: pending-check
+             uuid: 'zuul:check'
+       enqueue:
+         gerrit:
+           checks_api:
+             uuid: 'zuul:check'
+             state: SCHEDULED
+             message: 'Change has been enqueued in check'
+       start:
+         gerrit:
+           checks_api:
+             uuid: 'zuul:check'
+             state: RUNNING
+             message: 'Jobs have started running'
+       no-jobs:
+         gerrit:
+           checks_api:
+             uuid: 'zuul:check'
+             state: NOT_RELEVANT
+             message: 'Change has no jobs configured'
+       success:
+         gerrit:
+           checks_api:
+             uuid: 'zuul:check'
+             state: SUCCESSFUL
+             message: 'Change passed all voting jobs'
+       failure:
+         gerrit:
+           checks_api:
+             uuid: 'zuul:check'
+             state: FAILED
+             message: 'Change failed'
+
+For a system with multiple repositories and one or more checkers for
+each repository, the `scheme` approach is recommended.  To use this,
+create a checker for each pipeline in each repository.  Give them
+names such as ``zuul_check:project1``, ``zuul_gate:project1``,
+``zuul_check:project2``, etc.  The part before the ``:`` is the
+`scheme`.  Then create a pipeline like this:
+
+.. code-block:: yaml
+
+   - pipeline:
+       name: check
+       manager: independent
+       trigger:
+         gerrit:
+           - event: pending-check
+             scheme: 'zuul_check'
+       enqueue:
+         gerrit:
+           checks_api:
+             scheme: 'zuul_check'
+             state: SCHEDULED
+             message: 'Change has been enqueued in check'
+       start:
+         gerrit:
+           checks_api:
+             scheme: 'zuul_check'
+             state: RUNNING
+             message: 'Jobs have started running'
+       no-jobs:
+         gerrit:
+           checks_api:
+             scheme: 'zuul_check'
+             state: NOT_RELEVANT
+             message: 'Change has no jobs configured'
+       success:
+         gerrit:
+           checks_api:
+             scheme: 'zuul_check'
+             state: SUCCESSFUL
+             message: 'Change passed all voting jobs'
+       failure:
+         gerrit:
+           checks_api:
+             scheme: 'zuul_check'
+             state: FAILED
+             message: 'Change failed'
+
+This will match and report to the appropriate checker for a given
+repository based on the scheme you provided.
+
+.. The original design doc may be of use during development:
+   https://gerrit-review.googlesource.com/c/gerrit/+/214733
