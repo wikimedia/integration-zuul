@@ -1,6 +1,10 @@
 - hosts: all
+  handlers:
+    - name: handler
+      shell: echo "This is a handler"
   tasks:
     - shell: echo "Standard output test {{ zuul.executor.src_root }}"
+      notify: handler
     - shell: echo "This should be skipped"
       when: false
     - fail:

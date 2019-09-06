@@ -4926,6 +4926,10 @@ class TestJobOutput(AnsibleZuulTestCase):
                         ['hosts']['localhost']['skipped'])
         self.assertTrue(j[0]['plays'][0]['tasks'][2]
                         ['hosts']['localhost']['failed'])
+        self.assertEqual(
+            "This is a handler",
+            j[0]['plays'][0]['tasks'][3]
+            ['hosts']['localhost']['stdout'])
 
         self.log.info(self._get_file(self.history[0],
                                      'work/logs/job-output.txt'))
