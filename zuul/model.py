@@ -2109,9 +2109,10 @@ class QueueItem(object):
     holds the current `BuildSet` as well as all previous `BuildSets` that were
     produced for this `QueueItem`.
     """
-    log = logging.getLogger("zuul.QueueItem")
 
     def __init__(self, queue, change, event):
+        log = logging.getLogger("zuul.QueueItem")
+        self.log = get_annotated_logger(log, event)
         self.pipeline = queue.pipeline
         self.queue = queue
         self.change = change  # a ref
