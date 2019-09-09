@@ -1,0 +1,1 @@
+../../base/lookup/hashi_vault.pyi
