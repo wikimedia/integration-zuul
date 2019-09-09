@@ -258,6 +258,7 @@ class Pipeline(object):
         self.merge_failure_message = None
         self.success_message = None
         self.footer_message = None
+        self.enqueue_message = None
         self.start_message = None
         self.post_review = False
         self.dequeue_on_new_patchset = True
@@ -267,6 +268,7 @@ class Pipeline(object):
         self.relative_priority_queues = {}
         self.precedence = PRECEDENCE_NORMAL
         self.triggers = []
+        self.enqueue_actions = []
         self.start_actions = []
         self.success_actions = []
         self.failure_actions = []
@@ -285,6 +287,7 @@ class Pipeline(object):
     @property
     def actions(self):
         return (
+            self.enqueue_actions +
             self.start_actions +
             self.success_actions +
             self.failure_actions +
@@ -2122,6 +2125,7 @@ class QueueItem(object):
         self.enqueue_time = None
         self.dequeue_time = None
         self.reported = False
+        self.reported_enqueue = False
         self.reported_start = False
         self.quiet = False
         self.active = False  # Whether an item is within an active window

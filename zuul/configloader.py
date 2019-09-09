@@ -1119,6 +1119,7 @@ class ProjectParser(object):
 class PipelineParser(object):
     # A set of reporter configuration keys to action mapping
     reporter_actions = {
+        'enqueue': 'enqueue_actions',
         'start': 'start_actions',
         'success': 'success_actions',
         'failure': 'failure_actions',
@@ -1188,8 +1189,8 @@ class PipelineParser(object):
         pipeline['require'] = self.getDriverSchema('require')
         pipeline['reject'] = self.getDriverSchema('reject')
         pipeline['trigger'] = vs.Required(self.getDriverSchema('trigger'))
-        for action in ['start', 'success', 'failure', 'merge-failure',
-                       'disabled']:
+        for action in ['enqueue', 'start', 'success', 'failure',
+                       'merge-failure', 'disabled']:
             pipeline[action] = self.getDriverSchema('reporter')
         return vs.Schema(pipeline)
 
@@ -1216,6 +1217,7 @@ class PipelineParser(object):
         pipeline.footer_message = conf.get('footer-message', "")
         pipeline.start_message = conf.get('start-message',
                                           "Starting {pipeline.name} jobs.")
+        pipeline.enqueue_message = conf.get('enqueue-message', "")
         pipeline.dequeue_on_new_patchset = conf.get(
             'dequeue-on-new-patchset', True)
         pipeline.ignore_dependencies = conf.get(

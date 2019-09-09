@@ -150,6 +150,15 @@ class PipelineManager(object):
                 return True
         return False
 
+    def reportEnqueue(self, item):
+        if not self.pipeline._disabled:
+            self.log.info("Reporting enqueue, action %s item %s" %
+                          (self.pipeline.enqueue_actions, item))
+            ret = self.sendReport(self.pipeline.enqueue_actions, item)
+            if ret:
+                self.log.error("Reporting item enqueued %s received: %s" %
+                               (item, ret))
+
     def reportStart(self, item):
         if not self.pipeline._disabled:
             self.log.info("Reporting start, action %s item %s" %
@@ -339,6 +348,9 @@ class PipelineManager(object):
             item.live = live
             self.reportStats(item)
             item.quiet = quiet
+            if not item.reported_enqueue:
+                self.reportEnqueue(item)
+                item.reported_enqueue = True
             self.enqueueChangesBehind(change, event, quiet,
                                       ignore_requirements, change_queue)
             zuul_driver = self.sched.connections.drivers['zuul']
