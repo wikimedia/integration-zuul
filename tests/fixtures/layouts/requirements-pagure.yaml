@@ -38,6 +38,34 @@
       pagure:
         status: 'success'
 
+- pipeline:
+    name: trigger-tag
+    manager: independent
+    trigger:
+      pagure:
+        - event: pg_pull_request
+          action: tagged
+          tag:
+            - gateit
+            - mergeit
+    success:
+      pagure:
+        status: 'success'
+
+- pipeline:
+    name: require-tag
+    manager: independent
+    require:
+      pagure:
+        tags: gateit
+    trigger:
+      pagure:
+        - event: pg_pull_request
+          action: changed
+    success:
+      pagure:
+        status: 'success'
+
 - job:
     name: base
     parent: null
@@ -62,5 +90,17 @@
 - project:
     name: org/project3
     trigger-flag:
+      jobs:
+        - project-test
+
+- project:
+    name: org/project4
+    trigger-tag:
+      jobs:
+        - project-test
+
+- project:
+    name: org/project5
+    require-tag:
       jobs:
         - project-test

@@ -360,6 +360,52 @@ class TestPagureDriver(ZuulTestCase):
         self.waitUntilSettled()
         self.assertEqual(1, len(self.history))
 
+    @simple_layout('layouts/requirements-pagure.yaml', driver='pagure')
+    def test_tag_trigger(self):
+
+        A = self.fake_pagure.openFakePullRequest(
+            'org/project4', 'master', 'A')
+
+        self.fake_pagure.emitEvent(
+            A.getPullRequestTagAddedEvent(["lambda"]))
+        self.waitUntilSettled()
+        self.assertEqual(0, len(self.history))
+
+        self.fake_pagure.emitEvent(
+            A.getPullRequestTagAddedEvent(["gateit", "lambda"]))
+        self.waitUntilSettled()
+        self.assertEqual(1, len(self.history))
+
+        self.fake_pagure.emitEvent(
+            A.getPullRequestTagAddedEvent(["mergeit"]))
+        self.waitUntilSettled()
+        self.assertEqual(2, len(self.history))
+
+    @simple_layout('layouts/requirements-pagure.yaml', driver='pagure')
+    def test_tag_require(self):
+
+        A = self.fake_pagure.openFakePullRequest(
+            'org/project5', 'master', 'A')
+
+        self.fake_pagure.emitEvent(A.getPullRequestUpdatedEvent())
+        self.waitUntilSettled()
+        self.assertEqual(0, len(self.history))
+
+        A.tags = ["lambda"]
+        self.fake_pagure.emitEvent(A.getPullRequestUpdatedEvent())
+        self.waitUntilSettled()
+        self.assertEqual(0, len(self.history))
+
+        A.tags = ["lambda", "gateit"]
+        self.fake_pagure.emitEvent(A.getPullRequestUpdatedEvent())
+        self.waitUntilSettled()
+        self.assertEqual(1, len(self.history))
+
+        A.tags = []
+        self.fake_pagure.emitEvent(A.getPullRequestUpdatedEvent())
+        self.waitUntilSettled()
+        self.assertEqual(1, len(self.history))
+
     @simple_layout('layouts/merging-pagure.yaml', driver='pagure')
     def test_merge_action_in_independent(self):
 

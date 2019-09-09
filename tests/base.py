@@ -827,6 +827,7 @@ class FakePagurePullRequest(object):
         self.comments = []
         self.flags = []
         self.files = {}
+        self.tags = []
         self.cached_merge_status = ''
         self.threshold_reached = False
         self.commit_stop = None
@@ -841,16 +842,17 @@ class FakePagurePullRequest(object):
         self._addCommitInPR(files=files)
         self._updateTimeStamp()
 
-    def _getPullRequestEvent(self, action):
+    def _getPullRequestEvent(self, action, pull_data_field='pullrequest'):
         name = 'pg_pull_request'
         data = {
             'msg': {
-                'pullrequest': {
+                pull_data_field: {
                     'branch': self.branch,
                     'comments': self.comments,
                     'commit_start': self.commit_start,
                     'commit_stop': self.commit_stop,
                     'date_created': '0',
+                    'tags': self.tags,
                     'initial_comment': self.initial_comment,
                     'id': self.number,
                     'project': {
@@ -867,6 +869,8 @@ class FakePagurePullRequest(object):
         }
         if action == 'pull-request.flag.added':
             data['msg']['flag'] = self.flags[0]
+        if action == 'pull-request.tag.added':
+            data['msg']['tags'] = self.tags
         return (name, data)
 
     def getPullRequestOpenedEvent(self):
@@ -887,6 +891,20 @@ class FakePagurePullRequest(object):
         self.initial_comment = message
         self._updateTimeStamp()
         return self._getPullRequestEvent('pull-request.initial_comment.edited')
+
+    def getPullRequestTagAddedEvent(self, tags, reset=True):
+        if reset:
+            self.tags = []
+        _tags = set(self.tags)
+        _tags.update(set(tags))
+        self.tags = list(_tags)
+        self.addComment(
+            "**Metadata Update from @pingou**:\n- " +
+            "Pull-request tagged with: %s" % ', '.join(tags),
+            True)
+        self._updateTimeStamp()
+        return self._getPullRequestEvent(
+            'pull-request.tag.added', pull_data_field='pull_request')
 
     def getPullRequestStatusSetEvent(self, status):
         self.addFlag(
@@ -1014,7 +1032,8 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
                 'comments': pr.comments,
                 'commit_stop': pr.commit_stop,
                 'threshold_reached': pr.threshold_reached,
-                'cached_merge_status': pr.cached_merge_status
+                'cached_merge_status': pr.cached_merge_status,
+                'tags': pr.tags,
             }, 200, "", "GET"
 
         match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/flag$', url)

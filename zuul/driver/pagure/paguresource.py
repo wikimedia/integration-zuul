@@ -20,6 +20,7 @@ from zuul.source import BaseSource
 from zuul.model import Project
 
 from zuul.driver.pagure.paguremodel import PagureRefFilter
+from zuul.driver.util import scalar_or_list, to_list
 
 
 class PagureSource(BaseSource):
@@ -117,7 +118,6 @@ class PagureSource(BaseSource):
         """Get the git-web url for a project."""
         raise NotImplementedError()
 
-    # This driver does not implement pipeline requirements.
     def getRequireFilters(self, config):
         f = PagureRefFilter(
             connection_name=self.connection.connection_name,
@@ -125,6 +125,7 @@ class PagureSource(BaseSource):
             open=config.get('open'),
             merged=config.get('merged'),
             status=config.get('status'),
+            tags=to_list(config.get('tags'))
         )
         return [f]
 
@@ -142,6 +143,7 @@ def getRequireSchema():
         'open': bool,
         'merged': bool,
         'status': str,
+        'tags': scalar_or_list(str)
     }
     return require
 
