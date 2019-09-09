@@ -147,5 +147,5 @@ class TestWebTokenClient(BaseClientTestCase):
         admin_tenants = token.get('zuul', {}).get('admin', [])
         self.assertTrue('tenant_one' in admin_tenants, admin_tenants)
         # allow one minute for the process to run
-        self.assertTrue(600 <= int(token['exp']) - now < 660,
+        self.assertTrue(580 <= int(token['exp']) - now < 660,
                         (token['exp'], now))
