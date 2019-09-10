@@ -16,6 +16,8 @@
         mode: pull
         src: "{{ destdir.path }}/"
         verify_host: true
+      environment:
+        OK: "we can use custom env"
 
     - name: Validate push
       stat:
@@ -39,6 +41,8 @@
         dest: "{{ destdir.path }}/pull/"
         mode: push
         src: "{{ zuul.executor.log_root }}/push"
+        rsync_opts:
+          - "--safe-links"
         verify_host: true
 
     - name: Validate pull

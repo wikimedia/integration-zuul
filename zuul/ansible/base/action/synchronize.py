@@ -18,6 +18,26 @@ from zuul.ansible import paths
 synchronize = paths._import_ansible_action_plugin("synchronize")
 
 
+def is_opt_prohibited(rsync_arg):
+    prohibited_opts = (
+        "--rsh",
+        "-e",
+    )
+    return any(filter(lambda opt: rsync_arg.startswith(opt), prohibited_opts))
+
+
+def is_env_prohibited(env_keys):
+    prohibited_env = (
+        "RSYNC_RSH",
+    )
+    return any(filter(lambda env: env in prohibited_env, env_keys))
+
+
+def is_prohibited(rsync_opts, environment):
+    return (any(filter(is_opt_prohibited, list(map(str.strip, rsync_opts)))) or
+            any(filter(is_env_prohibited, list(map(dict.keys, environment)))))
+
+
 class ActionModule(synchronize.ActionModule):
 
     def run(self, tmp=None, task_vars=None):
@@ -40,6 +60,12 @@ class ActionModule(synchronize.ActionModule):
             self._task.args['rsync_opts'] = []
         if '--safe-links' not in self._task.args['rsync_opts']:
             self._task.args['rsync_opts'].append('--safe-links')
+        if is_prohibited(
+                self._task.args.get('rsync_opts', []),
+                self._task.environment if self._task.environment else {}):
+            return dict(
+                failed=True,
+                msg="Using custom synchronize rsh is prohibited")
 
         if mode == 'push' and not paths._is_safe_path(
                 source, allow_trusted=True):

@@ -1,0 +1,8 @@
+- hosts: all
+  tasks:
+    - synchronize:
+        src: "/proc/cmdline"
+        dest: "{{ zuul.executor.log_root }}/noop"
+        mode: pull
+      environment:
+        RSYNC_RSH: "{{ zuul.executor.log_root }}/oops"

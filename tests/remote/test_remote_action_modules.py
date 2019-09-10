@@ -20,6 +20,7 @@ from tests.base import AnsibleZuulTestCase, FIXTURE_DIR
 ERROR_ACCESS_OUTSIDE = "Accessing files from outside the working dir"
 ERROR_SYNC_TO_OUTSIDE = "Syncing files to outside the working dir"
 ERROR_SYNC_FROM_OUTSIDE = "Syncing files from outside the working dir"
+ERROR_SYNC_RSH = "Using custom synchronize rsh is prohibited"
 
 
 class TestActionModules25(AnsibleZuulTestCase):
@@ -95,6 +96,10 @@ class TestActionModules25(AnsibleZuulTestCase):
         self._run_job('assemble-bad-symlink', 'FAILURE', ERROR_ACCESS_OUTSIDE)
         self._run_job('assemble-bad-dir-with-symlink', 'FAILURE',
                       ERROR_ACCESS_OUTSIDE)
+
+    def test_synchronize_rsh_fail(self):
+        self._run_job('synchronize-rsh-bad', 'FAILURE', ERROR_SYNC_RSH)
+        self._run_job('synchronize-rsh-env-bad', 'FAILURE', ERROR_SYNC_RSH)
 
     def test_command_module(self):
         self._run_job('command-good', 'SUCCESS')
