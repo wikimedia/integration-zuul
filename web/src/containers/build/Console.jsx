@@ -156,13 +156,13 @@ class HostTask extends React.Component {
   constructor (props) {
     super(props)
 
-    const { host, task, taskPath, displayPath, errorIds } = this.props
+    const { host, taskPath, displayPath } = this.props
 
-    if (errorIds.has(task.task.id)) {
+    if (host.failed) {
       this.state.failed = true
     } else if (host.changed) {
       this.state.changed = true
-    } else if (host.skip_reason) {
+    } else if (host.skipped) {
       this.state.skipped = true
     } else {
       this.state.ok = true
