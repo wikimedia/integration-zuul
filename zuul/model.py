@@ -2125,6 +2125,7 @@ class QueueItem(object):
         self.item_ahead = None
         self.items_behind = []
         self.enqueue_time = None
+        self.report_time = None
         self.dequeue_time = None
         self.reported = False
         self.reported_enqueue = False
@@ -2165,6 +2166,7 @@ class QueueItem(object):
         self.current_build_set.removeBuild(build)
 
     def setReportedResult(self, result):
+        self.report_time = time.time()
         self.current_build_set.result = result
 
     def debug(self, msg, indent=0):
