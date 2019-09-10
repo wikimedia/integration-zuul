@@ -273,6 +273,7 @@ class Pipeline(object):
         self.success_actions = []
         self.failure_actions = []
         self.merge_failure_actions = []
+        self.no_jobs_actions = []
         self.disabled_actions = []
         self.disable_at = None
         self._consecutive_failures = 0
@@ -292,6 +293,7 @@ class Pipeline(object):
             self.success_actions +
             self.failure_actions +
             self.merge_failure_actions +
+            self.no_jobs_actions +
             self.disabled_actions
         )
 

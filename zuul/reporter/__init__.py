@@ -104,6 +104,7 @@ class BaseReporter(object, metaclass=abc.ABCMeta):
             'success': self._formatItemReportSuccess,
             'failure': self._formatItemReportFailure,
             'merge-failure': self._formatItemReportMergeFailure,
+            'no-jobs': self._formatItemReportNoJobs,
             'disabled': self._formatItemReportDisabled
         }
         return format_methods[self._action]
@@ -169,6 +170,17 @@ class BaseReporter(object, metaclass=abc.ABCMeta):
 
     def _formatItemReportMergeFailure(self, item, with_jobs=True):
         return item.pipeline.merge_failure_message
+
+    def _formatItemReportNoJobs(self, item, with_jobs=True):
+        status_url = get_default(self.connection.sched.config,
+                                 'web', 'status_url', '')
+        if status_url:
+            status_url = item.formatUrlPattern(status_url)
+
+        return item.pipeline.no_jobs_message.format(
+            pipeline=item.pipeline.getSafeAttributes(),
+            change=item.change.getSafeAttributes(),
+            status_url=status_url)
 
     def _formatItemReportDisabled(self, item, with_jobs=True):
         if item.current_build_set.result == 'SUCCESS':
