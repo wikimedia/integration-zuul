@@ -876,6 +876,15 @@ class FakePagurePullRequest(object):
     def getPullRequestOpenedEvent(self):
         return self._getPullRequestEvent('pull-request.new')
 
+    def getPullRequestClosedEvent(self, merged=True):
+        if merged:
+            self.is_merged = True
+            self.status = 'Merged'
+        else:
+            self.is_merged = False
+            self.status = 'Closed'
+        return self._getPullRequestEvent('pull-request.closed')
+
     def getPullRequestUpdatedEvent(self):
         self._addCommitInPR()
         self.addComment(

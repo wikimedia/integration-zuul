@@ -101,6 +101,10 @@ the following options.
 
          Pull request synchronized.
 
+      .. value:: closed
+
+         Pull request closed.
+
       .. value:: comment
 
          Comment added to pull request.
