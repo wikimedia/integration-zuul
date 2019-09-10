@@ -462,6 +462,58 @@ class TestExecutorHostname(ZuulTestCase):
                          self.executor_server.hostname)
 
 
+class TestStartingBuildsSensor(ZuulTestCase):
+    config_file = 'zuul.conf'
+    tenant_config_file = 'config/governor/main.yaml'
+
+    def test_default_case(self):
+        # Given
+        cores = multiprocessing.cpu_count()
+
+        # When
+        sensor = StartingBuildsSensor(None, cores * 2.5, None)
+
+        # Then
+        self.assertEqual(sensor.max_starting_builds, int(cores * 2.5 * 2))
+        self.assertEqual(sensor.min_starting_builds, max(int(cores / 2), 1))
+
+    def test_configuration_not_exists(self):
+        # Given
+        cores = multiprocessing.cpu_count()
+
+        # When
+        sensor = StartingBuildsSensor(None, cores * 2.5, self.config)
+
+        # Then
+        self.assertEqual(sensor.max_starting_builds, int(cores * 2.5 * 2))
+        self.assertEqual(sensor.min_starting_builds, max(int(cores / 2), 1))
+
+    def test_configuration_override(self):
+        # Given
+        cores = multiprocessing.cpu_count()
+        self.config.set('executor', 'max_starting_builds', '5')
+
+        # When
+        sensor = StartingBuildsSensor(None, cores * 2.5, self.config)
+
+        # Then
+        self.assertEqual(sensor.max_starting_builds, 5)
+        self.assertEqual(sensor.min_starting_builds, min(
+            max(int(cores / 2), 1), sensor.max_starting_builds))
+
+    def test_configuration_override_affecting_min(self):
+        # Given
+        cores = multiprocessing.cpu_count()
+        self.config.set('executor', 'max_starting_builds', '1')
+
+        # When
+        sensor = StartingBuildsSensor(None, cores * 2.5, self.config)
+
+        # Then
+        self.assertEqual(sensor.max_starting_builds, 1)
+        self.assertEqual(sensor.min_starting_builds, 1)
+
+
 class TestGovernor(ZuulTestCase):
     config_file = 'zuul-executor-hostname.conf'
     tenant_config_file = 'config/governor/main.yaml'
@@ -576,7 +628,7 @@ class TestGovernor(ZuulTestCase):
         self.log.debug("Waiting for %s to start", jobname)
         timeout = time.time() + 30
         build = None
-        while (time.time() < timeout and not build):
+        while time.time() < timeout and not build:
             for b in self.builds:
                 if b.name == jobname:
                     build = b
