@@ -126,7 +126,7 @@ class JobVariant extends React.Component {
       }
       if (label === 'variables') {
         value = (
-          <span style={{whiteSpace: 'pre'}}>
+          <span style={{whiteSpace: 'pre-wrap'}}>
             <ReactJson
               src={value}
               name={null}
@@ -138,7 +138,7 @@ class JobVariant extends React.Component {
       }
       if (label === 'description') {
         const style = {
-          whiteSpace: 'pre'
+          whiteSpace: 'pre-wrap'
         }
         if (descriptionMaxHeight > 0) {
           style.minHeight = descriptionMaxHeight

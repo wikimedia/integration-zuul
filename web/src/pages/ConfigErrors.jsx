@@ -51,7 +51,7 @@ class ConfigErrorsPage extends React.Component {
               return (
                 <li className="list-group-item" key={idx}>
                   <h3>{item.source_context.project} - {ctxPath}</h3>
-                  <p style={{whiteSpace: 'pre'}}>
+                  <p style={{whiteSpace: 'pre-wrap'}}>
                     {item.error}
                   </p>
                 </li>
