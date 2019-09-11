@@ -998,8 +998,9 @@ class AnsibleJob(object):
         self.job.sendWorkStatus(0, 100)
 
         result = self.runPlaybooks(args)
+        success = result == 'SUCCESS'
 
-        self.runCleanupPlaybooks()
+        self.runCleanupPlaybooks(success)
 
         # Stop the persistent SSH connections.
         setup_status, setup_code = self.runAnsibleCleanup(
@@ -1294,7 +1295,7 @@ class AnsibleJob(object):
 
         return result
 
-    def runCleanupPlaybooks(self):
+    def runCleanupPlaybooks(self, success):
         if not self.jobdir.cleanup_playbooks:
             return
 
@@ -1310,7 +1311,7 @@ class AnsibleJob(object):
         for index, playbook in enumerate(self.jobdir.cleanup_playbooks):
             self.runAnsiblePlaybook(
                 playbook, cleanup_timeout, self.ansible_version,
-                phase='cleanup', index=index)
+                success=success, phase='cleanup', index=index)
 
     def _logFinalPlaybookError(self):
         # Failures in the final post playbook can include failures
