@@ -822,8 +822,36 @@ Here is an example of two job definitions:
       Nodeset definition unique to this job).  See the :ref:`nodeset`
       reference for the syntax to use in that case.
 
-      If a job has an empty or no nodeset definition, it will still
-      run and may be able to perform actions on the Zuul executor.
+      If a job has an empty (or no) :ref:`nodeset` definition, it will
+      still run and is able to perform limited actions within the Zuul
+      executor sandbox (e.g. copying files or triggering APIs).  Note
+      so-called "executor-only" jobs run with an empty inventory, and
+      hence Ansible's *implicit localhost*.  This means an
+      executor-only playbook must be written to match ``localhost``
+      directly; i.e.
+
+      .. code-block:: yaml
+
+          - hosts: localhost
+            tasks:
+             ...
+
+      not with ``hosts: all`` (as this does not match the implicit
+      localhost and the playbook will not run).  There are also
+      caveats around things like enumerating the magic variable
+      ``hostvars`` in this situation.  For more information see the
+      Ansible `implicit localhost documentation
+      <https://docs.ansible.com/ansible/latest/inventory/implicit_localhost.html>`__.
+
+      A useful example of executor-only jobs is saving resources by
+      directly utilising the prior results from testing a committed
+      change.  For example, a review which updates documentation
+      source files would generally test validity by building a
+      documentation tree.  When this change is committed, the
+      pre-built output can be copied in an executor-only job directly
+      to the publishing location in a post-commit *promote* pipeline;
+      avoiding having to use a node to rebuild the documentation for
+      final publishing.
 
    .. attr:: override-checkout
 
