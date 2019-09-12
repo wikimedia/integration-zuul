@@ -1874,8 +1874,8 @@ class RecordingAnsibleJob(zuul.executor.server.AnsibleJob):
             self.recordResult(None)
         return self.result
 
-    def runCleanupPlaybooks(self):
-        super(RecordingAnsibleJob, self).runCleanupPlaybooks()
+    def runCleanupPlaybooks(self, success):
+        super(RecordingAnsibleJob, self).runCleanupPlaybooks(success)
         if self.result is not None:
             self.recordResult(self.result)
 

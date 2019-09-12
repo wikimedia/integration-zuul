@@ -2925,6 +2925,8 @@ class TestCleanupPlaybooks(AnsibleZuulTestCase):
         cleanup_flag = os.path.join(self.test_root, build.uuid +
                                     '.cleanup.flag')
         self.assertTrue(os.path.exists(cleanup_flag))
+        with open(cleanup_flag) as f:
+            self.assertEqual('True', f.readline())
 
     def test_cleanup_playbook_failure(self):
         # Test that the cleanup run is performed
@@ -2950,6 +2952,8 @@ class TestCleanupPlaybooks(AnsibleZuulTestCase):
         cleanup_flag = os.path.join(self.test_root, build.uuid +
                                     '.cleanup.flag')
         self.assertTrue(os.path.exists(cleanup_flag))
+        with open(cleanup_flag) as f:
+            self.assertEqual('False', f.readline())
 
     def test_cleanup_playbook_abort(self):
         # Test that when we abort a job the cleanup run is performed
