@@ -1904,12 +1904,6 @@ class RecordingAnsibleJob(zuul.executor.server.AnsibleJob):
         for host in hosts:
             if not host['host_vars'].get('ansible_connection'):
                 host['host_vars']['ansible_connection'] = 'local'
-
-        if not hosts:
-            hosts.append(dict(
-                name='localhost',
-                host_vars=dict(ansible_connection='local'),
-                host_keys=[]))
         return hosts
 
     def pause(self):

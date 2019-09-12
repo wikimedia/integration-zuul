@@ -81,6 +81,10 @@
     vars:
       base_var: 'base_var'
     parent: null
+    nodeset:
+      nodes:
+        - name: test_node
+          label: test_label
 
 - job:
     name: base-urls

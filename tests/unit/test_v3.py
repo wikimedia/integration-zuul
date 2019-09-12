@@ -4921,15 +4921,15 @@ class TestJobOutput(AnsibleZuulTestCase):
                                       'work/logs/job-output.json'))
         self.assertEqual(token,
                          j[0]['plays'][0]['tasks'][0]
-                         ['hosts']['localhost']['stdout'])
+                         ['hosts']['test_node']['stdout'])
         self.assertTrue(j[0]['plays'][0]['tasks'][1]
-                        ['hosts']['localhost']['skipped'])
+                        ['hosts']['test_node']['skipped'])
         self.assertTrue(j[0]['plays'][0]['tasks'][2]
-                        ['hosts']['localhost']['failed'])
+                        ['hosts']['test_node']['failed'])
         self.assertEqual(
             "This is a handler",
             j[0]['plays'][0]['tasks'][3]
-            ['hosts']['localhost']['stdout'])
+            ['hosts']['test_node']['stdout'])
 
         self.log.info(self._get_file(self.history[0],
                                      'work/logs/job-output.txt'))
@@ -4979,7 +4979,7 @@ class TestJobOutput(AnsibleZuulTestCase):
                                       'work/logs/job-output.json'))
         self.assertEqual(token,
                          j[0]['plays'][0]['tasks'][0]
-                         ['hosts']['localhost']['stdout'])
+                         ['hosts']['test_node']['stdout'])
 
         self.log.info(self._get_file(self.history[0],
                                      'work/logs/job-output.json'))
