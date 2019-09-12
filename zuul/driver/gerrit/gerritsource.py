@@ -75,7 +75,7 @@ class GerritSource(BaseSource):
         if not results:
             return None
         change = self.connection._getChange(
-            results[0]['number'], results[0]['currentPatchSet']['number'])
+            results[0].number, results[0].current_patchset)
         return change
 
     def getChangesDependingOn(self, change, projects, tenant):
@@ -89,7 +89,7 @@ class GerritSource(BaseSource):
         results = self.connection.simpleQuery(query)
         seen = set()
         for result in results:
-            for match in find_dependency_headers(result['commitMessage']):
+            for match in find_dependency_headers(result.message):
                 found = False
                 for uri in change.uris:
                     if uri in match:
@@ -97,13 +97,12 @@ class GerritSource(BaseSource):
                         break
                 if not found:
                     continue
-                key = (str(result['number']),
-                       str(result['currentPatchSet']['number']))
+                key = (result.number, result.current_patchset)
                 if key in seen:
                     continue
                 seen.add(key)
                 change = self.connection._getChange(
-                    result['number'], result['currentPatchSet']['number'])
+                    result.number, result.current_patchset)
                 changes.append(change)
         return changes
 

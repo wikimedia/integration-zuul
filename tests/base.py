@@ -42,6 +42,7 @@ import time
 import uuid
 import socketserver
 import http.server
+import urllib.parse
 
 import git
 import gear
@@ -188,6 +189,7 @@ class FakeGerritChange(object):
         self.subject = subject
         self.latest_patchset = 0
         self.depends_on_change = None
+        self.depends_on_patchset = None
         self.needed_by_changes = []
         self.fail_merge = False
         self.messages = []
@@ -490,13 +492,14 @@ class FakeGerritChange(object):
 
     def setDependsOn(self, other, patchset):
         self.depends_on_change = other
+        self.depends_on_patchset = patchset
         d = {'id': other.data['id'],
              'number': other.data['number'],
              'ref': other.patchsets[patchset - 1]['ref']
              }
         self.data['dependsOn'] = [d]
 
-        other.needed_by_changes.append(self)
+        other.needed_by_changes.append((self, len(self.patchsets)))
         needed = other.data.get('neededBy', [])
         d = {'id': self.data['id'],
              'number': self.data['number'],
@@ -516,6 +519,100 @@ class FakeGerritChange(object):
             else:
                 d['isCurrentPatchSet'] = False
         return json.loads(json.dumps(self.data))
+
+    def queryHTTP(self):
+        self.queried += 1
+        labels = {}
+        for cat in self.categories:
+            labels[cat] = {}
+        for app in self.patchsets[-1]['approvals']:
+            label = labels[app['type']]
+            _, label_min, label_max = self.categories[app['type']]
+            val = int(app['value'])
+            label_all = label.setdefault('all', [])
+            label_all.append({
+                "value": val,
+                "username": app['by']['username'],
+                "email": app['by']['email'],
+                "date": str(datetime.datetime.fromtimestamp(app['grantedOn'])),
+            })
+            if val == label_min:
+                label['blocking'] = True
+                if 'rejected' not in label:
+                    label['rejected'] = app['by']
+            if val == label_max:
+                if 'approved' not in label:
+                    label['approved'] = app['by']
+        revisions = {}
+        rev = self.patchsets[-1]
+        num = len(self.patchsets)
+        files = {}
+        for f in rev['files']:
+            files[f['file']] = {"status": f['type'][0]}  # ADDED -> A
+        parent = '0000000000000000000000000000000000000000'
+        if self.depends_on_change:
+            parent = self.depends_on_change.patchsets[
+                self.depends_on_patchset - 1]['revision']
+        revisions[rev['revision']] = {
+            "kind": "REWORK",
+            "_number": num,
+            "created": rev['createdOn'],
+            "uploader": rev['uploader'],
+            "ref": rev['ref'],
+            "commit": {
+                "subject": self.subject,
+                "message": self.data['commitMessage'],
+                "parents": [{
+                    "commit": parent,
+                }]
+            },
+            "files": files
+        }
+        data = {
+            "id": self.project + '~' + self.branch + '~' + self.data['id'],
+            "project": self.project,
+            "branch": self.branch,
+            "hashtags": [],
+            "change_id": self.data['id'],
+            "subject": self.subject,
+            "status": self.data['status'],
+            "created": self.data['createdOn'],
+            "updated": self.data['lastUpdated'],
+            "_number": self.number,
+            "owner": self.data['owner'],
+            "labels": labels,
+            "current_revision": self.patchsets[-1]['revision'],
+            "revisions": revisions,
+            "requirements": []
+        }
+        return json.loads(json.dumps(data))
+
+    def queryRevisionHTTP(self, revision):
+        for ps in self.patchsets:
+            if ps['revision'] == revision:
+                break
+        else:
+            return None
+        changes = []
+        if self.depends_on_change:
+            changes.append({
+                "commit": {
+                    "commit": self.depends_on_change.patchsets[
+                        self.depends_on_patchset - 1]['revision'],
+                },
+                "_change_number": self.depends_on_change.number,
+                "_revision_number": self.depends_on_patchset
+            })
+        for (needed_by_change, needed_by_patchset) in self.needed_by_changes:
+            changes.append({
+                "commit": {
+                    "commit": needed_by_change.patchsets[
+                        needed_by_patchset - 1]['revision'],
+                },
+                "_change_number": needed_by_change.number,
+                "_revision_number": needed_by_patchset,
+            })
+        return {"changes": changes}
 
     def setMerged(self):
         if (self.depends_on_change and
@@ -554,6 +651,9 @@ class GerritWebServer(object):
             update_checks_re = re.compile(
                 r'/a/changes/(.*)/revisions/(.*?)/checks/(.*)')
             list_checkers_re = re.compile('/a/plugins/checks/checkers/')
+            change_re = re.compile(r'/a/changes/(.*)\?o=.*')
+            related_re = re.compile(r'/a/changes/(.*)/revisions/(.*)/related')
+            change_search_re = re.compile(r'/a/changes/\?n=500.*&q=(.*)')
 
             def do_POST(self):
                 path = self.path
@@ -580,6 +680,15 @@ class GerritWebServer(object):
                 path = self.path
                 self.log.debug("Got GET %s", path)
 
+                m = self.change_re.match(path)
+                if m:
+                    return self.get_change(m.group(1))
+                m = self.related_re.match(path)
+                if m:
+                    return self.get_related(m.group(1), m.group(2))
+                m = self.change_search_re.match(path)
+                if m:
+                    return self.get_changes(m.group(1))
                 m = self.pending_checks_re.match(path)
                 if m:
                     return self.get_pending_checks(m.group(1), m.group(2))
@@ -662,6 +771,40 @@ class GerritWebServer(object):
             def list_checkers(self):
                 self.log.debug("Get checkers")
                 self.send_data(fake_gerrit.fake_checkers)
+
+            def get_change(self, number):
+                change = fake_gerrit.changes.get(int(number))
+                if not change:
+                    return self._404()
+
+                self.send_data(change.queryHTTP())
+                self.end_headers()
+
+            def get_related(self, number, revision):
+                change = fake_gerrit.changes.get(int(number))
+                if not change:
+                    return self._404()
+                data = change.queryRevisionHTTP(revision)
+                if data is None:
+                    return self._404()
+                self.send_data(data)
+                self.end_headers()
+
+            def get_changes(self, query):
+                self.log.debug("simpleQueryHTTP: %s", query)
+                query = urllib.parse.unquote(query)
+                fake_gerrit.queries.append(query)
+                results = []
+                if query.startswith('(') and 'OR' in query:
+                    query = query[1:-1]
+                    for q in query.split(' OR '):
+                        for r in fake_gerrit._simpleQuery(q, http=True):
+                            if r not in results:
+                                results.append(r)
+                else:
+                    results = fake_gerrit._simpleQuery(query, http=True)
+                self.send_data(results)
+                self.end_headers()
 
             def send_data(self, data):
                 data = json.dumps(data).encode('utf-8')
@@ -852,25 +995,27 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         if message:
             change.setReported()
 
-    def query(self, number, event=None):
-        if type(number) == int:
-            return self.queryChange(number, event=event)
-        raise Exception("Could not query %s %s" % (type(number, number)))
-
-    def queryChange(self, number, event=None):
+    def queryChangeSSH(self, number, event=None):
+        self.log.debug("Query change SSH: %s", number)
         change = self.changes.get(int(number))
         if change:
             return change.query()
         return {}
 
-    def _simpleQuery(self, query):
+    def _simpleQuery(self, query, http=False):
+        if http:
+            def queryMethod(change):
+                return change.queryHTTP()
+        else:
+            def queryMethod(change):
+                return change.query()
         # the query can be in parenthesis so strip them if needed
         if query.startswith('('):
             query = query[1:-1]
         if query.startswith('change:'):
             # Query a specific changeid
             changeid = query[len('change:'):]
-            l = [change.query() for change in self.changes.values()
+            l = [queryMethod(change) for change in self.changes.values()
                  if (change.data['id'] == changeid or
                      change.data['number'] == changeid)]
         elif query.startswith('message:'):
@@ -879,16 +1024,16 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
             # Remove quoting if it is there
             if msg.startswith('{') and msg.endswith('}'):
                 msg = msg[1:-1]
-            l = [change.query() for change in self.changes.values()
+            l = [queryMethod(change) for change in self.changes.values()
                  if msg in change.data['commitMessage']]
         else:
             # Query all open changes
-            l = [change.query() for change in self.changes.values()]
+            l = [queryMethod(change) for change in self.changes.values()]
         return l
 
-    def simpleQuery(self, query, event=None):
+    def simpleQuerySSH(self, query, event=None):
         log = get_annotated_logger(self.log, event)
-        log.debug("simpleQuery: %s", query)
+        log.debug("simpleQuerySSH: %s", query)
         self.queries.append(query)
         results = []
         if query.startswith('(') and 'OR' in query:

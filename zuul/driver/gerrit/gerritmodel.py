@@ -15,10 +15,14 @@
 import copy
 import re
 import time
+import urllib.parse
+
+import dateutil.parser
 
 from zuul.model import EventFilter, RefFilter
 from zuul.model import Change, TriggerEvent
 from zuul.driver.util import time_to_seconds
+from zuul import exceptions
 
 
 EMPTY_GIT_REF = '0' * 40  # git sha of all zeros, used during creates/deletes
@@ -28,6 +32,121 @@ class GerritChange(Change):
     def __init__(self, project):
         super(GerritChange, self).__init__(project)
         self.approvals = []
+
+    def update(self, data, connection):
+        if data.format == data.SSH:
+            self.updateFromSSH(data.data, connection)
+        else:
+            self.updateFromHTTP(data.data, connection)
+
+    def updateFromSSH(self, data, connection):
+        if self.patchset is None:
+            self.patchset = str(data['currentPatchSet']['number'])
+        if 'project' not in data:
+            raise exceptions.ChangeNotFound(self.number, self.patchset)
+        self.project = connection.source.getProject(data['project'])
+        self.id = data['id']
+        self.branch = data['branch']
+        self.url = data['url']
+        urlparse = urllib.parse.urlparse(connection.baseurl)
+        baseurl = "%s%s" % (urlparse.netloc, urlparse.path)
+        baseurl = baseurl.rstrip('/')
+        self.uris = [
+            '%s/%s' % (baseurl, self.number),
+            '%s/#/c/%s' % (baseurl, self.number),
+            '%s/c/%s/+/%s' % (baseurl, self.project.name, self.number),
+        ]
+
+        max_ps = 0
+        files = []
+        for ps in data['patchSets']:
+            if str(ps['number']) == self.patchset:
+                self.ref = ps['ref']
+                self.commit = ps['revision']
+                for f in ps.get('files', []):
+                    files.append(f['file'])
+            if int(ps['number']) > int(max_ps):
+                max_ps = str(ps['number'])
+        if max_ps == self.patchset:
+            self.is_current_patchset = True
+        else:
+            self.is_current_patchset = False
+        self.files = files
+
+        self.is_merged = data.get('status', '') == 'MERGED'
+        self.approvals = data['currentPatchSet'].get('approvals', [])
+        self.open = data['open']
+        self.status = data['status']
+        self.owner = data['owner']
+        self.message = data['commitMessage']
+
+        self.missing_labels = set()
+        for sr in data.get('submitRecords', []):
+            if sr['status'] == 'NOT_READY':
+                for label in sr['labels']:
+                    if label['status'] in ['OK', 'MAY']:
+                        continue
+                    elif label['status'] in ['NEED', 'REJECT']:
+                        self.missing_labels.add(label['label'])
+
+    def updateFromHTTP(self, data, connection):
+        urlparse = urllib.parse.urlparse(connection.baseurl)
+        baseurl = "%s%s" % (urlparse.netloc, urlparse.path)
+        baseurl = baseurl.rstrip('/')
+        current_revision = data['revisions'][data['current_revision']]
+        if self.patchset is None:
+            self.patchset = str(current_revision['_number'])
+        self.project = connection.source.getProject(data['project'])
+        self.id = data['change_id']
+        self.branch = data['branch']
+        self.url = '%s/%s' % (baseurl, self.number)
+        self.uris = [
+            '%s/%s' % (baseurl, self.number),
+            '%s/#/c/%s' % (baseurl, self.number),
+            '%s/c/%s/+/%s' % (baseurl, self.project.name, self.number),
+        ]
+
+        files = []
+        if str(current_revision['_number']) == self.patchset:
+            self.ref = current_revision['ref']
+            self.commit = data['current_revision']
+            files = current_revision.get('files', []).keys()
+            self.is_current_patchset = True
+        else:
+            self.is_current_patchset = False
+        self.files = files
+
+        self.is_merged = data['status'] == 'MERGED'
+        self.approvals = []
+        self.missing_labels = set()
+        for label_name, label_data in data.get('labels', {}).items():
+            for app in label_data.get('all', []):
+                if app.get('value', 0) == 0:
+                    continue
+                by = {}
+                for k in ('name', 'username', 'email'):
+                    if k in app:
+                        by[k] = app[k]
+                self.approvals.append({
+                    "type": label_name,
+                    "description": label_name,
+                    "value": app['value'],
+                    "grantedOn":
+                    dateutil.parser.parse(app['date']).timestamp(),
+                    "by": by,
+                })
+            if label_data.get('optional', False):
+                continue
+            if label_data.get('blocking', False):
+                self.missing_labels.add(label_name)
+                continue
+            if 'approved' in label_data:
+                continue
+            self.missing_labels.add(label_name)
+        self.open = data['status'] == 'NEW'
+        self.status = data['status']
+        self.owner = data['owner']
+        self.message = current_revision['commit']['message']
 
 
 class GerritTriggerEvent(TriggerEvent):

@@ -22,6 +22,7 @@ URL_FORMATS = [
     '{baseurl}/{change_no}',
     '{baseurl}/#/c/{change_no}',
     '{baseurl}/c/{project}/+/{change_no}/',
+    '{change_id}',
 ]
 
 
@@ -60,7 +61,8 @@ class TestGerritCRD(ZuulTestCase):
 
         url = url_fmt.format(baseurl=B.gerrit.baseurl.rstrip('/'),
                              project=B.project,
-                             change_no=B.number)
+                             change_no=B.number,
+                             change_id=B.data['id'])
         A.data['commitMessage'] = '%s\n\nDepends-On: %s\n' % (
             A.subject, url)
 
@@ -101,6 +103,7 @@ class TestGerritCRD(ZuulTestCase):
     # changes - repeat the simple test on each of the 3 to ensure they can be
     # parsed, the other tests just use the default URL schema provided in
     # FakeGerritChange.data['url'] .
+    # This list also includes the legacy change id.
     def test_crd_gate_url_schema0(self):
         self._test_crd_gate(URL_FORMATS[0])
 
@@ -109,6 +112,9 @@ class TestGerritCRD(ZuulTestCase):
 
     def test_crd_gate_url_schema2(self):
         self._test_crd_gate(URL_FORMATS[2])
+
+    def test_crd_gate_legacy_id(self):
+        self._test_crd_gate(URL_FORMATS[3])
 
     def test_crd_gate_triangle(self):
         A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
