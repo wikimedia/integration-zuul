@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "4a98b75d_f3b055cb",
+        "filename": "debian/patches/0018-wmf-ignore-submit-error-on-merged-change.patch",
+        "patchSetId": 1
+      },
+      "lineNbr": 31,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2019-09-13T21:15:39Z",
+      "side": 1,
+      "message": "And that is still wrong! _ssh() returns nothing on an exception, thus \u0027err\u0027 is not set causing:\n\n UnboundLocalError: local variable \u0027err\u0027 referenced before assignment\n\nBetter patch is a205e358263ecda825003547db4cb47128818a00 / https://gerrit.wikimedia.org/r/#/c/integration/zuul/+/536689/",
+      "range": {
+        "startLine": 31,
+        "startChar": 1,
+        "endLine": 31,
+        "endChar": 73
+      },
+      "revId": "844650d2caa93ee179fd60687ffa64c62c6067f1",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    }
+  ]
+}
