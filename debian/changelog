@@ -1,3 +1,9 @@
+zuul (2.5.1-wmf10) jessie-wikimedia; urgency=medium
+
+  * Fix 0018-wmf-ignore-submit-error-on-merged-change - T203846
+
+ -- Antoine Musso <hashar@free.fr>  Fri, 13 Sep 2019 23:11:41 +0200
+
 zuul (2.5.1-wmf9) jessie-wikimedia; urgency=medium
 
   * Rollback patch "Don-t-call-the-merger-for-non-live-item" since the logic

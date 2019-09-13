@@ -6,19 +6,20 @@ Sometime changes get manually merged. Attempting to submit it would
 cause Gerrit to error out with: error: fatal: change is merged
 
 Ignore Gerrit review exception when using --submit and the errors has
-'change is merged'.
+'change is merged', return a meaningful message which ends up logged as
+an error by the reporter.
 
 Bug: T203846
 Change-Id: I775fd1d632fa647b2b7b20c69057e5d7949a8c35
 ---
- zuul/connection/gerrit.py | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+ zuul/connection/gerrit.py | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
 diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
-index 95bf35c..b3a30e0 100644
+index 95bf35c..e46eb25 100644
 --- a/zuul/connection/gerrit.py
 +++ b/zuul/connection/gerrit.py
-@@ -279,7 +279,14 @@ class GerritConnection(BaseConnection):
+@@ -279,7 +279,15 @@ class GerritConnection(BaseConnection):
              else:
                  cmd += ' --%s %s' % (key, val)
          cmd += ' %s' % change
@@ -27,10 +28,20 @@ index 95bf35c..b3a30e0 100644
 +        # wmf: ignore submit error on merged change T203846
 +        try:
 +            out, err = self._ssh(cmd)
-+        except Exception:
-+            if 'submit' in action and err and 'change is merged' in err:
-+                return
++        except Exception as e:
++            if 'submit' in action and 'change is merged' in e[1]:
++                # Message bubbled up to reporter and logged as error:
++                return 'submit ignored on change already merged'
 +            raise
          return err
  
      def query(self, query):
+@@ -384,7 +392,7 @@ class GerritConnection(BaseConnection):
+         err = stderr.read()
+         self.log.debug("SSH received stderr:\n%s" % err)
+         if ret:
+-            raise Exception("Gerrit error executing %s" % command)
++            raise Exception("Gerrit error executing %s" % command, err)
+         return (out, err)
+ 
+     def getInfoRefs(self, project):
