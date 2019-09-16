@@ -358,6 +358,10 @@ class PagureEventConnector(threading.Thread):
                 self.connection.eventDone()
 
 
+class PagureAPIClientException(Exception):
+    pass
+
+
 class PagureAPIClient():
     log = logging.getLogger("zuul.PagureAPIClient")
 
@@ -370,6 +374,15 @@ class PagureAPIClient():
         self.headers = {'Authorization': 'token %s' % self.api_token}
         self.token_exp_date = token_exp_date
 
+    def _manage_error(self, data, code, url, verb):
+        if code < 400:
+            return
+        else:
+            raise PagureAPIClientException(
+                "Unable to %s on %s (code: %s) due to: %s" % (
+                    verb, url, code, data
+                ))
+
     def is_expired(self):
         if self.token_exp_date:
             if int(time.time()) > (self.token_exp_date - 3600):
@@ -381,7 +394,7 @@ class PagureAPIClient():
         ret = self.session.get(url, headers=self.headers)
         self.log.debug("GET returned (code: %s): %s" % (
             ret.status_code, ret.text))
-        return ret.json()
+        return ret.json(), ret.status_code, ret.url, 'GET'
 
     def post(self, url, params=None):
         self.log.info(
@@ -389,23 +402,31 @@ class PagureAPIClient():
         ret = self.session.post(url, data=params, headers=self.headers)
         self.log.debug("POST returned (code: %s): %s" % (
             ret.status_code, ret.text))
-        return ret.json()
+        return ret.json(), ret.status_code, ret.url, 'POST'
 
     def get_project_branches(self):
         path = '%s/git/branches' % self.project
-        return self.get(self.base_url + path).get('branches', [])
+        resp = self.get(self.base_url + path)
+        self._manage_error(*resp)
+        return resp[0].get('branches', [])
 
     def get_pr(self, number):
         path = '%s/pull-request/%s' % (self.project, number)
-        return self.get(self.base_url + path)
+        resp = self.get(self.base_url + path)
+        self._manage_error(*resp)
+        return resp[0]
 
     def get_pr_diffstats(self, number):
         path = '%s/pull-request/%s/diffstats' % (self.project, number)
-        return self.get(self.base_url + path)
+        resp = self.get(self.base_url + path)
+        self._manage_error(*resp)
+        return resp[0]
 
     def get_pr_flags(self, number, last=False):
         path = '%s/pull-request/%s/flag' % (self.project, number)
-        data = self.get(self.base_url + path)
+        resp = self.get(self.base_url + path)
+        self._manage_error(*resp)
+        data = resp[0]
         if last:
             if data['flags']:
                 return data['flags'][0]
@@ -421,16 +442,22 @@ class PagureAPIClient():
             "status": status,
             "url": url}
         path = '%s/pull-request/%s/flag' % (self.project, number)
-        return self.post(self.base_url + path, params)
+        resp = self.post(self.base_url + path, params)
+        self._manage_error(*resp)
+        return resp[0]
 
     def comment_pull(self, number, message):
         params = {"comment": message}
         path = '%s/pull-request/%s/comment' % (self.project, number)
-        return self.post(self.base_url + path, params)
+        resp = self.post(self.base_url + path, params)
+        self._manage_error(*resp)
+        return resp[0]
 
     def merge_pr(self, number):
         path = '%s/pull-request/%s/merge' % (self.project, number)
-        return self.post(self.base_url + path)
+        resp = self.post(self.base_url + path)
+        self._manage_error(*resp)
+        return resp[0]
 
     def create_project_api_token(self):
         """ A project admin user's api token must be use with that endpoint
@@ -442,9 +469,10 @@ class PagureAPIClient():
                 "pull_request_flag"]
         }
         path = '%s/token/new' % self.project
-        data = self.post(self.base_url + path, param)
+        resp = self.post(self.base_url + path, param)
+        self._manage_error(*resp)
         # {"token": {"description": "mytoken", "id": "IED2HC...4QIXS6WPZDTET"}}
-        return data['token']
+        return resp[0]['token']
 
     def get_connectors(self):
         """ A project admin user's api token must be use with that endpoint
@@ -453,7 +481,18 @@ class PagureAPIClient():
             return int(token['description'].split('-')[-1])
 
         path = '%s/connector' % self.project
-        data = self.get(self.base_url + path)
+        resp = self.get(self.base_url + path)
+        if resp[1] >= 400:
+            # Admin API token is probably invalid or expired
+            self.log.error(
+                ("Unable to get connectors for project %s probably due to "
+                 "an invalid or expired admin API token: %s") % (
+                    self.project, resp[0]))
+            # Allow to process but return empty project API and webhook token
+            # Web hook events for the related project will be denied and
+            # POST on the API will be denied as well.
+            return {"id": "", "created_at": int(time.time())}, ""
+        data = resp[0]
         # {"connector": {
         #     "hook_token": "WCL92MLWMRPGKBQ5LI0LZCSIS4TRQMHR0Q",
         #     "api_tokens": [
