@@ -169,7 +169,7 @@ class Nodepool(object):
             except Exception:
                 log.exception("Unable to unlock node request %s", request)
 
-    def holdNodeSet(self, nodeset, request):
+    def holdNodeSet(self, nodeset, request, build):
         '''
         Perform a hold on the given set of nodes.
 
@@ -192,7 +192,10 @@ class Nodepool(object):
                 node.hold_expiration = request.node_expiration
             self.sched.zk.storeNode(node)
 
-        request.nodes += [node.id for node in nodes]
+        request.nodes.append(dict(
+            build=build.uuid,
+            nodes=[node.id for node in nodes],
+        ))
         request.current_count += 1
 
         # Request has been used at least the maximum number of times so set

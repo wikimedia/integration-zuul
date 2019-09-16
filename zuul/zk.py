@@ -585,10 +585,18 @@ class ZooKeeper(object):
 
     def _markHeldNodesAsUsed(self, hold_request):
         '''
+        Changes the state for each held node for the hold request to 'used'.
+
         :returns: True if all nodes marked USED, False otherwise.
         '''
+        def getHeldNodeIDs(request):
+            node_ids = []
+            for data in request.nodes:
+                node_ids += data['nodes']
+            return node_ids
+
         failure = False
-        for node_id in hold_request.nodes:
+        for node_id in getHeldNodeIDs(hold_request):
             node = self.getNode(node_id)
             if not node or node['state'] == zuul.model.STATE_USED:
                 continue

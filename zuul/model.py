@@ -4727,6 +4727,16 @@ class HoldRequest(object):
         # When max_count == current_count, hold request can no longer be used.
         self.max_count = 1
         self.current_count = 0
+
+        # The hold request 'nodes' attribute is a list of dictionaries
+        # (one list entry per hold request count) containing the build
+        # ID (build) and a list of nodes (nodes) held for that build.
+        # Example:
+        #
+        #  hold_request.nodes = [
+        #    { 'build': 'ca01...', 'nodes': ['00000001', '00000002'] },
+        #    { 'build': 'fb72...', 'nodes': ['00000003', '00000004'] },
+        #  ]
         self.nodes = []
 
     def __str__(self):
