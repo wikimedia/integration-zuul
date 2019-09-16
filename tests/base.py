@@ -419,7 +419,7 @@ class FakeGerritChange(object):
         return event
 
     def addApproval(self, category, value, username='reviewer_john',
-                    granted_on=None, message=''):
+                    granted_on=None, message='', tag=None):
         if not granted_on:
             granted_on = time.time()
         approval = {
@@ -430,7 +430,8 @@ class FakeGerritChange(object):
                 'username': username,
                 'email': username + '@example.com',
             },
-            'grantedOn': int(granted_on)
+            'grantedOn': int(granted_on),
+            '__tag': tag,  # Not available in ssh api
         }
         for i, x in enumerate(self.patchsets[-1]['approvals'][:]):
             if x['by']['username'] == username and x['type'] == category:
@@ -530,12 +531,15 @@ class FakeGerritChange(object):
             _, label_min, label_max = self.categories[app['type']]
             val = int(app['value'])
             label_all = label.setdefault('all', [])
-            label_all.append({
+            approval = {
                 "value": val,
                 "username": app['by']['username'],
                 "email": app['by']['email'],
                 "date": str(datetime.datetime.fromtimestamp(app['grantedOn'])),
-            })
+            }
+            if app.get('__tag') is not None:
+                approval['tag'] = app['__tag']
+            label_all.append(approval)
             if val == label_min:
                 label['blocking'] = True
                 if 'rejected' not in label:
@@ -716,8 +720,10 @@ class GerritWebServer(object):
                 message = data['message']
                 action = data.get('labels', {})
                 comments = data.get('comments', {})
+                tag = data.get('tag', None)
                 fake_gerrit._test_handle_review(
-                    int(change.data['number']), message, action, comments)
+                    int(change.data['number']), message, action, comments,
+                    tag=tag)
                 self.send_response(200)
                 self.end_headers()
 
@@ -962,7 +968,7 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         self._test_handle_review(int(item.change.number), message, action)
 
     def _test_handle_review(self, change_number, message, action,
-                            file_comments=None):
+                            file_comments=None, tag=None):
         # Handle a review action from a test
         change = self.changes[change_number]
 
@@ -978,7 +984,8 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
 
         for cat in action:
             if cat != 'submit':
-                change.addApproval(cat, action[cat], username=self.user)
+                change.addApproval(cat, action[cat], username=self.user,
+                                   tag=tag)
 
         if message:
             change.messages.append(message)
