@@ -1370,9 +1370,23 @@ class AnsibleJob(object):
                         private_ipv4=node.get('private_ipv4'),
                         public_ipv6=node.get('public_ipv6'))))
 
-                host_vars.setdefault(
-                    'ansible_python_interpreter',
-                    node.get('python_path', '/usr/bin/python2'))
+                # Ansible >=2.8 introduced "auto" as an
+                # ansible_python_interpreter argument that looks up
+                # which python to use on the remote host in an inbuilt
+                # table and essentially "does the right thing"
+                # (i.e. chooses python3 on 3-only hosts like later
+                # Fedoras).  For "auto" with prior versions, fall back
+                # to the old default of /usr/bin/python2 for backwards
+                # compatability.
+                python = node.get('python_path', 'auto')
+                compat = self.arguments.get('ansible_version') in \
+                    ('2.5', '2.6', '2.7')
+                if python == "auto" and compat:
+                    self.log.debug(
+                        "ansible_version set to auto but "
+                        "overriding to python2 for Ansible <2.8")
+                    python = '/usr/bin/python2'
+                host_vars.setdefault('ansible_python_interpreter', python)
 
                 username = node.get('username')
                 if username:

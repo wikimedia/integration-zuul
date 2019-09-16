@@ -2187,7 +2187,7 @@ class FakeNodepool(object):
         self.remote_ansible = False
         self.attributes = None
         self.resources = None
-        self.python_path = '/usr/bin/python2'
+        self.python_path = 'auto'
 
     def stop(self):
         self._running = False
