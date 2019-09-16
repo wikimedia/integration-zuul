@@ -66,6 +66,12 @@
     run: playbooks/single-inventory.yaml
 
 - job:
+    name: executor-only-inventory
+    nodeset:
+      nodes: []
+    run: playbooks/executor-only-inventory.yaml
+
+- job:
     name: group-inventory
     nodeset: nodeset1
     run: playbooks/group-inventory.yaml
