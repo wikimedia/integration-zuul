@@ -658,6 +658,7 @@ class GerritWebServer(object):
             change_re = re.compile(r'/a/changes/(.*)\?o=.*')
             related_re = re.compile(r'/a/changes/(.*)/revisions/(.*)/related')
             change_search_re = re.compile(r'/a/changes/\?n=500.*&q=(.*)')
+            version_re = re.compile(r'/a/config/server/version')
 
             def do_POST(self):
                 path = self.path
@@ -699,6 +700,9 @@ class GerritWebServer(object):
                 m = self.list_checkers_re.match(path)
                 if m:
                     return self.list_checkers()
+                m = self.version_re.match(path)
+                if m:
+                    return self.version()
                 self.send_response(500)
                 self.end_headers()
 
@@ -719,7 +723,7 @@ class GerritWebServer(object):
 
                 message = data['message']
                 action = data.get('labels', {})
-                comments = data.get('comments', {})
+                comments = data.get('robot_comments', data.get('comments', {}))
                 tag = data.get('tag', None)
                 fake_gerrit._test_handle_review(
                     int(change.data['number']), message, action, comments,
@@ -810,6 +814,10 @@ class GerritWebServer(object):
                 else:
                     results = fake_gerrit._simpleQuery(query, http=True)
                 self.send_data(results)
+                self.end_headers()
+
+            def version(self):
+                self.send_data('3.0.0-some-stuff')
                 self.end_headers()
 
             def send_data(self, data):
