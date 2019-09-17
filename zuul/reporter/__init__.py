@@ -99,6 +99,7 @@ class BaseReporter(object, metaclass=abc.ABCMeta):
 
     def _getFormatter(self):
         format_methods = {
+            'enqueue': self._formatItemReportEnqueue,
             'start': self._formatItemReportStart,
             'success': self._formatItemReportSuccess,
             'failure': self._formatItemReportFailure,
@@ -124,6 +125,17 @@ class BaseReporter(object, metaclass=abc.ABCMeta):
             ret += '\n' + item.pipeline.footer_message
 
         return ret
+
+    def _formatItemReportEnqueue(self, item, with_jobs=True):
+        status_url = get_default(self.connection.sched.config,
+                                 'web', 'status_url', '')
+        if status_url:
+            status_url = item.formatUrlPattern(status_url)
+
+        return item.pipeline.enqueue_message.format(
+            pipeline=item.pipeline.getSafeAttributes(),
+            change=item.change.getSafeAttributes(),
+            status_url=status_url)
 
     def _formatItemReportStart(self, item, with_jobs=True):
         status_url = get_default(self.connection.sched.config,

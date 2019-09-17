@@ -247,6 +247,11 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       Three replacement fields are available ``status_url``, ``pipeline`` and
       ``change``.
 
+   .. attr:: enqueue-message
+
+      The introductory text in reports when an item is enqueued.
+      Empty by default.
+
    .. attr:: merge-failure-message
       :default: Merge failed.
 
@@ -364,11 +369,18 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       then the ``failure`` reporters will be used to notify of
       unsuccessful merges.
 
+   .. attr:: enqueue
+
+      These reporters describe what Zuul should do when an item is
+      enqueued into the pipeline.  This may be used to indicate to a
+      system or user that Zuul is aware of the triggering event even
+      though it has not evaluated whether any jobs will run.
+
    .. attr:: start
 
-      These reporters describe what Zuul should do when a change is
-      added to the pipeline.  This can be used, for example, to reset
-      a previously reported result.
+      These reporters describe what Zuul should do when jobs start
+      running for an item in the pipeline.  This can be used, for
+      example, to reset a previously reported result.
 
    .. attr:: disabled
 
