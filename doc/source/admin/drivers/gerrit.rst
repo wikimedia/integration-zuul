@@ -339,5 +339,5 @@ Reference pipelines configuration
 
 Here is an example of standard pipelines you may want to define:
 
-.. literalinclude:: ../examples/zuul-config/zuul.d/gerrit-reference-pipelines.yaml
+.. literalinclude:: ../examples/pipelines/gerrit-reference-pipelines.yaml
    :language: yaml
