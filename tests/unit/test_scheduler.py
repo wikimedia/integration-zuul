@@ -138,6 +138,106 @@ class TestAuthorizeViaRPC(ZuulTestCase):
         self.assertTrue(json.loads(authorized))
 
 
+class TestSchedulerAutoholdHoldExpiration(ZuulTestCase):
+    '''
+    This class of tests validates the autohold node expiration values
+    are set correctly via zuul config or from a custom value.
+    '''
+    config_file = 'zuul-hold-expiration.conf'
+    tenant_config_file = 'config/single-tenant/main.yaml'
+
+    @simple_layout('layouts/autohold.yaml')
+    def test_autohold_max_hold_default(self):
+        '''
+        Test that the hold request node expiration will default to the
+        value specified in the configuration file.
+        '''
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+
+        # Add a autohold with no hold expiration.
+        r = client.autohold('tenant-one', 'org/project', 'project-test2',
+                            "", "", "reason text", 1)
+        self.assertTrue(r)
+
+        # There should be a record in ZooKeeper
+        request_list = self.zk.getHoldRequests()
+        self.assertEqual(1, len(request_list))
+        request = self.zk.getHoldRequest(request_list[0])
+        self.assertIsNotNone(request)
+        self.assertEqual('tenant-one', request.tenant)
+        self.assertEqual('review.example.com/org/project', request.project)
+        self.assertEqual('project-test2', request.job)
+        self.assertEqual('reason text', request.reason)
+        self.assertEqual(1, request.max_count)
+        self.assertEqual(0, request.current_count)
+        self.assertEqual([], request.nodes)
+        # This should be the default value from the zuul config file.
+        self.assertEqual(1800, request.node_expiration)
+
+    @simple_layout('layouts/autohold.yaml')
+    def test_autohold_max_hold_custom(self):
+        '''
+        Test that the hold request node expiration will be set to the custom
+        value specified in the request.
+        '''
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+
+        # Add a autohold with a custom hold expiration.
+        r = client.autohold('tenant-one', 'org/project', 'project-test2',
+                            "", "", "reason text", 1, 500)
+        self.assertTrue(r)
+
+        # There should be a record in ZooKeeper
+        request_list = self.zk.getHoldRequests()
+        self.assertEqual(1, len(request_list))
+        request = self.zk.getHoldRequest(request_list[0])
+        self.assertIsNotNone(request)
+        self.assertEqual('tenant-one', request.tenant)
+        self.assertEqual('review.example.com/org/project', request.project)
+        self.assertEqual('project-test2', request.job)
+        self.assertEqual('reason text', request.reason)
+        self.assertEqual(1, request.max_count)
+        self.assertEqual(0, request.current_count)
+        self.assertEqual([], request.nodes)
+        # This should be the value from the user request.
+        self.assertEqual(500, request.node_expiration)
+
+    @simple_layout('layouts/autohold.yaml')
+    def test_autohold_max_hold_custom_invalid(self):
+        '''
+        Test that if the custom hold request node expiration is higher than our
+        configured max, it will be lowered to the max.
+        '''
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+
+        # Add a autohold with a custom hold expiration that is higher than our
+        # configured max.
+        r = client.autohold('tenant-one', 'org/project', 'project-test2',
+                            "", "", "reason text", 1, 10000)
+        self.assertTrue(r)
+
+        # There should be a record in ZooKeeper
+        request_list = self.zk.getHoldRequests()
+        self.assertEqual(1, len(request_list))
+        request = self.zk.getHoldRequest(request_list[0])
+        self.assertIsNotNone(request)
+        self.assertEqual('tenant-one', request.tenant)
+        self.assertEqual('review.example.com/org/project', request.project)
+        self.assertEqual('project-test2', request.job)
+        self.assertEqual('reason text', request.reason)
+        self.assertEqual(1, request.max_count)
+        self.assertEqual(0, request.current_count)
+        self.assertEqual([], request.nodes)
+        # This should be the max value from the zuul config file.
+        self.assertEqual(3600, request.node_expiration)
+
+
 class TestScheduler(ZuulTestCase):
     tenant_config_file = 'config/single-tenant/main.yaml'
 

@@ -199,12 +199,11 @@ class Client(zuul.cmd.ZuulApp):
         cmd_autohold.add_argument('--count',
                                   help='number of job runs (default: 1)',
                                   required=False, type=int, default=1)
-        cmd_autohold.add_argument('--node-hold-expiration',
-                                  help=('how long in seconds should the '
-                                        'node set be in HOLD status '
-                                        '(default: nodepool\'s max-hold-age '
-                                        'if set, or indefinitely)'),
-                                  required=False, type=int, default=0)
+        cmd_autohold.add_argument(
+            '--node-hold-expiration',
+            help=('how long in seconds should the node set be in HOLD status '
+                  '(default: scheduler\'s default_hold_expiration value)'),
+            required=False, type=int)
         cmd_autohold.set_defaults(func=self.autohold)
 
         cmd_autohold_delete = subparsers.add_parser(

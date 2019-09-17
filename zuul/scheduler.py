@@ -563,6 +563,27 @@ class Scheduler(threading.Thread):
         request.ref_filter = ref_filter
         request.reason = reason
         request.max_count = count
+
+        max_hold = get_default(
+            self.config, 'scheduler', 'max_hold_expiration', 0)
+        default_hold = get_default(
+            self.config, 'scheduler', 'default_hold_expiration', max_hold)
+
+        # If the max hold is not infinite, we need to make sure that
+        # our default value does not exceed it.
+        if max_hold and default_hold != max_hold and (default_hold == 0 or
+                                                      default_hold > max_hold):
+            default_hold = max_hold
+
+        # Set node_hold_expiration to default if no value is supplied
+        if node_hold_expiration is None:
+            node_hold_expiration = default_hold
+
+        # Reset node_hold_expiration to max if it exceeds the max
+        elif max_hold and (node_hold_expiration == 0 or
+                           node_hold_expiration > max_hold):
+            node_hold_expiration = max_hold
+
         request.node_expiration = node_hold_expiration
 
         # No need to lock it since we are creating a new one.
