@@ -185,7 +185,7 @@ class Server(object):
                     console = self.chunkConsole(conn, log_uuid)
                     if console:
                         break
-                    conn.send('[Zuul] Log not found\n')
+                    conn.send(b'[Zuul] Log not found\n')
                     time.sleep(0.5)
                 while True:
                     if self.followConsole(console, conn):
@@ -307,6 +307,19 @@ def main():
 from ansible.module_utils.basic import *  # noqa
 from ansible.module_utils.basic import AnsibleModule
 
+#
+# To debug this, you can run it with arguments specified on the
+# command-line in a json file. e.g.
+#
+# $ cat args.json
+# {"ANSIBLE_MODULE_ARGS": {
+#    "state": "present"
+#  }
+# }
+#
+# Then from a virtualenv with Ansible installed you can run
+#
+# $ ./ansible-env/bin/python ./zuul_console.py args.json
+#
 if __name__ == '__main__':
     main()
-# test()
