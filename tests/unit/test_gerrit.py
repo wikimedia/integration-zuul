@@ -191,6 +191,26 @@ class TestGerritWeb(ZuulTestCase):
                       B.messages[0])
         self.assertEqual(B.comments, [])
 
+    @simple_layout('layouts/single-file-matcher.yaml')
+    def test_single_file(self):
+        # HTTP requests don't return a commit_msg entry in the files
+        # list, but the rest of zuul always expects one.  This test
+        # returns a single file to exercise the single-file code path
+        # in the files matcher.
+        files = {'README': 'please!\n'}
+
+        change = self.fake_gerrit.addFakeChange('org/project',
+                                                'master',
+                                                'test irrelevant-files',
+                                                files=files)
+        self.fake_gerrit.addEvent(change.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        tested_change_ids = [x.changes[0] for x in self.history
+                             if x.name == 'project-test-irrelevant-files']
+
+        self.assertEqual([], tested_change_ids)
+
 
 class TestFileComments(AnsibleZuulTestCase):
     config_file = 'zuul-gerrit-web.conf'

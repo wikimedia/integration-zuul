@@ -552,6 +552,8 @@ class FakeGerritChange(object):
         num = len(self.patchsets)
         files = {}
         for f in rev['files']:
+            if f['file'] == '/COMMIT_MSG':
+                continue
             files[f['file']] = {"status": f['type'][0]}  # ADDED -> A
         parent = '0000000000000000000000000000000000000000'
         if self.depends_on_change:
@@ -711,9 +713,12 @@ class GerritWebServer(object):
                 self.end_headers()
 
             def _get_change(self, change_id):
+                change_id = urllib.parse.unquote(change_id)
                 project, branch, change = change_id.split('~')
                 for c in fake_gerrit.changes.values():
-                    if c.data['id'] == change:
+                    if (c.data['id'] == change and
+                        c.data['branch'] == branch and
+                        c.data['project'] == project):
                         return c
 
             def review(self, change_id, revision, data):
@@ -3916,8 +3921,11 @@ class ZuulTestCase(BaseTestCase):
             self.sched.wake_event.wait(0.1)
 
     def waitForPoll(self, poller, timeout=30):
+        self.log.debug("Wait for poll on %s", poller)
         self.poller_events[poller].clear()
-        self.poller_events[poller].wait(30)
+        self.log.debug("Waiting for poll on %s", poller)
+        self.poller_events[poller].wait(timeout)
+        self.log.debug("Done waiting for poll on %s", poller)
 
     def logState(self):
         """ Log the current state of the system """

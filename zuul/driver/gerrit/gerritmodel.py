@@ -110,7 +110,7 @@ class GerritChange(Change):
         if str(current_revision['_number']) == self.patchset:
             self.ref = current_revision['ref']
             self.commit = data['current_revision']
-            files = current_revision.get('files', []).keys()
+            files = list(current_revision.get('files', []).keys())
             self.is_current_patchset = True
         else:
             self.is_current_patchset = False

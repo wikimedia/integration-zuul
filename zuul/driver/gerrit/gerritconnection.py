@@ -1055,6 +1055,7 @@ class GerritConnection(BaseConnection):
             for x in range(1, 4):
                 try:
                     self.post('changes/%s/submit' % (changeid,), {})
+                    break
                 except Exception:
                     log.exception(
                         "Error submitting data to gerrit, attempt %s", x)
@@ -1153,6 +1154,7 @@ class GerritConnection(BaseConnection):
         sortkey = ''
         done = False
         offset = 0
+        query = urllib.parse.quote(query, safe='')
         while not done:
             # We don't actually want to limit to 500, but that's the
             # server-side default, and if we don't specify this, we
@@ -1326,7 +1328,8 @@ class GerritConnection(BaseConnection):
     def onLoad(self):
         self.log.debug("Starting Gerrit Connection/Watchers")
         try:
-            self._getRemoteVersion()
+            if self.session:
+                self._getRemoteVersion()
         except Exception:
             self.log.exception("Unable to determine remote Gerrit version")
 
