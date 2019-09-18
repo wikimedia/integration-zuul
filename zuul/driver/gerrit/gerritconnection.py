@@ -35,13 +35,74 @@ from uuid import uuid4
 from zuul.connection import BaseConnection
 from zuul.lib.logutil import get_annotated_logger
 from zuul.model import Ref, Tag, Branch, Project
-from zuul import exceptions
 from zuul.driver.gerrit.gerritmodel import GerritChange, GerritTriggerEvent
 from zuul.driver.gerrit.auth import FormAuth
 from zuul import version as zuul_version
 
 # HTTP timeout in seconds
 TIMEOUT = 30
+
+
+class GerritChangeData(object):
+    """Compatability layer for SSH/HTTP
+
+    This class holds the raw data returned from a change query over
+    SSH or HTTP.  Most of the work of parsing the data and storing it
+    on the change is in the gerritmodel.GerritChange class, however
+    this does perform a small amount of parsing of dependencies since
+    they are handled outside of that class.  This provides an API to
+    that data independent of the source.
+
+    """
+
+    SSH = 1
+    HTTP = 2
+
+    def __init__(self, fmt, data, related=None):
+        self.format = fmt
+        self.data = data
+
+        if fmt == self.SSH:
+            self.parseSSH(data)
+        else:
+            self.parseHTTP(data)
+            if related:
+                self.parseRelatedHTTP(data, related)
+
+    def parseSSH(self, data):
+        self.needed_by = []
+        self.depends_on = None
+        self.message = data['commitMessage']
+        self.current_patchset = str(data['currentPatchSet']['number'])
+        self.number = str(data['number'])
+
+        if 'dependsOn' in data:
+            parts = data['dependsOn'][0]['ref'].split('/')
+            self.depends_on = (parts[3], parts[4])
+
+        for needed in data.get('neededBy', []):
+            parts = needed['ref'].split('/')
+            self.needed_by.append((parts[3], parts[4]))
+
+    def parseHTTP(self, data):
+        rev = data['revisions'][data['current_revision']]
+        self.message = rev['commit']['message']
+        self.current_patchset = str(rev['_number'])
+        self.number = str(data['_number'])
+
+    def parseRelatedHTTP(self, data, related):
+        self.needed_by = []
+        self.depends_on = None
+        current_rev = data['revisions'][data['current_revision']]
+        for change in related['changes']:
+            for parent in current_rev['commit']['parents']:
+                if change['commit']['commit'] == parent['commit']:
+                    self.depends_on = (change['_change_number'],
+                                       change['_revision_number'])
+                    break
+            else:
+                self.needed_by.append((change['_change_number'],
+                                       change['_revision_number']))
 
 
 class GerritEventConnector(threading.Thread):
@@ -380,6 +441,13 @@ class GerritConnection(BaseConnection):
         self.port = int(self.connection_config.get('port', 29418))
         self.keyfile = self.connection_config.get('sshkey', None)
         self.keepalive = int(self.connection_config.get('keepalive', 60))
+        # TODO(corvus): Document this when the checks api is stable;
+        # it's not useful without it.
+        self.enable_stream_events = self.connection_config.get(
+            'stream_events', True)
+        if self.enable_stream_events not in [
+                'true', 'True', '1', 1, 'TRUE', True]:
+            self.enable_stream_events = False
         self.watcher_thread = None
         self.poller_thread = None
         self.event_queue = queue.Queue()
@@ -627,7 +695,7 @@ class GerritConnection(BaseConnection):
             log.debug("Updating %s: Running query %s to find needed changes",
                       change, query)
             records.extend(self.simpleQuery(query, event=event))
-        return records
+        return [(x.number, x.current_patchset) for x in records]
 
     def _getNeededByFromCommit(self, change_id, change, event):
         log = get_annotated_logger(self.log, event)
@@ -639,11 +707,10 @@ class GerritConnection(BaseConnection):
         results = self.simpleQuery(query, event=event)
         for result in results:
             for match in self.depends_on_re.findall(
-                result['commitMessage']):
+                    result.message):
                 if match != change_id:
                     continue
-                key = (str(result['number']),
-                       str(result['currentPatchSet']['number']))
+                key = (result.number, result.current_patchset)
                 if key in seen:
                     continue
                 log.debug("Updating %s: Found change %s,%s "
@@ -651,7 +718,7 @@ class GerritConnection(BaseConnection):
                           change, key[0], key[1], change_id)
                 seen.add(key)
                 records.append(result)
-        return records
+        return [(x.number, x.current_patchset) for x in records]
 
     def _updateChange(self, change, event, history):
         log = get_annotated_logger(self.log, event)
@@ -679,54 +746,16 @@ class GerritConnection(BaseConnection):
 
         log.info("Updating %s", change)
         data = self.queryChange(change.number, event=event)
-        change._data = data
+        change.update(data, self)
 
-        if change.patchset is None:
-            change.patchset = str(data['currentPatchSet']['number'])
-        if 'project' not in data:
-            raise exceptions.ChangeNotFound(change.number, change.patchset)
-        change.project = self.source.getProject(data['project'])
-        change.id = data['id']
-        change.branch = data['branch']
-        change.url = data['url']
-        urlparse = urllib.parse.urlparse(self.baseurl)
-        baseurl = "%s%s" % (urlparse.netloc, urlparse.path)
-        baseurl = baseurl.rstrip('/')
-        change.uris = [
-            '%s/%s' % (baseurl, change.number),
-            '%s/#/c/%s' % (baseurl, change.number),
-            '%s/c/%s/+/%s' % (baseurl, change.project.name, change.number),
-        ]
+        if not change.is_merged:
+            self._updateChangeDependencies(log, change, data, event, history)
 
-        max_ps = 0
-        files = []
-        for ps in data['patchSets']:
-            if str(ps['number']) == change.patchset:
-                change.ref = ps['ref']
-                change.commit = ps['revision']
-                for f in ps.get('files', []):
-                    files.append(f['file'])
-            if int(ps['number']) > int(max_ps):
-                max_ps = str(ps['number'])
-        if max_ps == change.patchset:
-            change.is_current_patchset = True
-        else:
-            change.is_current_patchset = False
-        change.files = files
+        self.sched.onChangeUpdated(change, event)
 
-        change.is_merged = self._isMerged(change)
-        change.approvals = data['currentPatchSet'].get('approvals', [])
-        change.open = data['open']
-        change.status = data['status']
-        change.owner = data['owner']
-        change.message = data['commitMessage']
+        return change
 
-        if change.is_merged:
-            # This change is merged, so we don't need to look any further
-            # for dependencies.
-            log.debug("Updating %s: change is merged", change)
-            return change
-
+    def _updateChangeDependencies(self, log, change, data, event, history):
         if history is None:
             history = []
         else:
@@ -735,9 +764,8 @@ class GerritConnection(BaseConnection):
 
         needs_changes = set()
         git_needs_changes = []
-        if 'dependsOn' in data:
-            parts = data['dependsOn'][0]['ref'].split('/')
-            dep_num, dep_ps = parts[3], parts[4]
+        if data.depends_on is not None:
+            dep_num, dep_ps = data.depends_on
             log.debug("Updating %s: Getting git-dependent change %s,%s",
                       change, dep_num, dep_ps)
             dep = self._getChange(dep_num, dep_ps, history=history,
@@ -751,10 +779,8 @@ class GerritConnection(BaseConnection):
         change.git_needs_changes = git_needs_changes
 
         compat_needs_changes = []
-        for record in self._getDependsOnFromCommit(data['commitMessage'],
-                                                   change, event):
-            dep_num = str(record['number'])
-            dep_ps = str(record['currentPatchSet']['number'])
+        for (dep_num, dep_ps) in self._getDependsOnFromCommit(
+                change.message, change, event):
             log.debug("Updating %s: Getting commit-dependent "
                       "change %s,%s", change, dep_num, dep_ps)
             dep = self._getChange(dep_num, dep_ps, history=history,
@@ -766,24 +792,20 @@ class GerritConnection(BaseConnection):
 
         needed_by_changes = set()
         git_needed_by_changes = []
-        if 'neededBy' in data:
-            for needed in data['neededBy']:
-                parts = needed['ref'].split('/')
-                dep_num, dep_ps = parts[3], parts[4]
-                log.debug("Updating %s: Getting git-needed change %s,%s",
-                          change, dep_num, dep_ps)
-                dep = self._getChange(dep_num, dep_ps, history=history,
-                                      event=event)
-                if (dep.open and dep.is_current_patchset and
-                    dep not in needed_by_changes):
-                    git_needed_by_changes.append(dep)
-                    needed_by_changes.add(dep)
+        for (dep_num, dep_ps) in data.needed_by:
+            log.debug("Updating %s: Getting git-needed change %s,%s",
+                      change, dep_num, dep_ps)
+            dep = self._getChange(dep_num, dep_ps, history=history,
+                                  event=event)
+            if (dep.open and dep.is_current_patchset and
+                dep not in needed_by_changes):
+                git_needed_by_changes.append(dep)
+                needed_by_changes.add(dep)
         change.git_needed_by_changes = git_needed_by_changes
 
         compat_needed_by_changes = []
-        for record in self._getNeededByFromCommit(data['id'], change, event):
-            dep_num = str(record['number'])
-            dep_ps = str(record['currentPatchSet']['number'])
+        for (dep_num, dep_ps) in self._getNeededByFromCommit(
+                change.id, change, event):
             log.debug("Updating %s: Getting commit-needed change %s,%s",
                       change, dep_num, dep_ps)
             # Because a commit needed-by may be a cross-repo
@@ -800,10 +822,6 @@ class GerritConnection(BaseConnection):
                 needed_by_changes.add(dep)
         change.compat_needed_by_changes = compat_needed_by_changes
 
-        self.sched.onChangeUpdated(change, event)
-
-        return change
-
     def isMerged(self, change, head=None):
         self.log.debug("Checking if change %s is merged" % change)
         if not change.number:
@@ -813,8 +831,7 @@ class GerritConnection(BaseConnection):
             return True
 
         data = self.queryChange(change.number)
-        change._data = data
-        change.is_merged = self._isMerged(change)
+        change.update(data, self)
         if change.is_merged:
             self.log.debug("Change %s is merged" % (change,))
         else:
@@ -832,17 +849,6 @@ class GerritConnection(BaseConnection):
             return True
         self.log.debug("Change %s did not appear in the git repo" %
                        (change))
-        return False
-
-    def _isMerged(self, change):
-        data = change._data
-        if not data:
-            return False
-        status = data.get('status')
-        if not status:
-            return False
-        if status == 'MERGED':
-            return True
         return False
 
     def _waitForRefSha(self, project: Project,
@@ -873,35 +879,9 @@ class GerritConnection(BaseConnection):
             # Good question.  It's probably ref-updated, which, ah,
             # means it's merged.
             return True
-        data = change._data
-        if not data:
-            return False
-        if 'submitRecords' not in data:
-            return False
-        try:
-            for sr in data['submitRecords']:
-                if sr['status'] == 'OK':
-                    return True
-                elif sr['status'] == 'NOT_READY':
-                    for label in sr['labels']:
-                        if label['status'] in ['OK', 'MAY']:
-                            continue
-                        elif label['status'] in ['NEED', 'REJECT']:
-                            # It may be our own rejection, so we ignore
-                            if label['label'] not in allow_needs:
-                                return False
-                            continue
-                        else:
-                            # IMPOSSIBLE
-                            return False
-                else:
-                    # CLOSED, RULE_ERROR
-                    return False
-        except Exception:
-            log.exception("Exception determining whether change"
-                          "%s can merge:", change)
-            return False
-        return True
+        if change.missing_labels < set(allow_needs):
+            return True
+        return False
 
     def getProjectOpenChanges(self, project: Project) -> List[GerritChange]:
         # This is a best-effort function in case Gerrit is unable to return
@@ -914,11 +894,10 @@ class GerritConnection(BaseConnection):
         for record in data:
             try:
                 changes.append(
-                    self._getChange(record['number'],
-                                    record['currentPatchSet']['number']))
+                    self._getChange(record.number, record.current_patchset))
             except Exception:
-                self.log.exception("Unable to query change %s" %
-                                   (record.get('number'),))
+                self.log.exception("Unable to query change %s",
+                                   record.number)
         return changes
 
     @staticmethod
@@ -1065,12 +1044,11 @@ class GerritConnection(BaseConnection):
                         "Error submitting data to gerrit, attempt %s", x)
                     time.sleep(x * 10)
 
-    def query(self, query, event=None):
+    def queryChangeSSH(self, number, event=None):
         args = '--all-approvals --comments --commit-message'
         args += ' --current-patch-set --dependencies --files'
         args += ' --patch-sets --submit-records'
-        cmd = 'gerrit query --format json %s %s' % (
-            args, query)
+        cmd = 'gerrit query --format json %s %s' % (args, number)
         out, err = self._ssh(cmd)
         if not out:
             return False
@@ -1085,10 +1063,23 @@ class GerritConnection(BaseConnection):
                     pprint.pformat(data))
         return data
 
-    def queryChange(self, number, event=None):
-        return self.query('change:%s' % number, event=event)
+    def queryChangeHTTP(self, number, event=None):
+        data = self.get('changes/%s?o=DETAILED_ACCOUNTS&o=CURRENT_REVISION&'
+                        'o=CURRENT_COMMIT&o=CURRENT_FILES&o=LABELS&'
+                        'o=DETAILED_LABELS' % (number,))
+        related = self.get('changes/%s/revisions/%s/related' % (
+            number, data['current_revision']))
+        return data, related
 
-    def simpleQuery(self, query, event=None):
+    def queryChange(self, number, event=None):
+        if self.session:
+            data, related = self.queryChangeHTTP(number, event=event)
+            return GerritChangeData(GerritChangeData.HTTP, data, related)
+        else:
+            data = self.queryChangeSSH(number, event=event)
+            return GerritChangeData(GerritChangeData.SSH, data)
+
+    def simpleQuerySSH(self, query, event=None):
         def _query_chunk(query, event):
             args = '--commit-message --current-patch-set'
 
@@ -1140,9 +1131,63 @@ class GerritConnection(BaseConnection):
                 "%s %s" % (query, resume), event)
         return alldata
 
+    def simpleQueryHTTP(self, query, event=None):
+        iolog = get_annotated_logger(self.iolog, event)
+        changes = []
+        sortkey = ''
+        done = False
+        offset = 0
+        while not done:
+            # We don't actually want to limit to 500, but that's the
+            # server-side default, and if we don't specify this, we
+            # won't get a _more_changes flag.
+            q = ('changes/?n=500%s&o=CURRENT_REVISION&o=CURRENT_COMMIT&'
+                 'q=%s' % (sortkey, query))
+            iolog.debug('Query: %s', q)
+            batch = self.get(q)
+            iolog.debug("Received data from Gerrit query: \n%s",
+                        pprint.pformat(batch))
+            done = True
+            if batch:
+                changes += batch
+                if '_more_changes' in batch[-1]:
+                    done = False
+                    if '_sortkey' in batch[-1]:
+                        sortkey = '&N=%s' % (batch[-1]['_sortkey'],)
+                    else:
+                        offset += len(batch)
+                        sortkey = '&start=%s' % (offset,)
+        return changes
+
+    def simpleQuery(self, query, event=None):
+        if self.session:
+            # None of the users of this method require dependency
+            # data, so we only perform the change query and omit the
+            # related changes query.
+            alldata = self.simpleQueryHTTP(query, event=event)
+            return [GerritChangeData(GerritChangeData.HTTP, data)
+                    for data in alldata]
+        else:
+            alldata = self.simpleQuerySSH(query, event=event)
+            return [GerritChangeData(GerritChangeData.SSH, data)
+                    for data in alldata]
+
     def _uploadPack(self, project: Project) -> str:
-        cmd = "git-upload-pack %s" % project.name
-        out, err = self._ssh(cmd, "0000")
+        if self.session:
+            url = ('%s/%s/info/refs?service=git-upload-pack' %
+                   (self.baseurl, project.name))
+            r = self.session.get(
+                url,
+                verify=self.verify_ssl,
+                auth=self.auth, timeout=TIMEOUT,
+                headers={'User-Agent': self.user_agent})
+            self.iolog.debug('Received: %s %s' % (r.status_code, r.text,))
+            if r.status_code != 200:
+                raise Exception("Received response %s" % (r.status_code,))
+            out = r.text[r.text.find('\n') + 5:]
+        else:
+            cmd = "git-upload-pack %s" % project.name
+            out, err = self._ssh(cmd, "0000")
         return out
 
     def _open(self):
@@ -1231,8 +1276,14 @@ class GerritConnection(BaseConnection):
         return ret
 
     def getGitUrl(self, project: Project) -> str:
-        url = 'ssh://%s@%s:%s/%s' % (self.user, self.server, self.port,
-                                     project.name)
+        if self.session:
+            baseurl = list(urllib.parse.urlparse(self.baseurl))
+            baseurl[1] = '%s:%s@%s' % (self.user, self.password, baseurl[1])
+            baseurl = urllib.parse.urlunparse(baseurl)
+            url = ('%s/%s' % (baseurl, project.name))
+        else:
+            url = 'ssh://%s@%s:%s/%s' % (self.user, self.server, self.port,
+                                         project.name)
         return url
 
     def _getWebUrl(self, project: Project, sha: str=None) -> str:
@@ -1243,7 +1294,8 @@ class GerritConnection(BaseConnection):
 
     def onLoad(self):
         self.log.debug("Starting Gerrit Connection/Watchers")
-        self._start_watcher_thread()
+        if self.enable_stream_events:
+            self._start_watcher_thread()
         self._start_poller_thread()
         self._start_event_connector()
 
