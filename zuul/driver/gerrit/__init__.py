@@ -18,11 +18,30 @@ from zuul.driver.gerrit import gerritconnection
 from zuul.driver.gerrit import gerrittrigger
 from zuul.driver.gerrit import gerritsource
 from zuul.driver.gerrit import gerritreporter
+from zuul.driver.util import to_list
 
 
 class GerritDriver(Driver, ConnectionInterface, TriggerInterface,
                    SourceInterface, ReporterInterface):
     name = 'gerrit'
+
+    def reconfigure(self, tenant):
+        connection_checker_map = {}
+        for pipeline in tenant.layout.pipelines.values():
+            for trigger in pipeline.triggers:
+                if isinstance(trigger, gerrittrigger.GerritTrigger):
+                    con = trigger.connection
+                    checkers = connection_checker_map.setdefault(con, [])
+                    for trigger_item in to_list(trigger.config):
+                        if trigger_item['event'] == 'pending-check':
+                            d = {}
+                            if 'uuid' in trigger_item:
+                                d['uuid'] = trigger_item['uuid']
+                            elif 'scheme' in trigger_item:
+                                d['scheme'] = trigger_item['scheme']
+                            checkers.append(d)
+        for (con, checkers) in connection_checker_map.items():
+            con.setWatchedCheckers(checkers)
 
     def getConnection(self, name, config):
         return gerritconnection.GerritConnection(self, name, config)

@@ -17,7 +17,9 @@ import textwrap
 from unittest import mock
 
 import tests.base
-from tests.base import BaseTestCase, ZuulTestCase, AnsibleZuulTestCase
+from tests.base import (
+    BaseTestCase, ZuulTestCase, AnsibleZuulTestCase,
+    simple_layout)
 from zuul.driver.gerrit import GerritDriver
 from zuul.driver.gerrit.gerritconnection import GerritConnection
 
@@ -236,3 +238,98 @@ class TestFileComments(AnsibleZuulTestCase):
                       "A should have a validation error reported")
         self.assertIn('invalid file missingfile.txt', A.messages[0],
                       "A should have file error reported")
+
+
+class TestChecksApi(ZuulTestCase):
+    config_file = 'zuul-gerrit-web.conf'
+
+    @simple_layout('layouts/gerrit-checks.yaml')
+    def test_check_pipeline(self):
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.setCheck('zuul:check', reset=True)
+        self.waitForPoll('gerrit')
+        self.waitUntilSettled()
+
+        self.assertEqual(A.checks_history[0]['zuul:check']['state'],
+                         'NOT_STARTED')
+        self.assertEqual(A.checks_history[1]['zuul:check']['state'],
+                         'SCHEDULED')
+        self.assertEqual(A.checks_history[2]['zuul:check']['state'],
+                         'RUNNING')
+        self.assertEqual(A.checks_history[3]['zuul:check']['state'],
+                         'SUCCESSFUL')
+        self.assertEqual(len(A.checks_history), 4)
+        self.assertTrue(isinstance(
+            A.checks_history[3]['zuul:check']['started'], str))
+        self.assertTrue(isinstance(
+            A.checks_history[3]['zuul:check']['finished'], str))
+        self.assertTrue(
+            A.checks_history[3]['zuul:check']['finished'] >
+            A.checks_history[3]['zuul:check']['started'])
+        self.assertEqual(A.checks_history[3]['zuul:check']['message'],
+                         'Change passed all voting jobs')
+        self.assertHistory([
+            dict(name='test-job', result='SUCCESS', changes='1,1')])
+
+    @simple_layout('layouts/gerrit-checks.yaml')
+    def test_gate_pipeline(self):
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.addApproval('Code-Review', 2)
+        A.addApproval('Approved', 1)
+        A.setCheck('zuul:gate', reset=True)
+        self.waitForPoll('gerrit')
+        self.waitUntilSettled()
+
+        self.assertEqual(A.checks_history[0]['zuul:gate']['state'],
+                         'NOT_STARTED')
+        self.assertEqual(A.checks_history[1]['zuul:gate']['state'],
+                         'SCHEDULED')
+        self.assertEqual(A.checks_history[2]['zuul:gate']['state'],
+                         'RUNNING')
+        self.assertEqual(A.checks_history[3]['zuul:gate']['state'],
+                         'SUCCESSFUL')
+        self.assertEqual(len(A.checks_history), 4)
+        self.assertHistory([
+            dict(name='test-job', result='SUCCESS', changes='1,1')])
+        self.assertEqual(A.data['status'], 'MERGED')
+
+    @simple_layout('layouts/gerrit-checks-scheme.yaml')
+    def test_check_pipeline_scheme(self):
+        self.fake_gerrit.addFakeChecker(uuid='zuul_check:abcd',
+                                        repository='org/project',
+                                        status='ENABLED')
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.setCheck('zuul_check:abcd', reset=True)
+        self.waitForPoll('gerrit')
+        self.waitUntilSettled()
+
+        self.assertEqual(A.checks_history[0]['zuul_check:abcd']['state'],
+                         'NOT_STARTED')
+        self.assertEqual(A.checks_history[1]['zuul_check:abcd']['state'],
+                         'SCHEDULED')
+        self.assertEqual(A.checks_history[2]['zuul_check:abcd']['state'],
+                         'RUNNING')
+        self.assertEqual(A.checks_history[3]['zuul_check:abcd']['state'],
+                         'SUCCESSFUL')
+        self.assertEqual(len(A.checks_history), 4)
+        self.assertHistory([
+            dict(name='test-job', result='SUCCESS', changes='1,1')])
+
+    @simple_layout('layouts/gerrit-checks-nojobs.yaml')
+    def test_no_jobs(self):
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.setCheck('zuul:check', reset=True)
+        self.waitForPoll('gerrit')
+        self.waitUntilSettled()
+
+        self.assertEqual(A.checks_history[0]['zuul:check']['state'],
+                         'NOT_STARTED')
+        self.assertEqual(A.checks_history[1]['zuul:check']['state'],
+                         'SCHEDULED')
+        self.assertEqual(A.checks_history[2]['zuul:check']['state'],
+                         'NOT_RELEVANT')
+        self.assertEqual(len(A.checks_history), 3)
+        self.assertEqual(A.data['status'], 'NEW')

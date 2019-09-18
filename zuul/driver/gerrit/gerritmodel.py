@@ -35,6 +35,8 @@ class GerritTriggerEvent(TriggerEvent):
     def __init__(self):
         super(GerritTriggerEvent, self).__init__()
         self.approvals = []
+        self.uuid = None
+        self.scheme = None
 
     def __repr__(self):
         ret = '<GerritTriggerEvent %s %s' % (self.type,
@@ -154,8 +156,8 @@ class GerritApprovalFilter(object):
 class GerritEventFilter(EventFilter, GerritApprovalFilter):
     def __init__(self, trigger, types=[], branches=[], refs=[],
                  event_approvals={}, comments=[], emails=[], usernames=[],
-                 required_approvals=[], reject_approvals=[],
-                 ignore_deletes=True):
+                 required_approvals=[], reject_approvals=[], uuid=None,
+                 scheme=None, ignore_deletes=True):
 
         EventFilter.__init__(self, trigger)
 
@@ -176,6 +178,8 @@ class GerritEventFilter(EventFilter, GerritApprovalFilter):
         self.emails = [re.compile(x) for x in emails]
         self.usernames = [re.compile(x) for x in usernames]
         self.event_approvals = event_approvals
+        self.uuid = uuid
+        self.scheme = scheme
         self.ignore_deletes = ignore_deletes
 
     def __repr__(self):
@@ -183,6 +187,10 @@ class GerritEventFilter(EventFilter, GerritApprovalFilter):
 
         if self._types:
             ret += ' types: %s' % ', '.join(self._types)
+        if self.uuid:
+            ret += ' uuid: %s' % (self.uuid,)
+        if self.scheme:
+            ret += ' scheme: %s' % (self.scheme,)
         if self._branches:
             ret += ' branches: %s' % ', '.join(self._branches)
         if self._refs:
@@ -216,6 +224,12 @@ class GerritEventFilter(EventFilter, GerritApprovalFilter):
                 matches_type = True
         if self.types and not matches_type:
             return False
+
+        if event.type == 'pending-check':
+            if self.uuid and event.uuid != self.uuid:
+                return False
+            if self.scheme and event.uuid.split(':')[0] != self.scheme:
+                return False
 
         # branches are ORed
         matches_branch = False
