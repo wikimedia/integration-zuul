@@ -259,6 +259,11 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       fails to merge with the current state of the repository.
       Defaults to "Merge failed."
 
+   .. attr:: no-jobs-message
+
+      The introductory text in reports when an item is dequeued
+      without running any jobs.  Empty by default.
+
    .. attr:: footer-message
 
       Supplies additional information after test results.  Useful for
@@ -381,6 +386,13 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       These reporters describe what Zuul should do when jobs start
       running for an item in the pipeline.  This can be used, for
       example, to reset a previously reported result.
+
+   .. attr:: no-jobs
+
+      These reporters describe what Zuul should do when an item is
+      dequeued from a pipeline without running any jobs.  This may be
+      used to indicate to a system or user that the pipeline is not
+      relevant for a change.
 
    .. attr:: disabled
 

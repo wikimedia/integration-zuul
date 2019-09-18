@@ -1124,6 +1124,7 @@ class PipelineParser(object):
         'success': 'success_actions',
         'failure': 'failure_actions',
         'merge-failure': 'merge_failure_actions',
+        'no-jobs': 'no_jobs_actions',
         'disabled': 'disabled_actions',
     }
 
@@ -1171,6 +1172,7 @@ class PipelineParser(object):
                     'failure-message': str,
                     'start-message': str,
                     'merge-failure-message': str,
+                    'no-jobs-message': str,
                     'footer-message': str,
                     'dequeue-on-new-patchset': bool,
                     'ignore-dependencies': bool,
@@ -1190,7 +1192,7 @@ class PipelineParser(object):
         pipeline['reject'] = self.getDriverSchema('reject')
         pipeline['trigger'] = vs.Required(self.getDriverSchema('trigger'))
         for action in ['enqueue', 'start', 'success', 'failure',
-                       'merge-failure', 'disabled']:
+                       'merge-failure', 'no-jobs', 'disabled']:
             pipeline[action] = self.getDriverSchema('reporter')
         return vs.Schema(pipeline)
 
@@ -1218,6 +1220,7 @@ class PipelineParser(object):
         pipeline.start_message = conf.get('start-message',
                                           "Starting {pipeline.name} jobs.")
         pipeline.enqueue_message = conf.get('enqueue-message', "")
+        pipeline.no_jobs_message = conf.get('no-jobs-message', "")
         pipeline.dequeue_on_new_patchset = conf.get(
             'dequeue-on-new-patchset', True)
         pipeline.ignore_dependencies = conf.get(

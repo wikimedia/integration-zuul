@@ -1113,7 +1113,8 @@ class PipelineManager(object):
             log.debug("Project %s not in pipeline %s for change %s",
                       item.change.project, self.pipeline, item.change)
             project_in_pipeline = False
-            actions = []
+            actions = self.pipeline.no_jobs_actions
+            item.setReportedResult('NO_JOBS')
         elif item.getConfigErrors():
             log.debug("Invalid config for change %s", item.change)
             # TODOv3(jeblair): consider a new reporter action for this
@@ -1128,7 +1129,8 @@ class PipelineManager(object):
         elif not item.getJobs():
             # We don't send empty reports with +1
             log.debug("No jobs for change %s", item.change)
-            actions = []
+            actions = self.pipeline.no_jobs_actions
+            item.setReportedResult('NO_JOBS')
         elif item.didAllJobsSucceed():
             log.debug("success %s", self.pipeline.success_actions)
             actions = self.pipeline.success_actions
