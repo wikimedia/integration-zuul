@@ -329,6 +329,22 @@ The following sections of ``zuul.conf`` are used by the scheduler:
       pipeline precedence, followed by relative priority, and finally
       the order in which they were submitted.
 
+   .. attr:: default_hold_expiration
+      :default: max_hold_expiration
+
+      The default value for held node expiration if not supplied. This
+      will default to the value of ``max_hold_expiration`` if not changed,
+      or if it is set to a higher value than the max.
+
+   .. attr:: max_hold_expiration
+      :default: 0
+
+      Maximum number of seconds any nodes held for an autohold request
+      will remain available. A value of 0 disables this, and the nodes
+      will remain held until the autohold request is manually deleted.
+      If a value higher than ``max_hold_expiration`` is supplied during
+      hold request creation, it will be lowered to this value.
+
 Operation
 ~~~~~~~~~
 
