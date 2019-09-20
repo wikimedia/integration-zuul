@@ -770,3 +770,7 @@ class TestGerritCRDAltBaseUrl(ZuulTestCase):
         self.assertEqual(self.history[0].changes, '2,1 1,1')
         tenant = self.sched.abide.tenants.get('tenant-one')
         self.assertEqual(len(tenant.layout.pipelines['check'].queues), 0)
+
+
+class TestGerritCRDWeb(TestGerritCRD):
+    config_file = 'zuul-gerrit-web.conf'

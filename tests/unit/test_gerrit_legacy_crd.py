@@ -626,3 +626,7 @@ class TestGerritLegacyCRD(ZuulTestCase):
         self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(2))
         self.waitUntilSettled()
         self.assertEqual(B.reported, 2)
+
+
+class TestGerritLegacyCRDWeb(TestGerritLegacyCRD):
+    config_file = 'zuul-gerrit-web.conf'
