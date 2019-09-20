@@ -406,6 +406,29 @@ class TestPagureDriver(ZuulTestCase):
         self.waitUntilSettled()
         self.assertEqual(1, len(self.history))
 
+    @simple_layout('layouts/requirements-pagure.yaml', driver='pagure')
+    def test_pull_request_closed(self):
+
+        A = self.fake_pagure.openFakePullRequest(
+            'org/project6', 'master', 'A')
+
+        self.fake_pagure.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+        self.assertEqual(0, len(self.history))
+
+        # Validate a closed but not merged PR does not trigger the pipeline
+        self.fake_pagure.emitEvent(A.getPullRequestClosedEvent(merged=False))
+        self.waitUntilSettled()
+        self.assertEqual(0, len(self.history))
+
+        # Reset the status to Open
+        # Validate a closed and merged PR triggers the pipeline
+        A.status = 'Open'
+        A.is_merged = False
+        self.fake_pagure.emitEvent(A.getPullRequestClosedEvent())
+        self.waitUntilSettled()
+        self.assertEqual(1, len(self.history))
+
     @simple_layout('layouts/merging-pagure.yaml', driver='pagure')
     def test_merge_action_in_independent(self):
 

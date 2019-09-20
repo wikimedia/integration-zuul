@@ -199,6 +199,7 @@ class PagureEventConnector(threading.Thread):
             r"^\*\*Metadata Update", re.MULTILINE)
         self.event_handler_mapping = {
             'pull-request.comment.added': self._event_issue_comment,
+            'pull-request.closed': self._event_pull_request_closed,
             'pull-request.new': self._event_pull_request,
             'pull-request.flag.added': self._event_flag_added,
             'git.receive': self._event_ref_updated,
@@ -312,10 +313,16 @@ class PagureEventConnector(threading.Thread):
         return event
 
     def _event_pull_request(self, body):
-        """ Handles pull request event """
+        """ Handles pull request opened event """
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#pagure-pull-request-new
         event, data = self._event_base(body)
         event.action = 'opened'
+        return event
+
+    def _event_pull_request_closed(self, body):
+        """ Handles pull request closed event """
+        event, data = self._event_base(body)
+        event.action = 'closed'
         return event
 
     def _event_flag_added(self, body):

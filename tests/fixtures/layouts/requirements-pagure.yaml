@@ -66,6 +66,22 @@
       pagure:
         status: 'success'
 
+- pipeline:
+    name: require-trigger-pg-closed-merged
+    precedence: high
+    manager: independent
+    require:
+      pagure:
+        merged: True
+        open: False
+    trigger:
+       pagure:
+         - event: pg_pull_request
+           action: closed
+    success:
+      pagure:
+        comment: true
+
 - job:
     name: base
     parent: null
@@ -102,5 +118,11 @@
 - project:
     name: org/project5
     require-tag:
+      jobs:
+        - project-test
+
+- project:
+    name: org/project6
+    require-trigger-pg-closed-merged:
       jobs:
         - project-test
