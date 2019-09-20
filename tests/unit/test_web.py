@@ -89,6 +89,10 @@ class BaseTestWeb(ZuulTestCase):
         return requests.post(
             urllib.parse.urljoin(self.base_url, url), *args, **kwargs)
 
+    def delete_url(self, url, *args, **kwargs):
+        return requests.delete(
+            urllib.parse.urljoin(self.base_url, url), *args, **kwargs)
+
     def tearDown(self):
         self.executor_server.hold_jobs_in_build = False
         self.executor_server.release()
@@ -746,6 +750,44 @@ class TestWeb(BaseTestWeb):
         resp = self.get_url("api/tenant/non-tenant/status")
         self.assertEqual(404, resp.status_code)
 
+    def test_autohold_info_404_on_invalid_id(self):
+        resp = self.get_url("api/tenant/tenant-one/autohold/12345")
+        self.assertEqual(404, resp.status_code)
+
+    def test_autohold_delete_404_on_invalid_id(self):
+        resp = self.delete_url("api/tenant/tenant-one/autohold/12345")
+        self.assertEqual(404, resp.status_code)
+
+    def test_autohold_info(self):
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+        r = client.autohold('tenant-one', 'org/project', 'project-test2',
+                            "", "", "reason text", 1)
+        self.assertTrue(r)
+
+        # Use autohold-list API to retrieve request ID
+        resp = self.get_url(
+            "api/tenant/tenant-one/autohold")
+        self.assertEqual(200, resp.status_code, resp.text)
+        autohold_requests = resp.json()
+        self.assertNotEqual([], autohold_requests)
+        self.assertEqual(1, len(autohold_requests))
+        request_id = autohold_requests[0]['id']
+
+        # Now try the autohold-info API
+        resp = self.get_url("api/tenant/tenant-one/autohold/%s" % request_id)
+        self.assertEqual(200, resp.status_code, resp.text)
+        request = resp.json()
+
+        self.assertEqual(request_id, request['id'])
+        self.assertEqual('tenant-one', request['tenant'])
+        self.assertIn('org/project', request['project'])
+        self.assertEqual('project-test2', request['job'])
+        self.assertEqual(".*", request['ref_filter'])
+        self.assertEqual(1, request['count'])
+        self.assertEqual("reason text", request['reason'])
+
     def test_autohold_list(self):
         """test listing autoholds through zuul-web"""
         client = zuul.rpcclient.RPCClient('127.0.0.1',
@@ -761,7 +803,6 @@ class TestWeb(BaseTestWeb):
 
         self.assertNotEqual([], autohold_requests)
         self.assertEqual(1, len(autohold_requests))
-        # The single dict key should be a CSV string value
         ah_request = autohold_requests[0]
 
         self.assertEqual('tenant-one', ah_request['tenant'])
@@ -784,7 +825,6 @@ class TestWeb(BaseTestWeb):
 
         self.assertNotEqual([], autohold_requests)
         self.assertEqual(1, len(autohold_requests))
-        # The single dict key should be a CSV string value
         ah_request = autohold_requests[0]
 
         self.assertEqual('tenant-one', ah_request['tenant'])
@@ -1265,6 +1305,38 @@ class TestTenantScopedWebApi(BaseTestWeb):
                   'pipeline': 'check'})
         self.assertEqual(403, resp.status_code)
 
+        # For autohold-delete, we first must make sure that an autohold
+        # exists before the delete attempt.
+        good_authz = {'iss': 'zuul_operator',
+                      'aud': 'zuul.example.com',
+                      'sub': 'testuser',
+                      'zuul': {'admin': ['tenant-one', ]},
+                      'exp': time.time() + 3600}
+        args = {"reason": "some reason",
+                "count": 1,
+                'job': 'project-test2',
+                'change': None,
+                'ref': None,
+                'node_hold_expiration': None}
+        good_token = jwt.encode(good_authz, key='NoDanaOnlyZuul',
+                                algorithm='HS256').decode('utf-8')
+        req = self.post_url(
+            'api/tenant/tenant-one/project/org/project/autohold',
+            headers={'Authorization': 'Bearer %s' % good_token},
+            json=args)
+        self.assertEqual(200, req.status_code, req.text)
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+        autohold_requests = client.autohold_list()
+        self.assertNotEqual([], autohold_requests)
+        self.assertEqual(1, len(autohold_requests))
+        request = autohold_requests[0]
+        resp = self.delete_url(
+            "api/tenant/tenant-one/autohold/%s" % request['id'],
+            headers={'Authorization': 'Bearer %s' % token})
+        self.assertEqual(403, resp.status_code)
+
     def test_autohold(self):
         """Test that autohold can be set through the admin web interface"""
         args = {"reason": "some reason",
@@ -1304,6 +1376,46 @@ class TestTenantScopedWebApi(BaseTestWeb):
         self.assertEqual(".*", request['ref_filter'])
         self.assertEqual("some reason", request['reason'])
         self.assertEqual(1, request['max_count'])
+
+    def test_autohold_delete(self):
+        authz = {'iss': 'zuul_operator',
+                 'aud': 'zuul.example.com',
+                 'sub': 'testuser',
+                 'zuul': {
+                     'admin': ['tenant-one', ]
+                 },
+                 'exp': time.time() + 3600}
+        token = jwt.encode(authz, key='NoDanaOnlyZuul',
+                           algorithm='HS256').decode('utf-8')
+
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+        r = client.autohold('tenant-one', 'org/project', 'project-test2',
+                            "", "", "reason text", 1)
+        self.assertTrue(r)
+
+        # Use autohold-list API to retrieve request ID
+        resp = self.get_url(
+            "api/tenant/tenant-one/autohold")
+        self.assertEqual(200, resp.status_code, resp.text)
+        autohold_requests = resp.json()
+        self.assertNotEqual([], autohold_requests)
+        self.assertEqual(1, len(autohold_requests))
+        request_id = autohold_requests[0]['id']
+
+        # now try the autohold-delete API
+        resp = self.delete_url(
+            "api/tenant/tenant-one/autohold/%s" % request_id,
+            headers={'Authorization': 'Bearer %s' % token})
+        self.assertEqual(204, resp.status_code, resp.text)
+
+        # autohold-list should be empty now
+        resp = self.get_url(
+            "api/tenant/tenant-one/autohold")
+        self.assertEqual(200, resp.status_code, resp.text)
+        autohold_requests = resp.json()
+        self.assertEqual([], autohold_requests)
 
     def test_enqueue(self):
         """Test that the admin web interface can enqueue a change"""
