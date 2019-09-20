@@ -33,7 +33,7 @@ class TestZK(BaseTestCase):
             self.zk_chroot_fixture.zookeeper_port,
             self.zk_chroot_fixture.zookeeper_chroot)
 
-        self.zk = zuul.zk.ZooKeeper()
+        self.zk = zuul.zk.ZooKeeper(enable_cache=True)
         self.addCleanup(self.zk.disconnect)
         self.zk.connect(self.zk_config)
 

@@ -984,7 +984,7 @@ class ZuulWeb(object):
         # instanciate handlers
         self.rpc = zuul.rpcclient.RPCClient(gear_server, gear_port,
                                             ssl_key, ssl_cert, ssl_ca)
-        self.zk = zuul.zk.ZooKeeper()
+        self.zk = zuul.zk.ZooKeeper(enable_cache=True)
         if zk_hosts:
             self.zk.connect(hosts=zk_hosts, read_only=True)
         self.connections = connections
