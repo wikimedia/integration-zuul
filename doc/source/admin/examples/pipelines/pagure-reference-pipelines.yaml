@@ -4,6 +4,7 @@
     require:
       pagure.io:
         merged: False
+        open: True
     trigger:
       pagure.io:
         - event: pg_pull_request
@@ -35,6 +36,7 @@
       pagure.io:
         score: 1
         merged: False
+        open: True
         tags: gateit
         status: success
       sqlreporter:
