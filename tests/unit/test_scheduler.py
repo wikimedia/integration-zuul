@@ -2107,6 +2107,54 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(".*", request['ref_filter'])
         self.assertEqual("reason text", request['reason'])
 
+    @simple_layout('layouts/autohold.yaml')
+    def test_autohold_request_expiration(self):
+        orig_exp = self.sched.EXPIRED_HOLD_REQUEST_TTL
+
+        def reset_exp():
+            self.sched.EXPIRED_HOLD_REQUEST_TTL = orig_exp
+
+        self.addCleanup(reset_exp)
+
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+
+        # Temporarily shorten the hold request expiration time
+        r = client.autohold('tenant-one', 'org/project', 'project-test2',
+                            "", "", "reason text", 1, 1)
+        self.assertTrue(r)
+
+        autohold_requests = client.autohold_list()
+        self.assertEqual(1, len(autohold_requests))
+        req = autohold_requests[0]
+        self.assertIsNone(req['expired'])
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.executor_server.failJob('project-test2', A)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        autohold_requests = client.autohold_list()
+        self.assertEqual(1, len(autohold_requests))
+        req = autohold_requests[0]
+        self.assertIsNotNone(req['expired'])
+
+        # Temporarily shorten hold time so that the hold request can be
+        # auto-deleted (which is done on another test failure). And wait
+        # long enough for nodes to expire and request to delete.
+        self.sched.EXPIRED_HOLD_REQUEST_TTL = 1
+        time.sleep(3)
+
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
+        self.executor_server.failJob('project-test2', B)
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        for _ in iterate_timeout(10, 'hold request expiration'):
+            if len(client.autohold_list()) == 0:
+                break
+
     @simple_layout('layouts/three-projects.yaml')
     def test_dependent_behind_dequeue(self):
         # This particular test does a large amount of merges and needs a little
