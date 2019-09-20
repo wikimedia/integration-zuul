@@ -18,6 +18,7 @@ import hashlib
 import queue
 import threading
 import time
+import re
 import json
 import requests
 import cherrypy
@@ -194,13 +195,17 @@ class PagureEventConnector(threading.Thread):
         self.daemon = True
         self.connection = connection
         self._stopped = False
+        self.metadata_notif = re.compile(
+            r"^\*\*Metadata Update", re.MULTILINE)
         self.event_handler_mapping = {
             'pull-request.comment.added': self._event_issue_comment,
             'pull-request.new': self._event_pull_request,
             'pull-request.flag.added': self._event_flag_added,
             'git.receive': self._event_ref_updated,
             'pull-request.initial_comment.edited':
-                self._event_issue_initial_comment
+                self._event_issue_initial_comment,
+            'pull-request.tag.added':
+                self._event_pull_request_tags_changed
         }
 
     def stop(self):
@@ -244,16 +249,19 @@ class PagureEventConnector(threading.Thread):
             self.connection.logEvent(event)
             self.connection.sched.addEvent(event)
 
-    def _event_base(self, body):
+    def _event_base(self, body, pull_data_field='pullrequest'):
         event = PagureTriggerEvent()
-        if 'pullrequest' in body['msg']:
-            data = body['msg']['pullrequest']
+
+        if pull_data_field in body['msg']:
+            data = body['msg'][pull_data_field]
+            data['tags'] = body['msg'].get('tags', [])
             data['flag'] = body['msg'].get('flag')
             event.title = data.get('title')
             event.project_name = data.get('project', {}).get('fullname')
             event.change_number = data.get('id')
             event.updated_at = data.get('date_created')
             event.branch = data.get('branch')
+            event.tags = data.get('tags', [])
             event.change_url = self.connection.getPullUrl(event.project_name,
                                                           event.change_number)
             event.ref = "refs/pull/%s/head" % event.change_number
@@ -271,12 +279,21 @@ class PagureEventConnector(threading.Thread):
         event.action = 'changed'
         return event
 
+    def _event_pull_request_tags_changed(self, body):
+        """ Handles pull request metadata change """
+        # pull-request.tag.added/removed use pull_request in payload body
+        event, _ = self._event_base(body, pull_data_field='pull_request')
+        event.action = 'tagged'
+        return event
+
     def _event_issue_comment(self, body):
         """ Handles pull request comments """
         # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#pagure-pull-request-comment-added
         event, data = self._event_base(body)
         last_comment = data.get('comments', [])[-1]
-        if last_comment.get('notification') is True:
+        if (last_comment.get('notification') is True and
+                not self.metadata_notif.match(
+                    last_comment.get('comment', ''))):
             # An updated PR (new commits) triggers the comment.added
             # event. A message is added by pagure on the PR but notification
             # is set to true.
@@ -556,7 +573,8 @@ class PagureConnection(BaseConnection):
         self.connectors = {}
         self.source = driver.getSource(self)
         self.event_queue = queue.Queue()
-
+        self.metadata_notif = re.compile(
+            r"^\*\*Metadata Update", re.MULTILINE)
         self.sched = None
 
     def onLoad(self):
@@ -793,6 +811,9 @@ class PagureConnection(BaseConnection):
         for comment in pr.get('comments', []):
             # PR updated are reported as comment but with the notification flag
             if comment['notification']:
+                # Ignore metadata update such as assignee and tags
+                if self.metadata_notif.match(comment.get('comment', '')):
+                    continue
                 date = int(comment['date_created'])
                 if date > last_pr_code_updated:
                     last_pr_code_updated = date
@@ -822,6 +843,7 @@ class PagureConnection(BaseConnection):
         change.patchset = change.pr.get('commit_stop')
         change.files = change.pr.get('files')
         change.title = change.pr.get('title')
+        change.tags = change.pr.get('tags')
         change.open = change.pr.get('status') == 'Open'
         change.is_merged = change.pr.get('status') == 'Merged'
         change.status = self.getStatus(change.project, change.number)

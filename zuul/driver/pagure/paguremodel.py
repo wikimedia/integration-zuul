@@ -27,6 +27,7 @@ class PullRequest(Change):
         self.title = None
         self.score = 0
         self.files = []
+        self.tags = []
 
     def __repr__(self):
         r = ['<Change 0x%x' % id(self)]
@@ -42,6 +43,8 @@ class PullRequest(Change):
             r.append('status: %s' % self.status)
         if self.score:
             r.append('score: %s' % self.score)
+        if self.tags:
+            r.append('tags: %s' % ', '.join(self.tags))
         if self.is_merged:
             r.append('state: merged')
         if self.open:
@@ -64,6 +67,7 @@ class PagureTriggerEvent(TriggerEvent):
         self.title = None
         self.action = None
         self.status = None
+        self.tags = []
 
     def _repr(self):
         r = [super(PagureTriggerEvent, self)._repr()]
@@ -74,6 +78,8 @@ class PagureTriggerEvent(TriggerEvent):
         r.append("project:%s" % self.canonical_project_name)
         if self.change_number:
             r.append("pr:%s" % self.change_number)
+        if self.tags:
+            r.append("tags:%s" % ', '.join(self.tags))
         return ' '.join(r)
 
     def isPatchsetCreated(self):
@@ -84,7 +90,7 @@ class PagureTriggerEvent(TriggerEvent):
 
 class PagureEventFilter(EventFilter):
     def __init__(self, trigger, types=[], refs=[], statuses=[],
-                 comments=[], actions=[], ignore_deletes=True):
+                 comments=[], actions=[], tags=[], ignore_deletes=True):
 
         EventFilter.__init__(self, trigger)
 
@@ -96,6 +102,7 @@ class PagureEventFilter(EventFilter):
         self.comments = [re.compile(x) for x in comments]
         self.actions = actions
         self.statuses = statuses
+        self.tags = tags
         self.ignore_deletes = ignore_deletes
 
     def __repr__(self):
@@ -113,6 +120,8 @@ class PagureEventFilter(EventFilter):
             ret += ' actions: %s' % ', '.join(self.actions)
         if self.statuses:
             ret += ' statuses: %s' % ', '.join(self.statuses)
+        if self.tags:
+            ret += ' tags: %s' % ', '.join(self.tags)
         ret += '>'
 
         return ret
@@ -159,6 +168,10 @@ class PagureEventFilter(EventFilter):
         if self.statuses and not matches_status:
             return False
 
+        if self.tags:
+            if not set(event.tags).intersection(set(self.tags)):
+                return False
+
         return True
 
 
@@ -166,12 +179,13 @@ class PagureEventFilter(EventFilter):
 # pipeline requires definition)
 class PagureRefFilter(RefFilter):
     def __init__(self, connection_name, score=None,
-                 open=None, merged=None, status=None):
+                 open=None, merged=None, status=None, tags=[]):
         RefFilter.__init__(self, connection_name)
         self.score = score
         self.open = open
         self.merged = merged
         self.status = status
+        self.tags = tags
 
     def __repr__(self):
         ret = '<PagureRefFilter connection_name: %s ' % self.connection_name
@@ -183,6 +197,8 @@ class PagureRefFilter(RefFilter):
             ret += ' merged: %s' % self.merged
         if self.status is not None:
             ret += ' status: %s' % self.status
+        if self.tags:
+            ret += ' tags: %s' % ', '.join(self.tags)
         ret += '>'
         return ret
 
@@ -201,6 +217,10 @@ class PagureRefFilter(RefFilter):
 
         if self.status is not None:
             if change.status != self.status:
+                return False
+
+        if self.tags:
+            if not set(change.tags).intersection(set(self.tags)):
                 return False
 
         return True

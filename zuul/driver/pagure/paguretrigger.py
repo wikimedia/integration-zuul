@@ -33,6 +33,7 @@ class PagureTrigger(BaseTrigger):
                 refs=to_list(trigger.get('ref')),
                 comments=to_list(trigger.get('comment')),
                 statuses=to_list(trigger.get('status')),
+                tags=to_list(trigger.get('tag')),
             )
             efilters.append(f)
 
@@ -56,6 +57,7 @@ def getSchema():
         'ref': scalar_or_list(str),
         'comment': scalar_or_list(str),
         'status': scalar_or_list(str),
+        'tag': scalar_or_list(str)
     }
 
     return pagure_trigger

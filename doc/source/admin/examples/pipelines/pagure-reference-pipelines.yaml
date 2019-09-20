@@ -35,6 +35,7 @@
       pagure.io:
         score: 1
         merged: False
+        tags: gateit
         status: success
       sqlreporter:
     trigger:
@@ -44,6 +45,9 @@
            status: success
          - event: pg_pull_request_review
            action: thumbsup
+         - event: pg_pull_request
+           action: tagged
+           tag: gateit
     start:
       pagure.io:
         status: 'pending'
