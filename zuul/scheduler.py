@@ -638,8 +638,6 @@ class Scheduler(threading.Thread):
                           hold_request_id)
             return
 
-        # (TODO): Release any nodes held for this request here
-
         self.log.debug("Removing autohold %s", hold_request)
         try:
             self.zk.deleteHoldRequest(hold_request)
