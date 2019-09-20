@@ -1717,6 +1717,35 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(request2.current_count, request3.current_count)
 
     @simple_layout('layouts/autohold.yaml')
+    def test_autohold_info(self):
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+
+        # Empty dict should be returned for "not found"
+        request = client.autohold_info("XxXxX")
+        self.assertEqual({}, request)
+
+        r = client.autohold('tenant-one', 'org/project', 'project-test2',
+                            "", "", "reason text", 1)
+        self.assertTrue(r)
+
+        # There should be a record in ZooKeeper
+        request_list = self.zk.getHoldRequests()
+        self.assertEqual(1, len(request_list))
+        request = self.zk.getHoldRequest(request_list[0])
+        self.assertIsNotNone(request)
+
+        request = client.autohold_info(request.id)
+        self.assertNotEqual({}, request)
+        self.assertEqual('tenant-one', request['tenant'])
+        self.assertEqual('review.example.com/org/project', request['project'])
+        self.assertEqual('project-test2', request['job'])
+        self.assertEqual('reason text', request['reason'])
+        self.assertEqual(1, request['max_count'])
+        self.assertEqual(0, request['current_count'])
+
+    @simple_layout('layouts/autohold.yaml')
     def test_autohold_delete(self):
         client = zuul.rpcclient.RPCClient('127.0.0.1',
                                           self.gearman_server.port)
