@@ -417,19 +417,19 @@ class ZuulWebAPI(object):
         else:
             payload = json.loads(job.data[0])
             result = []
-            for key in payload:
-                _tenant, _project, job, ref_filter = key.split(',')
-                count, reason, hold_expiration = payload[key]
-                if tenant == _tenant:
-                    if project is None or _project.endswith(project):
+            for request in payload:
+                if tenant == request['tenant']:
+                    if (project is None or
+                            request['project'].endswith(project)):
                         result.append(
-                            {'tenant': _tenant,
-                             'project': _project,
-                             'job': job,
-                             'ref_filter': ref_filter,
-                             'count': count,
-                             'reason': reason,
-                             'node_hold_expiration': hold_expiration})
+                            {'tenant': request['tenant'],
+                             'project': request['project'],
+                             'job': request['job'],
+                             'ref_filter': request['ref_filter'],
+                             'count': request['max_count'],
+                             'reason': request['reason'],
+                             'node_hold_expiration': request['node_expiration']
+                            })
             return result
 
     @cherrypy.expose

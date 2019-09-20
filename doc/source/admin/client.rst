@@ -39,6 +39,22 @@ Example::
 
   zuul autohold --tenant openstack --project example_project --job example_job --reason "reason text" --count 1
 
+Autohold Delete
+^^^^^^^^^^^^^^^
+.. program-output:: zuul autohold-delete --help
+
+Example::
+
+  zuul autohold-delete --id 0000000123
+
+Autohold List
+^^^^^^^^^^^^^
+.. program-output:: zuul autohold-list --help
+
+Example::
+
+  zuul autohold-list
+
 Dequeue
 ^^^^^^^
 .. program-output:: zuul dequeue --help

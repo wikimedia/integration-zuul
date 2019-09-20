@@ -168,38 +168,46 @@ class Nodepool(object):
             except Exception:
                 log.exception("Unable to unlock node request %s", request)
 
-    def holdNodeSet(self, nodeset, autohold_key):
+    def holdNodeSet(self, nodeset, request):
         '''
         Perform a hold on the given set of nodes.
 
         :param NodeSet nodeset: The object containing the set of nodes to hold.
-        :param set autohold_key: A set with the tenant/project/job names
-            associated with the given NodeSet.
+        :param HoldRequest request: Hold request associated with the NodeSet
         '''
         self.log.info("Holding nodeset %s" % (nodeset,))
-        (hold_iterations,
-         reason,
-         node_hold_expiration) = self.sched.autohold_requests[autohold_key]
         nodes = nodeset.getNodes()
 
         for node in nodes:
             if node.lock is None:
                 raise Exception("Node %s is not locked" % (node,))
             node.state = model.STATE_HOLD
-            node.hold_job = " ".join(autohold_key)
-            node.comment = reason
-            if node_hold_expiration:
-                node.hold_expiration = node_hold_expiration
+            node.hold_job = " ".join([request.tenant,
+                                      request.project,
+                                      request.job,
+                                      request.ref_filter])
+            node.comment = request.reason
+            if request.node_expiration:
+                node.hold_expiration = request.node_expiration
             self.sched.zk.storeNode(node)
 
-        # We remove the autohold when the number of nodes in hold
-        # is equal to or greater than (run iteration count can be
-        # altered) the number of nodes used in a single job run
-        # times the number of run iterations requested.
-        nodes_in_hold = self.sched.zk.heldNodeCount(autohold_key)
-        if nodes_in_hold >= len(nodes) * hold_iterations:
-            self.log.debug("Removing autohold for %s", autohold_key)
-            del self.sched.autohold_requests[autohold_key]
+        request.current_count += 1
+
+        # Give ourselves a few seconds to try to obtain the lock rather than
+        # immediately give up.
+        self.sched.zk.lockHoldRequest(request, timeout=5)
+
+        try:
+            self.sched.zk.storeHoldRequest(request)
+        except Exception:
+            # If we fail to update the request count, we won't consider it
+            # a real autohold error by passing the exception up. It will
+            # just get used more than the original count specified.
+            self.log.exception("Unable to update hold request %s:", request)
+        finally:
+            # Although any exceptions thrown here are handled higher up in
+            # _doBuildCompletedEvent, we always want to try to unlock it.
+            self.sched.zk.unlockHoldRequest(request)
 
     def useNodeSet(self, nodeset, build_set=None, event=None):
         self.log.info("Setting nodeset %s in use" % (nodeset,))
