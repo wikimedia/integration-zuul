@@ -3953,7 +3953,10 @@ class ZuulTestCase(BaseTestCase):
     def waitForPoll(self, poller, timeout=30):
         self.log.debug("Wait for poll on %s", poller)
         self.poller_events[poller].clear()
-        self.log.debug("Waiting for poll on %s", poller)
+        self.log.debug("Waiting for poll 1 on %s", poller)
+        self.poller_events[poller].wait(timeout)
+        self.poller_events[poller].clear()
+        self.log.debug("Waiting for poll 2 on %s", poller)
         self.poller_events[poller].wait(timeout)
         self.log.debug("Done waiting for poll on %s", poller)
 
