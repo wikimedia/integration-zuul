@@ -805,16 +805,18 @@ class GithubConnection(BaseConnection):
             self.github_event_connector.stop()
 
     def _createGithubClient(self, zuul_event_id=None):
+        session = github3.session.GitHubSession(default_read_timeout=300)
+
         if self.server != 'github.com':
             url = 'https://%s/' % self.server
             if not self.verify_ssl:
                 # disabling ssl verification is evil so emit a warning
                 self.log.warning("SSL verification disabled for "
                                  "GitHub Enterprise")
-            github = github3.GitHubEnterprise(url, verify=self.verify_ssl)
+            github = github3.GitHubEnterprise(url, session=session,
+                                              verify=self.verify_ssl)
         else:
-            github = github3.GitHub(session=github3.session.GitHubSession(
-                default_read_timeout=300))
+            github = github3.GitHub(session=session)
 
         # anything going through requests to http/s goes through cache
         github.session.mount('http://', self.cache_adapter)
