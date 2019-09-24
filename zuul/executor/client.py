@@ -505,7 +505,8 @@ class ExecutorClient(object):
         self.onBuildCompleted(job, 'LOST')
 
     def cancelJobInQueue(self, build):
-        log = get_annotated_logger(self.log, build.zuul_event_id)
+        log = get_annotated_logger(self.log, build.zuul_event_id,
+                                   build=build.uuid)
         job = build.__gearman_job
 
         req = gear.CancelJobAdminRequest(job.handle)
