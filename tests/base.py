@@ -2166,6 +2166,12 @@ class RecordingAnsibleJob(zuul.executor.server.AnsibleJob):
             merger, items, repo_state)
         if not commit:  # merge conflict
             self.recordResult('MERGER_FAILURE')
+
+        for _ in iterate_timeout(60, 'wait for merge'):
+            if not self.executor_server.hold_jobs_in_start:
+                break
+            time.sleep(1)
+
         return commit
 
     def recordResult(self, result):
@@ -2240,6 +2246,10 @@ class RecordingAnsibleJob(zuul.executor.server.AnsibleJob):
             build.paused = False
         super().resume()
 
+    def _send_aborted(self):
+        self.recordResult('ABORTED')
+        super()._send_aborted()
+
 
 class RecordingMergeClient(zuul.merger.client.MergeClient):
 
@@ -2278,6 +2288,7 @@ class RecordingExecutorServer(zuul.executor.server.ExecutorServer):
             self._ansible_manager_class = FakeAnsibleManager
         super(RecordingExecutorServer, self).__init__(*args, **kw)
         self.hold_jobs_in_build = False
+        self.hold_jobs_in_start = False
         self.lock = threading.Lock()
         self.running_builds = []
         self.build_history = []

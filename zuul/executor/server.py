@@ -818,6 +818,10 @@ class AnsibleJob(object):
     def execute(self):
         try:
             self.time_starting_build = time.monotonic()
+
+            # report that job has been taken
+            self.job.sendWorkData(json.dumps(self._base_job_data()))
+
             self.ssh_agent.start()
             self.ssh_agent.add(self.private_key_file)
             for key in self.arguments.get('ssh_keys', []):
@@ -850,6 +854,22 @@ class AnsibleJob(object):
                 self.executor_server.finishJob(self.job.unique)
             except Exception:
                 self.log.exception("Error finalizing job thread:")
+
+    def _base_job_data(self):
+        return {
+            # TODO(mordred) worker_name is needed as a unique name for the
+            # client to use for cancelling jobs on an executor. It's
+            # defaulting to the hostname for now, but in the future we
+            # should allow setting a per-executor override so that one can
+            # run more than one executor on a host.
+            'worker_name': self.executor_server.hostname,
+            'worker_hostname': self.executor_server.hostname,
+            'worker_log_port': self.executor_server.log_streaming_port,
+        }
+
+    def _send_aborted(self):
+        result = dict(result='ABORTED')
+        self.job.sendWorkComplete(json.dumps(result))
 
     def _execute(self):
         args = self.arguments
@@ -903,6 +923,11 @@ class AnsibleJob(object):
                 'branches': task.branches,
             }
 
+        # Early abort if abort requested
+        if self.aborted:
+            self._send_aborted()
+            return
+
         self.log.debug("Git updates complete")
         merger = self.executor_server._getMerger(
             self.jobdir.src_root,
@@ -928,9 +953,19 @@ class AnsibleJob(object):
                 # a work complete result, don't run any jobs
                 return
 
+        # Early abort if abort requested
+        if self.aborted:
+            self._send_aborted()
+            return
+
         state_items = [i for i in args['items'] if not i.get('number')]
         if state_items:
             merger.setRepoState(state_items, repo_state)
+
+        # Early abort if abort requested
+        if self.aborted:
+            self._send_aborted()
+            return
 
         for project in args['projects']:
             repo = repos[project['canonical_name']]
@@ -968,30 +1003,31 @@ class AnsibleJob(object):
         for repo in repos.values():
             repo.setRemoteUrl('file:///dev/null')
 
+        # Early abort if abort requested
+        if self.aborted:
+            self._send_aborted()
+            return
+
         # This prepares each playbook and the roles needed for each.
         self.preparePlaybooks(args)
 
         self.prepareAnsibleFiles(args)
         self.writeLoggingConfig()
 
-        data = {
-            # TODO(mordred) worker_name is needed as a unique name for the
-            # client to use for cancelling jobs on an executor. It's defaulting
-            # to the hostname for now, but in the future we should allow
-            # setting a per-executor override so that one can run more than
-            # one executor on a host.
-            'worker_name': self.executor_server.hostname,
-            'worker_hostname': self.executor_server.hostname,
-            'worker_log_port': self.executor_server.log_streaming_port
-        }
+        # Early abort if abort requested
+        if self.aborted:
+            self._send_aborted()
+            return
+
+        data = self._base_job_data()
         if self.executor_server.log_streaming_port != DEFAULT_FINGER_PORT:
             data['url'] = "finger://{hostname}:{port}/{uuid}".format(
-                hostname=data['worker_hostname'],
-                port=data['worker_log_port'],
+                hostname=self.executor_server.hostname,
+                port=self.executor_server.log_streaming_port,
                 uuid=self.job.unique)
         else:
             data['url'] = 'finger://{hostname}/{uuid}'.format(
-                hostname=data['worker_hostname'],
+                hostname=self.executor_server.hostname,
                 uuid=self.job.unique)
 
         self.job.sendWorkData(json.dumps(data))

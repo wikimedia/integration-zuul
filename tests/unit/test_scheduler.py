@@ -2539,6 +2539,33 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(A.reported, 0, "Abandoned change should not report")
         self.assertEqual(B.reported, 1, "Change should report")
 
+    def test_cancel_starting_build(self):
+        "Test that a canceled build that is not processed yet is removed"
+
+        self.executor_server.hold_jobs_in_start = True
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        for _ in iterate_timeout(30, 'Wait for build to be in starting phase'):
+            if self.executor_server.job_workers:
+                break
+
+        # Abandon change to cancel build
+        self.fake_gerrit.addEvent(A.getChangeAbandonedEvent())
+
+        for _ in iterate_timeout(30, 'Wait for executor:stop request'):
+            stop_jobs = [x for x in self.gearman_server.jobs_history
+                         if b'executor:stop' in x.name]
+            if stop_jobs:
+                break
+
+        self.executor_server.hold_jobs_in_start = False
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='project-merge', result='ABORTED')
+        ])
+
     def test_abandoned_not_timer(self):
         "Test that an abandoned change does not cancel timer jobs"
         # This test can not use simple_layout because it must start

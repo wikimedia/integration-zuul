@@ -384,8 +384,7 @@ class ExecutorClient(object):
             log.debug("Build has no associated gearman job")
             return False
 
-        # TODOv3(jeblair): make a nicer way of recording build start.
-        if build.url is not None:
+        if build.__gearman_worker is not None:
             log.debug("Build has already started")
             self.cancelRunningBuild(build)
             log.debug("Canceled running build")
@@ -401,12 +400,12 @@ class ExecutorClient(object):
         time.sleep(1)
 
         log.debug("Still unable to find build to cancel")
-        if build.url:
+        if build.__gearman_worker is not None:
             log.debug("Build has just started")
             self.cancelRunningBuild(build)
             log.debug("Canceled running build")
             return True
-        log.debug("Unable to cancel build")
+        log.error("Unable to cancel build")
 
     def onBuildCompleted(self, job, result=None):
         if job.unique in self.meta_jobs:
@@ -482,6 +481,7 @@ class ExecutorClient(object):
             build.url = data.get('url', build.url)
             # Update information about worker
             build.worker.updateFromData(data)
+            build.__gearman_worker = build.worker.name
 
             if 'paused' in data and build.paused != data['paused']:
                 build.paused = data['paused']
@@ -491,7 +491,6 @@ class ExecutorClient(object):
 
             if not started:
                 self.log.info("Build %s started" % job)
-                build.__gearman_worker = data.get('worker_name')
                 self.sched.onBuildStarted(build)
         else:
             self.log.error("Unable to find build %s" % job.unique)
