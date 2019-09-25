@@ -219,17 +219,19 @@ class PipelineManager(object):
                 return item
         return None
 
-    def removeOldVersionsOfChange(self, change):
+    def removeOldVersionsOfChange(self, change, event):
         if not self.pipeline.dequeue_on_new_patchset:
             return
         old_item = self.findOldVersionOfChangeAlreadyInQueue(change)
         if old_item:
-            self.log.debug("Change %s is a new version of %s, removing %s" %
-                           (change, old_item.change, old_item))
+            log = get_annotated_logger(self.log, event)
+            log.debug("Change %s is a new version of %s, removing %s",
+                      change, old_item.change, old_item)
             self.removeItem(old_item)
 
-    def removeAbandonedChange(self, change):
-        self.log.debug("Change %s abandoned, removing." % change)
+    def removeAbandonedChange(self, change, event):
+        log = get_annotated_logger(self.log, event)
+        log.debug("Change %s abandoned, removing." % change)
         for item in self.pipeline.getAllItems():
             if not item.live:
                 continue
@@ -237,11 +239,12 @@ class PipelineManager(object):
                 self.removeItem(item)
 
     def reEnqueueItem(self, item, last_head, old_item_ahead, item_ahead_valid):
+        log = get_annotated_logger(self.log, item.event)
         with self.getChangeQueue(item.change, item.event,
                                  last_head.queue) as change_queue:
             if change_queue:
-                self.log.debug("Re-enqueing change %s in queue %s" %
-                               (item.change, change_queue))
+                log.debug("Re-enqueing change %s in queue %s",
+                          item.change, change_queue)
                 change_queue.enqueueItem(item)
 
                 # If the old item ahead was re-enqued, this value will
@@ -277,8 +280,8 @@ class PipelineManager(object):
                 self.reportStats(item)
                 return True
             else:
-                self.log.error("Unable to find change queue for project %s" %
-                               item.change.project)
+                log.error("Unable to find change queue for project %s",
+                          item.change.project)
                 return False
 
     def addChange(self, change, event, quiet=False, enqueue_time=None,

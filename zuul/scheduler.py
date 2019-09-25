@@ -1223,9 +1223,10 @@ class Scheduler(threading.Thread):
                     self.reconfigureTenant(tenant, change.project, event)
                 for pipeline in tenant.layout.pipelines.values():
                     if event.isPatchsetCreated():
-                        pipeline.manager.removeOldVersionsOfChange(change)
+                        pipeline.manager.removeOldVersionsOfChange(
+                            change, event)
                     elif event.isChangeAbandoned():
-                        pipeline.manager.removeAbandonedChange(change)
+                        pipeline.manager.removeAbandonedChange(change, event)
                     if pipeline.manager.eventMatches(event, change):
                         pipeline.manager.addChange(change, event)
         finally:
