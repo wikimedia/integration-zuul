@@ -1453,7 +1453,8 @@ class FakePagureConnection(pagureconnection.PagureConnection):
             'msg': {
                 'project_fullname': project,
                 'branch': 'master',
-                'stop_commit': headsha,
+                'end_commit': headsha,
+                'old_commit': '1' * 40,
             },
             'msg_id': str(uuid.uuid4()),
             'timestamp': 1427459070,
@@ -1472,6 +1473,20 @@ class FakePagureConnection(pagureconnection.PagureConnection):
             'msg_id': str(uuid.uuid4()),
             'timestamp': 1427459070,
             'topic': 'git.tag.creation',
+        }
+        return (name, data)
+
+    def getGitBranchEvent(self, project, branch, type, rev):
+        name = 'pg_push'
+        data = {
+            'msg': {
+                'project_fullname': project,
+                'branch': branch,
+                'rev': rev,
+            },
+            'msg_id': str(uuid.uuid4()),
+            'timestamp': 1427459070,
+            'topic': 'git.branch.%s' % type,
         }
         return (name, data)
 
