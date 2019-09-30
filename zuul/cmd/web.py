@@ -124,7 +124,8 @@ class WebServer(zuul.cmd.ZuulDaemonApp):
             self.configure_connections(
                 include_drivers=[zuul.driver.sql.SQLDriver,
                                  zuul.driver.github.GithubDriver,
-                                 zuul.driver.pagure.PagureDriver])
+                                 zuul.driver.pagure.PagureDriver,
+                                 zuul.driver.gitlab.GitlabDriver])
             self.configure_authenticators()
             self._run()
         except Exception:

@@ -64,6 +64,7 @@ import zuul.driver.gerrit.gerritsource as gerritsource
 import zuul.driver.gerrit.gerritconnection as gerritconnection
 import zuul.driver.github.githubconnection as githubconnection
 import zuul.driver.pagure.pagureconnection as pagureconnection
+import zuul.driver.gitlab.gitlabconnection as gitlabconnection
 import zuul.driver.github
 import zuul.driver.sql
 import zuul.scheduler
@@ -1489,6 +1490,18 @@ class FakePagureConnection(pagureconnection.PagureConnection):
             'topic': 'git.branch.%s' % type,
         }
         return (name, data)
+
+    def setZuulWebPort(self, port):
+        self.zuul_web_port = port
+
+
+class FakeGitlabConnection(gitlabconnection.GitlabConnection):
+    log = logging.getLogger("zuul.test.FakeGitlabConnection")
+
+    def __init__(self, driver, connection_name, connection_config, rpcclient,
+                 changes_db=None, upstream_root=None):
+        super(FakeGitlabConnection, self).__init__(driver, connection_name,
+                                                   connection_config)
 
     def setZuulWebPort(self, port):
         self.zuul_web_port = port
@@ -3353,6 +3366,7 @@ class ZuulTestCase(BaseTestCase):
         self.gerrit_changes_dbs = {}
         self.github_changes_dbs = {}
         self.pagure_changes_dbs = {}
+        self.gitlab_changes_dbs = {}
 
         def getGerritConnection(driver, name, config):
             db = self.gerrit_changes_dbs.setdefault(config['server'], {})
@@ -3427,6 +3441,22 @@ class ZuulTestCase(BaseTestCase):
         self.useFixture(fixtures.MonkeyPatch(
             'zuul.driver.pagure.PagureDriver.getConnection',
             getPagureConnection))
+
+        def getGitlabConnection(driver, name, config):
+            server = config.get('server', 'gitlab.com')
+            db = self.gitlab_changes_dbs.setdefault(server, {})
+            con = FakeGitlabConnection(
+                driver, name, config,
+                self.rpcclient,
+                changes_db=db,
+                upstream_root=self.upstream_root)
+            self.event_queues.append(con.event_queue)
+            setattr(self, 'fake_' + name, con)
+            return con
+
+        self.useFixture(fixtures.MonkeyPatch(
+            'zuul.driver.gitlab.GitlabDriver.getConnection',
+            getGitlabConnection))
 
         # Set up smtp related fakes
         # TODO(jhesketh): This should come from lib.connections for better
