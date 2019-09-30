@@ -797,6 +797,42 @@ To enable or disable running Ansible in verbose mode (with the
 ``-vvv`` argument to ansible-playbook) run ``zuul-executor verbose``
 and ``zuul-executor unverbose``.
 
+Ansible and Python 3
+~~~~~~~~~~~~~~~~~~~~
+
+As noted above, the executor runs Ansible playbooks against the remote
+node(s) allocated for the job.  Since part of executing playbooks on
+remote hosts is running Python scripts on them, Ansible needs to know
+what Python interpreter to use on the remote host.  With older
+distributions, ``/usr/bin/python2`` was a generally sensible choice.
+However, over time a heterogeneous Python ecosystem has evolved where
+older distributions may only provide Python 2, most provide a mixed
+2/3 environment and newer distributions may only provide Python 3 (and
+then others like RHEL8 may even have separate "system" Python versions
+to add to confusion!).
+
+Ansible's ``ansible_python_interpreter`` variable configures the path
+to the remote Python interpreter to use during playbook execution.
+This value is set by Zuul from the ``python-path`` specified for the
+node by Nodepool; see the `nodepool configuration documentation
+<https://zuul-ci.org/docs/nodepool/configuration.html>`__.
+
+This defaults to ``auto``, where Ansible will automatically discover
+the interpreter available on the remote host.  However, this setting
+only became available in Ansible >=2.8, so Zuul will translate
+``auto`` into the old default of ``/usr/bin/python2`` when configured
+to use older Ansible versions.
+
+Thus for modern Python 3-only hosts no further configuration is needed
+when using Ansible >=2.8 (e.g. Fedora, Bionic onwards).  If using
+earlier Ansible versions you may need to explicitly set the
+``python-path`` if ``/usr/bin/python2`` is not available on the node.
+
+Ansible roles/modules which include Python code are generally Python 3
+safe now, but there is still a small possibility of incompatibility.
+See also the Ansible `Python 3 support page
+<https://docs.ansible.com/ansible/latest/reference_appendices/python_3_support.html>`__.
+
 .. _web-server:
 
 Web Server

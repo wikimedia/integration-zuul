@@ -76,6 +76,57 @@ class TestInventoryPythonPath(TestInventoryBase):
         self.waitUntilSettled()
 
 
+class TestInventoryAutoPython(TestInventoryBase):
+
+    def test_auto_python_ansible28_inventory(self):
+        inventory = self._get_build_inventory('ansible-version28-inventory')
+
+        all_nodes = ('ubuntu-xenial',)
+        self.assertIn('all', inventory)
+        self.assertIn('hosts', inventory['all'])
+        self.assertIn('vars', inventory['all'])
+        for node_name in all_nodes:
+            self.assertIn(node_name, inventory['all']['hosts'])
+            node_vars = inventory['all']['hosts'][node_name]
+            self.assertEqual(
+                'auto', node_vars['ansible_python_interpreter'])
+
+        self.assertIn('zuul', inventory['all']['vars'])
+        z_vars = inventory['all']['vars']['zuul']
+        self.assertIn('executor', z_vars)
+        self.assertIn('src_root', z_vars['executor'])
+        self.assertIn('job', z_vars)
+        self.assertEqual(z_vars['job'], 'ansible-version28-inventory')
+        self.assertEqual(z_vars['message'], 'QQ==')
+
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+    def test_auto_python_ansible27_inventory(self):
+        inventory = self._get_build_inventory('ansible-version27-inventory')
+
+        all_nodes = ('ubuntu-xenial',)
+        self.assertIn('all', inventory)
+        self.assertIn('hosts', inventory['all'])
+        self.assertIn('vars', inventory['all'])
+        for node_name in all_nodes:
+            self.assertIn(node_name, inventory['all']['hosts'])
+            node_vars = inventory['all']['hosts'][node_name]
+            self.assertEqual(
+                '/usr/bin/python2', node_vars['ansible_python_interpreter'])
+
+        self.assertIn('zuul', inventory['all']['vars'])
+        z_vars = inventory['all']['vars']['zuul']
+        self.assertIn('executor', z_vars)
+        self.assertIn('src_root', z_vars['executor'])
+        self.assertIn('job', z_vars)
+        self.assertEqual(z_vars['job'], 'ansible-version27-inventory')
+        self.assertEqual(z_vars['message'], 'QQ==')
+
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+
 class TestInventory(TestInventoryBase):
 
     def test_single_inventory(self):

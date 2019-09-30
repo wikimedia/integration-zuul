@@ -1,0 +1,7 @@
+---
+features:
+  - |
+    Nodes can set their ``python-path`` in nodepool configuration to
+    ``auto`` to allow for `automatic ansible_python_interpreter
+    discovery <https://docs.ansible.com/ansible/2.8/reference_appendices/interpreter_discovery.html>`__
+    when using Ansible >=2.8.
