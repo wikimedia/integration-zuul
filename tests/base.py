@@ -1502,9 +1502,189 @@ class FakeGitlabConnection(gitlabconnection.GitlabConnection):
                  changes_db=None, upstream_root=None):
         super(FakeGitlabConnection, self).__init__(driver, connection_name,
                                                    connection_config)
+        self.merge_requests = changes_db
+        self.gl_client = FakeGitlabAPIClient(
+            self.baseurl, self.api_token, merge_requests_db=changes_db)
+        self.rpcclient = rpcclient
+        self.upstream_root = upstream_root
+        self.mr_number = 0
+
+    def getGitUrl(self, project):
+        return 'file://' + os.path.join(self.upstream_root, project.name)
+
+    def openFakeMergeRequest(self, project,
+                             branch, title, description='', files=[]):
+        self.mr_number += 1
+        merge_request = FakeGitlabMergeRequest(
+            self, self.mr_number, project, branch, title, self.upstream_root,
+            files=files, description=description)
+        self.merge_requests.setdefault(
+            project, {})[str(self.mr_number)] = merge_request
+        return merge_request
+
+    def emitEvent(self, event, use_zuulweb=False, project=None):
+        name, payload = event
+        if use_zuulweb:
+            payload = json.dumps(payload).encode('utf-8')
+            headers = {'x-gitlab-token': self.webhook_token}
+            return requests.post(
+                'http://127.0.0.1:%s/api/connection/%s/payload'
+                % (self.zuul_web_port, self.connection_name),
+                data=payload, headers=headers)
+        else:
+            job = self.rpcclient.submitJob(
+                'gitlab:%s:payload' % self.connection_name,
+                {'payload': payload})
+            return json.loads(job.data[0])
 
     def setZuulWebPort(self, port):
         self.zuul_web_port = port
+
+
+class FakeGitlabAPIClient(gitlabconnection.GitlabAPIClient):
+    log = logging.getLogger("zuul.test.FakeGitlabAPIClient")
+
+    def __init__(self, baseurl, api_token, merge_requests_db={}):
+        super(FakeGitlabAPIClient, self).__init__(baseurl, api_token)
+        self.merge_requests = merge_requests_db
+
+    def gen_error(self, verb):
+        return {
+            'message': 'some error',
+        }, 503, "", verb
+
+    def _get_mr(self, match):
+        project, number = match.groups()
+        project = urllib.parse.unquote(project)
+        mr = self.merge_requests.get(project, {}).get(number)
+        if not mr:
+            return self.gen_error("GET")
+        return mr
+
+    def get(self, url):
+        self.log.debug("Getting resource %s ..." % url)
+
+        match = re.match(r'.+/projects/(.+)/merge_requests/(\d+)$', url)
+        if match:
+            mr = self._get_mr(match)
+            return {
+                'target_branch': mr.branch,
+                'title': mr.title,
+                'state': mr.state,
+                'description': mr.description,
+                'updated_at': mr.updated_at.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                'sha': mr.patch_number,
+                'labels': mr.labels,
+                'merged_at': mr.merged_at,
+                'merge_status': mr.merge_status,
+            }, 200, "", "GET"
+
+        match = re.match('.+/projects/(.+)/repository/branches$', url)
+        if match:
+            return [{'name': 'master'}], 200, "", "GET"
+
+
+class GitlabChangeReference(git.Reference):
+    _common_path_default = "refs/merge-requests"
+    _points_to_commits_only = True
+
+
+class FakeGitlabMergeRequest(object):
+    log = logging.getLogger("zuul.test.FakeGitlabMergeRequest")
+
+    def __init__(self, gitlab, number, project, branch,
+                 title, upstream_root, files=[], description=''):
+        self.gitlab = gitlab
+        self.source = gitlab
+        self.number = number
+        self.project = project
+        self.branch = branch
+        self.title = title
+        self.description = description
+        self.upstream_root = upstream_root
+        self.number_of_commits = 0
+        self.created_at = datetime.datetime.now()
+        self.updated_at = self.created_at
+        self.merged_at = None
+        self.patch_number = None
+        self.state = 'opened'
+        self.merge_status = 'can_be_merged'
+        self.uuid = uuid.uuid4().hex
+        self.labels = []
+        self.upstream_root = upstream_root
+        self.url = "https://%s/%s/merge_requests/%s" % (
+            self.gitlab.server, urllib.parse.quote_plus(
+                self.project), self.number)
+        self.is_merged = False
+        self.mr_ref = self._createMRRef()
+        self._addCommitInMR(files=files)
+
+    def _getRepo(self):
+        repo_path = os.path.join(self.upstream_root, self.project)
+        return git.Repo(repo_path)
+
+    def _createMRRef(self):
+        repo = self._getRepo()
+        return GitlabChangeReference.create(
+            repo, self.getMRReference(), 'refs/tags/init')
+
+    def getMRReference(self):
+        return '%s/head' % self.number
+
+    def _addCommitInMR(self, files=[], reset=False):
+        repo = self._getRepo()
+        ref = repo.references[self.getMRReference()]
+        if reset:
+            self.number_of_commits = 0
+            ref.set_object('refs/tags/init')
+        self.number_of_commits += 1
+        repo.head.reference = ref
+        repo.git.clean('-x', '-f', '-d')
+
+        if files:
+            self.files = files
+        else:
+            fn = '%s-%s' % (self.branch.replace('/', '_'), self.number)
+            self.files = {fn: "test %s %s\n" % (self.branch, self.number)}
+        msg = self.title + '-' + str(self.number_of_commits)
+        for fn, content in self.files.items():
+            fn = os.path.join(repo.working_dir, fn)
+            with open(fn, 'w') as f:
+                f.write(content)
+            repo.index.add([fn])
+
+        self.patch_number = repo.index.commit(msg).hexsha
+
+        repo.create_head(self.getMRReference(), self.patch_number, force=True)
+        self.mr_ref.set_commit(self.patch_number)
+        repo.head.reference = 'master'
+        repo.git.clean('-x', '-f', '-d')
+        repo.heads['master'].checkout()
+
+    def _updateTimeStamp(self):
+        self.updated_at = datetime.datetime.now()
+
+    def getMergeRequestEvent(self):
+        name = 'gl_merge_request'
+        data = {
+            'object_kind': 'merge_request',
+            'project': {
+                'path_with_namespace': self.project
+            },
+            'object_attributes': {
+                'title': self.title,
+                'created_at': self.created_at.strftime(
+                    '%Y-%m-%d %H:%M:%S UTC'),
+                'updated_at': self.updated_at.strftime(
+                    '%Y-%m-%d %H:%M:%S UTC'),
+                'iid': self.number,
+                'target_branch': self.branch,
+                'last_commit': {
+                    'id': self.patch_number,
+                }
+            },
+        }
+        return (name, data)
 
 
 class GithubChangeReference(git.Reference):
@@ -2902,6 +3082,7 @@ class ZuulWebFixture(fixtures.Fixture):
             config,
             include_drivers=[zuul.driver.sql.SQLDriver,
                              zuul.driver.github.GithubDriver,
+                             zuul.driver.gitlab.GitlabDriver,
                              zuul.driver.pagure.PagureDriver])
         self.authenticators = zuul.lib.auth.AuthenticatorRegistry()
         self.authenticators.configure(config)

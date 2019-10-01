@@ -13,7 +13,10 @@
 # under the License.
 
 import logging
+import voluptuous as v
+from zuul.driver.gitlab.gitlabmodel import GitlabEventFilter
 from zuul.trigger import BaseTrigger
+from zuul.driver.util import scalar_or_list, to_list
 
 
 class GitlabTrigger(BaseTrigger):
@@ -22,6 +25,13 @@ class GitlabTrigger(BaseTrigger):
 
     def getEventFilters(self, trigger_config):
         efilters = []
+        for trigger in to_list(trigger_config):
+            f = GitlabEventFilter(
+                trigger=self,
+                types=to_list(trigger['event']),
+                actions=to_list(trigger.get('action')),
+            )
+            efilters.append(f)
         return efilters
 
     def onPullRequest(self, payload):
@@ -29,5 +39,9 @@ class GitlabTrigger(BaseTrigger):
 
 
 def getSchema():
-    gitlab_trigger = {}
+    gitlab_trigger = {
+        v.Required('event'):
+            scalar_or_list(v.Any('gl_merge_request')),
+        'action': scalar_or_list(str),
+    }
     return gitlab_trigger
