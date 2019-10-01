@@ -170,9 +170,7 @@
     msg: "{{ log_url }}"
 - name: Fetch log URL
   get_url:
-    url: "{{ log_url }}job-output.txt.gz"
-    dest: "{{ workspace }}/job-output.txt.gz"
-- name: Uncompress log
-  command: "gunzip -f {{ workspace }}/job-output.txt.gz"
+    url: "{{ log_url }}job-output.txt"
+    dest: "{{ workspace }}/job-output.txt"
 - name: Verify log contents
   command: "grep 'Hello world!' {{ workspace }}/job-output.txt"
