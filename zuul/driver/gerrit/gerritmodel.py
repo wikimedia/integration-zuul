@@ -99,7 +99,7 @@ class GerritChange(Change):
         self.project = connection.source.getProject(data['project'])
         self.id = data['change_id']
         self.branch = data['branch']
-        self.url = '%s/%s' % (baseurl, self.number)
+        self.url = '%s://%s/%s' % (urlparse.scheme, baseurl, self.number)
         self.uris = [
             '%s/%s' % (baseurl, self.number),
             '%s/#/c/%s' % (baseurl, self.number),
