@@ -45,8 +45,9 @@ class Manifest extends React.Component {
           </span>),
         (log_url, path, name, obj) => (
           <span>
-            <a href={log_url + path + name}>{obj.name}</a>
-            &nbsp;<span className="fa fa-external-link"/>
+            {obj.name}
+            &nbsp;&nbsp;(<a href={log_url + path + name}>raw</a>
+            &nbsp;<span className="fa fa-external-link"/>)
           </span>
         )))
 
