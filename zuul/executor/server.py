@@ -705,6 +705,8 @@ class AnsibleJob(object):
         logger = logging.getLogger("zuul.AnsibleJob")
         self.arguments = json.loads(job.arguments)
         self.zuul_event_id = self.arguments.get('zuul_event_id')
+        # Record ansible version being used for the cleanup phase
+        self.ansible_version = self.arguments.get('ansible_version')
         self.log = get_annotated_logger(
             logger, self.zuul_event_id, build=job.unique)
         self.executor_server = executor_server
@@ -1175,7 +1177,6 @@ class AnsibleJob(object):
 
     def runPlaybooks(self, args):
         result = None
-        ansible_version = args.get('ansible_version')
 
         with open(self.jobdir.job_output_file, 'a') as job_output:
             job_output.write("{now} | Running Ansible setup...\n".format(
@@ -1188,7 +1189,7 @@ class AnsibleJob(object):
         # between here and the hosts in the inventory; return them and
         # reschedule the job.
         setup_status, setup_code = self.runAnsibleSetup(
-            self.jobdir.setup_playbook, ansible_version)
+            self.jobdir.setup_playbook, self.ansible_version)
         if setup_status != self.RESULT_NORMAL or setup_code != 0:
             return result
 
@@ -1200,8 +1201,6 @@ class AnsibleJob(object):
                 key, (time.monotonic() - self.time_starting_build) * 1000)
 
         self.started = True
-        # Record ansible version being used for the cleanup phase
-        self.ansible_version = ansible_version
         time_started = time.time()
         # timeout value is "total" job timeout which accounts for
         # pre-run and run playbooks. post-run is different because
@@ -1212,7 +1211,7 @@ class AnsibleJob(object):
             # TODOv3(pabelanger): Implement pre-run timeout setting.
             ansible_timeout = self.getAnsibleTimeout(time_started, job_timeout)
             pre_status, pre_code = self.runAnsiblePlaybook(
-                playbook, ansible_timeout, ansible_version, phase='pre',
+                playbook, ansible_timeout, self.ansible_version, phase='pre',
                 index=index)
             if pre_status != self.RESULT_NORMAL or pre_code != 0:
                 # These should really never fail, so return None and have
@@ -1232,8 +1231,8 @@ class AnsibleJob(object):
                 ansible_timeout = self.getAnsibleTimeout(
                     time_started, job_timeout)
                 job_status, job_code = self.runAnsiblePlaybook(
-                    playbook, ansible_timeout, ansible_version, phase='run',
-                    index=index)
+                    playbook, ansible_timeout, self.ansible_version,
+                    phase='run', index=index)
                 if job_status == self.RESULT_ABORTED:
                     return 'ABORTED'
                 elif job_status == self.RESULT_TIMED_OUT:
@@ -1271,8 +1270,8 @@ class AnsibleJob(object):
             # which are vital to understanding why timeouts have happened in
             # the first place.
             post_status, post_code = self.runAnsiblePlaybook(
-                playbook, post_timeout, ansible_version, success, phase='post',
-                index=index)
+                playbook, post_timeout, self.ansible_version, success,
+                phase='post', index=index)
             if post_status == self.RESULT_ABORTED:
                 return 'ABORTED'
             if post_status == self.RESULT_UNREACHABLE:
