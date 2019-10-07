@@ -32,7 +32,8 @@ export const addApiError = error => {
     d.text = error.response.statusText
     d.status = error.response.status
   } else {
-    d.status = 'Unable to fetch URL, check your network connectivity, browser plugins, and ad-blockers'
+    d.status = 'Unable to fetch URL, check your network connectivity,'
+        + ' browser plugins, ad-blockers, or try to refresh this page'
     d.text = error.message
   }
   return addError(d)
