@@ -1299,12 +1299,20 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
             baseurl, api_token, project, token_exp_date)
         self.session = None
         self.pull_requests = pull_requests_db
+        self.return_post_error = None
 
-    def gen_error(self, verb):
-        return {
-            'error': 'some error',
-            'error_code': 'some error code'
-        }, 503, "", verb
+    def gen_error(self, verb, custom_only=False):
+        if verb == 'POST' and self.return_post_error:
+            return {
+                'error': self.return_post_error['error'],
+                'error_code': self.return_post_error['error_code']
+            }, 401, "", 'POST'
+            self.return_post_error = None
+        if not custom_only:
+            return {
+                'error': 'some error',
+                'error_code': 'some error code'
+            }, 503, "", verb
 
     def _get_pr(self, match):
         project, number = match.groups()
@@ -1352,6 +1360,11 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
         self.log.info(
             "Posting on resource %s, params (%s) ..." % (url, params))
 
+        # Will only match if return_post_error is set
+        err = self.gen_error("POST", custom_only=True)
+        if err:
+            return err
+
         match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/merge$', url)
         if match:
             pr = self._get_pr(match)
@@ -1390,6 +1403,7 @@ class FakePagureConnection(pagureconnection.PagureConnection):
         self.reports = []
         self.rpcclient = rpcclient
         self.cloneurl = self.upstream_root
+        self.connectors = {}
 
     def _refresh_project_connectors(self, project):
         connector = self.connectors.setdefault(

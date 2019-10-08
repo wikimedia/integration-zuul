@@ -944,3 +944,40 @@ class TestPagureWebhook(ZuulTestCase):
                          self.getJobFromHistory('project-test1').result)
         self.assertEqual('SUCCESS',
                          self.getJobFromHistory('project-test2').result)
+
+
+class TestPagureProjectConnector(ZuulTestCase):
+    config_file = 'zuul-pagure-driver.conf'
+
+    @simple_layout('layouts/basic-pagure.yaml', driver='pagure')
+    def test_connectors(self):
+
+        project_api_token_exp_date = self.fake_pagure.connectors[
+            'org/project']['api_client'].token_exp_date
+
+        A = self.fake_pagure.openFakePullRequest(
+            'org/project', 'master', 'A')
+        self.fake_pagure.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        self.assertEqual(
+            project_api_token_exp_date,
+            self.fake_pagure.connectors[
+                'org/project']['api_client'].token_exp_date)
+
+        # Now force a POST error with EINVALIDTOK code and check
+        # The connector has been refreshed
+        self.fake_pagure.connectors[
+            'org/project']['api_client'].return_post_error = {
+                'error': 'Invalid or expired token',
+                'error_code': 'EINVALIDTOK'
+        }
+
+        self.fake_pagure.emitEvent(A.getPullRequestUpdatedEvent())
+        self.waitUntilSettled()
+
+        # Expiry date changed meaning the token has been refreshed
+        self.assertNotEqual(
+            project_api_token_exp_date,
+            self.fake_pagure.connectors[
+                'org/project']['api_client'].token_exp_date)
