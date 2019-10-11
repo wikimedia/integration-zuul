@@ -109,6 +109,23 @@ class TestGerrit(BaseTestCase):
                 GerritConnection._checkRefFormat(ref),
                 ref + ' shall be ' + ('accepted' if accepted else 'rejected'))
 
+    def test_getGitURL(self):
+        gerrit_config = {
+            'user': 'gerrit',
+            'server': 'localhost',
+            'password': '1/badpassword',
+        }
+        # The 1/ in the password ensures we test the url encoding
+        # path; this is the format of password we get from
+        # googlesource.com.
+        driver = GerritDriver()
+        gerrit = GerritConnection(driver, 'review_gerrit', gerrit_config)
+        project = gerrit.source.getProject('org/project')
+        url = gerrit.source.getGitUrl(project)
+        self.assertEqual(
+            'https://gerrit:1%2Fbadpassword@localhost/org/project',
+            url)
+
 
 class TestGerritWeb(ZuulTestCase):
     config_file = 'zuul-gerrit-web.conf'

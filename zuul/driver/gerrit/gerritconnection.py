@@ -1296,7 +1296,12 @@ class GerritConnection(BaseConnection):
     def getGitUrl(self, project: Project) -> str:
         if self.session:
             baseurl = list(urllib.parse.urlparse(self.baseurl))
-            baseurl[1] = '%s:%s@%s' % (self.user, self.password, baseurl[1])
+            # Make sure we escape '/' symbols, otherwise git's url
+            # parser will think the username is a hostname.
+            baseurl[1] = '%s:%s@%s' % (
+                urllib.parse.quote(self.user, safe=''),
+                urllib.parse.quote(self.password, safe=''),
+                baseurl[1])
             baseurl = urllib.parse.urlunparse(baseurl)
             url = ('%s/%s' % (baseurl, project.name))
         else:
