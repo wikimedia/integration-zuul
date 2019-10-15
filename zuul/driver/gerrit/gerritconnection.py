@@ -882,7 +882,7 @@ class GerritConnection(BaseConnection):
             # Good question.  It's probably ref-updated, which, ah,
             # means it's merged.
             return True
-        if change.missing_labels < set(allow_needs):
+        if change.missing_labels <= set(allow_needs):
             return True
         return False
 
