@@ -215,6 +215,9 @@ class TestGithubDriver(ZuulTestCase):
         self.assertEqual('refs/tags/newtag', build_params['zuul']['ref'])
         self.assertFalse('oldrev' in build_params['zuul'])
         self.assertEqual(sha, build_params['zuul']['newrev'])
+        self.assertEqual(
+            'https://github.com/org/project/releases/tag/newtag',
+            build_params['zuul']['change_url'])
         self.executor_server.hold_jobs_in_build = False
         self.executor_server.release()
         self.waitUntilSettled()
@@ -241,6 +244,9 @@ class TestGithubDriver(ZuulTestCase):
         self.assertEqual('refs/heads/master', build_params['zuul']['ref'])
         self.assertFalse('oldrev' in build_params['zuul'])
         self.assertEqual(new_sha, build_params['zuul']['newrev'])
+        self.assertEqual(
+            'https://github.com/org/project/commit/%s' % new_sha,
+            build_params['zuul']['change_url'])
 
         self.executor_server.hold_jobs_in_build = False
         self.executor_server.release()
