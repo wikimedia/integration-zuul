@@ -49,6 +49,7 @@ class MQTTReporter(BaseReporter):
                 'uuid': item.current_build_set.uuid,
                 'builds': []
             },
+            'zuul_event_id': item.event.zuul_event_id,
         }
         for job in item.getJobs():
             job_informations = {

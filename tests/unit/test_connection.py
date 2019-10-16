@@ -492,6 +492,7 @@ class TestMQTTConnection(ZuulTestCase):
         self.assertIn('timestamp', mqtt_payload)
         self.assertIn('enqueue_time', mqtt_payload)
         self.assertIn('trigger_time', mqtt_payload)
+        self.assertIn('zuul_event_id', mqtt_payload)
         self.assertEquals(dependent_test_job['dependencies'], ['test'])
 
     def test_mqtt_invalid_topic(self):
