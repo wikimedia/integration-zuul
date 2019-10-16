@@ -1061,9 +1061,11 @@ class GithubConnection(BaseConnection):
             change.is_current_patchset = (change.pr.get('head').get('sha') ==
                                           event.patch_number)
         else:
+            tag = None
             if event.ref and event.ref.startswith('refs/tags/'):
                 change = Tag(project)
-                change.tag = event.ref[len('refs/tags/'):]
+                tag = event.ref[len('refs/tags/'):]
+                change.tag = tag
             elif event.ref and event.ref.startswith('refs/heads/'):
                 change = Branch(project)
                 change.branch = event.ref[len('refs/heads/'):]
@@ -1072,7 +1074,9 @@ class GithubConnection(BaseConnection):
             change.ref = event.ref
             change.oldrev = event.oldrev
             change.newrev = event.newrev
-            change.url = self.getGitwebUrl(project, sha=event.newrev)
+            # In case we have a tag, we build the url pointing to this
+            # tag/release on GitHub.
+            change.url = self.getGitwebUrl(project, sha=event.newrev, tag=tag)
             change.source_event = event
             if hasattr(event, 'commits'):
                 change.files = self.getPushedFileNames(event)
@@ -1278,9 +1282,11 @@ class GithubConnection(BaseConnection):
 
         return 'https://%s/%s' % (self.server, project.name)
 
-    def getGitwebUrl(self, project, sha=None):
+    def getGitwebUrl(self, project, sha=None, tag=None):
         url = 'https://%s/%s' % (self.server, project)
-        if sha is not None:
+        if tag is not None:
+            url += '/releases/tag/%s' % tag
+        elif sha is not None:
             url += '/commit/%s' % sha
         return url
 
