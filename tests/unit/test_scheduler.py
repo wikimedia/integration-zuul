@@ -6347,6 +6347,19 @@ class TestDependencyGraph(ZuulTestCase):
             dict(name='deploy', result='SUCCESS', changes='1,1'),
         ], ordered=False)
 
+    @simple_layout('layouts/soft-dependencies.yaml')
+    def test_soft_dependencies_failure(self):
+        file_dict = {'main.c': 'test'}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.executor_server.failJob('build', A)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='build', result='FAILURE', changes='1,1'),
+        ], ordered=False)
+        self.assertIn('SKIPPED', A.messages[0])
+
 
 class TestDuplicatePipeline(ZuulTestCase):
     tenant_config_file = 'config/duplicate-pipeline/main.yaml'

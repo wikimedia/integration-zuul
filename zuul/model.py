@@ -2622,13 +2622,13 @@ class QueueItem(object):
                 build.job.name)
 
             if not zuul_return:
-                # If zuul.child_jobs exists and is empty, user want to skip all
-                # child jobs.
+                # If zuul.child_jobs exists and is empty, the user
+                # wants to skip all child jobs.
                 to_skip = self.job_graph.getDependentJobsRecursively(
                     build.job.name, skip_soft=True)
                 skipped += to_skip
             else:
-                # We have list of jobs to run.
+                # The user supplied a list of jobs to run.
                 intersect_jobs = dependent_jobs.intersection(zuul_return)
 
                 for skip in (dependent_jobs - intersect_jobs):
@@ -2640,7 +2640,7 @@ class QueueItem(object):
 
         elif build.result != 'SUCCESS' and not build.paused:
             to_skip = self.job_graph.getDependentJobsRecursively(
-                build.job.name, skip_soft=True)
+                build.job.name)
             skipped += to_skip
 
         for job in skipped:
