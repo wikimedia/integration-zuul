@@ -846,7 +846,6 @@ class TestGithubDriver(ZuulTestCase):
 
         # record previous tenant reconfiguration time, which may not be set
         old = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
-        time.sleep(1)
         self.waitUntilSettled()
 
         if expected_cat_jobs is not None:
@@ -1286,7 +1285,6 @@ class TestGithubUnprotectedBranches(ZuulTestCase):
         # record previous tenant reconfiguration time, which may not be set
         old = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
         self.waitUntilSettled()
-        time.sleep(1)
 
         self.fake_github.emitEvent(pevent)
         self.waitUntilSettled()
@@ -1329,7 +1327,6 @@ class TestGithubUnprotectedBranches(ZuulTestCase):
         # record previous tenant reconfiguration time, which may not be set
         old = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
         self.waitUntilSettled()
-        time.sleep(1)
 
         # Delete the branch
         repo._delete_branch('master')

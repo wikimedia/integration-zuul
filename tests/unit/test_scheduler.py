@@ -3214,7 +3214,6 @@ class TestScheduler(ZuulTestCase):
 
         # record previous tenant reconfiguration time, which may not be set
         old = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
-        time.sleep(1)
         self.waitUntilSettled()
 
         command_socket = self.config.get('scheduler', 'command_socket')
