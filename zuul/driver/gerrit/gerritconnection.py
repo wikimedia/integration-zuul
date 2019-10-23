@@ -935,23 +935,25 @@ class GerritConnection(BaseConnection):
     def eventDone(self):
         self.event_queue.task_done()
 
-    def review(self, item, message, action={},
-               file_comments={}, zuul_event_id=None):
+    def review(self, item, message, submit, labels, checks_api,
+               file_comments, zuul_event_id=None):
         if self.session:
             meth = self.review_http
         else:
             meth = self.review_ssh
-        return meth(item, message, action=action,
-                    file_comments=file_comments, zuul_event_id=zuul_event_id)
+        return meth(item, message, submit, labels, checks_api,
+                    file_comments, zuul_event_id=zuul_event_id)
 
-    def review_ssh(self, item, message, action={},
-                   file_comments={}, zuul_event_id=None):
+    def review_ssh(self, item, message, submit, labels, checks_api,
+                   file_comments, zuul_event_id=None):
         change = item.change
         project = change.project.name
         cmd = 'gerrit review --project %s' % project
         if message:
             cmd += ' --message %s' % shlex.quote(message)
-        for key, val in action.items():
+        if submit:
+            cmd += ' --submit'
+        for key, val in labels.items():
             if val is True:
                 cmd += ' --%s' % key
             else:
@@ -1000,22 +1002,12 @@ class GerritConnection(BaseConnection):
                                   "attempt %s", x)
                     time.sleep(x * 10)
 
-    def review_http(self, item, message, action={},
-                    file_comments={}, zuul_event_id=None):
+    def review_http(self, item, message, submit, labels,
+                    checks_api, file_comments, zuul_event_id=None):
         change = item.change
         log = get_annotated_logger(self.log, zuul_event_id)
         data = dict(message=message,
                     strict_labels=False)
-        submit = False
-        labels = {}
-        for key, val in action.items():
-            if key == 'checks_api':
-                continue
-            if val is True:
-                if key == 'submit':
-                    submit = True
-            else:
-                labels[key] = val
         if change.is_current_patchset:
             if labels:
                 data['labels'] = labels
@@ -1038,8 +1030,8 @@ class GerritConnection(BaseConnection):
             urllib.parse.quote(str(change.project), safe=''),
             urllib.parse.quote(str(change.branch), safe=''),
             change.id)
-        if 'checks_api' in action:
-            self.report_checks(log, item, changeid, action['checks_api'])
+        if checks_api:
+            self.report_checks(log, item, changeid, checks_api)
         if (message or data.get('labels') or data.get('comments')):
             for x in range(1, 4):
                 try:

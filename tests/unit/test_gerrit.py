@@ -309,6 +309,8 @@ class TestChecksApi(ZuulTestCase):
                          'Change passed all voting jobs')
         self.assertHistory([
             dict(name='test-job', result='SUCCESS', changes='1,1')])
+        self.assertEqual(A.reported, 0, "no messages should be reported")
+        self.assertEqual(A.messages, [], "no messages should be reported")
 
     @simple_layout('layouts/gerrit-checks.yaml')
     def test_gate_pipeline(self):
@@ -331,6 +333,8 @@ class TestChecksApi(ZuulTestCase):
         self.assertHistory([
             dict(name='test-job', result='SUCCESS', changes='1,1')])
         self.assertEqual(A.data['status'], 'MERGED')
+        self.assertEqual(A.reported, 2,
+                         "start and success messages should be reported")
 
     @simple_layout('layouts/gerrit-checks-scheme.yaml')
     def test_check_pipeline_scheme(self):
