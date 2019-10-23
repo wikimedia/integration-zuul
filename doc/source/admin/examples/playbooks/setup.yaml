@@ -10,11 +10,11 @@
       args:
         creates: /var/ssh/admin.pub
     - name: Generate Zuul SSH key for Gerrit
-      command: ssh-keygen -f /var/ssh/zuul -N ''
+      command: ssh-keygen -f /var/ssh/zuul -N '' -t rsa -m PEM
       args:
         creates: /var/ssh/zuul.pub
     - name: Generate Zuul SSH key for Nodepool
-      command: ssh-keygen -f /var/ssh/nodepool -N ''
+      command: ssh-keygen -f /var/ssh/nodepool -N '' -t rsa -m PEM
       args:
         creates: /var/ssh/nodepool.pub
     - name: Add Nodepool key to node authorized_keys file

@@ -14,7 +14,7 @@ into the nodes that Nodepool provides.
 
    sudo groupadd --system nodepool
    sudo useradd --system nodepool --home-dir /var/lib/nodepool --create-home -g nodepool
-   ssh-keygen -t rsa -b 2048 -f nodepool_rsa  # don't enter a passphrase
+   ssh-keygen -t rsa -m PEM -b 2048 -f nodepool_rsa  # don't enter a passphrase
    sudo mkdir /etc/nodepool/
    sudo mkdir /var/log/nodepool
    sudo chgrp -R nodepool /var/log/nodepool/

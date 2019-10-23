@@ -585,6 +585,10 @@ The following sections of ``zuul.conf`` are used by the executor:
 
       SSH private key file to be used when logging into worker nodes.
 
+      .. note:: If you use an RSA key, ensure it is encoded in the PEM
+                format (use the ``-t rsa -m PEM`` arguments to
+                `ssh-keygen`).
+
    .. attr:: default_username
       :default: zuul
 
