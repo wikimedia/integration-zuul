@@ -727,12 +727,12 @@ class GerritWebServer(object):
                     return self._404()
 
                 message = data['message']
-                action = data.get('labels', {})
+                labels = data.get('labels', {})
                 comments = data.get('robot_comments', data.get('comments', {}))
                 tag = data.get('tag', None)
                 fake_gerrit._test_handle_review(
-                    int(change.data['number']), message, action, comments,
-                    tag=tag)
+                    int(change.data['number']), message, False, labels,
+                    comments, tag=tag)
                 self.send_response(200)
                 self.end_headers()
 
@@ -742,9 +742,9 @@ class GerritWebServer(object):
                     return self._404()
 
                 message = None
-                action = {'submit': True}
+                labels = {}
                 fake_gerrit._test_handle_review(
-                    int(change.data['number']), message, action)
+                    int(change.data['number']), message, True, labels)
                 self.send_response(200)
                 self.end_headers()
 
@@ -973,14 +973,16 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         }
         return event
 
-    def review(self, item, message, action={}, file_comments={},
+    def review(self, item, message, submit, labels, checks_api, file_comments,
                zuul_event_id=None):
         if self.web_server:
             return super(FakeGerritConnection, self).review(
-                item, message, action, file_comments)
-        self._test_handle_review(int(item.change.number), message, action)
+                item, message, submit, labels, checks_api, file_comments,
+                zuul_event_id)
+        self._test_handle_review(int(item.change.number), message, submit,
+                                 labels)
 
-    def _test_handle_review(self, change_number, message, action,
+    def _test_handle_review(self, change_number, message, submit, labels,
                             file_comments=None, tag=None):
         # Handle a review action from a test
         change = self.changes[change_number]
@@ -995,10 +997,9 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         # happens they can add their own verified event into the queue.
         # Nevertheless, we can update change with the new review in gerrit.
 
-        for cat in action:
-            if cat != 'submit':
-                change.addApproval(cat, action[cat], username=self.user,
-                                   tag=tag)
+        for cat in labels:
+            change.addApproval(cat, labels[cat], username=self.user,
+                               tag=tag)
 
         if message:
             change.messages.append(message)
@@ -1010,7 +1011,7 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
                                       comment['message'], 'Zuul',
                                       'zuul@example.com', self.user,
                                       comment.get('range'))
-        if 'submit' in action:
+        if submit:
             change.setMerged()
         if message:
             change.setReported()

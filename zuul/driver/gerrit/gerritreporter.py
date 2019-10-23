@@ -26,6 +26,15 @@ class GerritReporter(BaseReporter):
     name = 'gerrit'
     log = logging.getLogger("zuul.GerritReporter")
 
+    def __init__(self, driver, connection, config=None):
+        super(GerritReporter, self).__init__(driver, connection, config)
+        action = self.config.copy()
+        self._create_comment = action.pop('comment', True)
+        self._submit = action.pop('submit', False)
+        self._checks_api = action.pop('checks-api',
+                                      action.pop('checks_api', None))
+        self._labels = action
+
     def _getFileComments(self, item):
         ret = {}
         for build in item.current_build_set.getBuilds():
@@ -54,14 +63,18 @@ class GerritReporter(BaseReporter):
 
         comments = self._getFileComments(item)
         self.filterComments(item, comments)
-        message = self._formatItemReport(item)
+        if self._create_comment:
+            message = self._formatItemReport(item)
+        else:
+            message = ''
 
         log.debug("Report change %s, params %s, message: %s, comments: %s",
                   item.change, self.config, message, comments)
         item.change._ref_sha = item.change.project.source.getRefSha(
             item.change.project, 'refs/heads/' + item.change.branch)
 
-        return self.connection.review(item, message, self.config,
+        return self.connection.review(item, message, self._submit,
+                                      self._labels, self._checks_api,
                                       comments, zuul_event_id=item.event)
 
     def getSubmitAllowNeeds(self):
@@ -70,7 +83,7 @@ class GerritReporter(BaseReporter):
         to this queue.  In other words, the list of review labels
         this reporter itself is likely to set before submitting.
         """
-        return self.config
+        return self._labels
 
 
 def getSchema():

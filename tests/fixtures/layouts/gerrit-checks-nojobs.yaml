@@ -7,31 +7,31 @@
           uuid: 'zuul:check'
     enqueue:
       gerrit:
-        checks_api:
+        checks-api:
           uuid: 'zuul:check'
           state: SCHEDULED
           message: 'Change has been enqueued in check'
     start:
       gerrit:
-        checks_api:
+        checks-api:
           uuid: 'zuul:check'
           state: RUNNING
           message: 'Jobs have started running'
     no-jobs:
       gerrit:
-        checks_api:
+        checks-api:
           uuid: 'zuul:check'
           state: NOT_RELEVANT
           message: 'Change has no jobs configured'
     success:
       gerrit:
-        checks_api:
+        checks-api:
           uuid: 'zuul:check'
           state: SUCCESSFUL
           message: 'Change passed all voting jobs'
     failure:
       gerrit:
-        checks_api:
+        checks-api:
           uuid: 'zuul:check'
           state: FAILED
           message: 'Change failed'
@@ -45,20 +45,20 @@
           uuid: 'zuul:gate'
     enqueue:
       gerrit:
-        checks_api:
+        checks-api:
           uuid: 'zuul:gate'
           state: SCHEDULED
           message: 'Change has been enqueued in gate'
     start:
       gerrit:
         Verified: 0
-        checks_api:
+        checks-api:
           uuid: 'zuul:gate'
           state: RUNNING
           message: 'Jobs have started running'
     no-jobs:
       gerrit:
-        checks_api:
+        checks-api:
           uuid: 'zuul:gate'
           state: NOT_RELEVANT
           message: 'Change has no jobs configured'
@@ -66,14 +66,14 @@
       gerrit:
         Verified: 2
         submit: true
-        checks_api:
+        checks-api:
           uuid: 'zuul:gate'
           state: SUCCESSFUL
           message: 'Change passed all voting jobs'
     failure:
       gerrit:
         Verified: -2
-        checks_api:
+        checks-api:
           uuid: 'zuul:gate'
           state: FAILED
           message: 'Change failed'

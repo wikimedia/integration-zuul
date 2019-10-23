@@ -224,16 +224,30 @@ be able to invoke the ``gerrit stream-events`` command over SSH.
 Reporter Configuration
 ----------------------
 
-Zuul works with standard versions of Gerrit by invoking the
-``gerrit`` command over an SSH connection.  It reports back to
-Gerrit using SSH.
+Zuul works with standard versions of Gerrit by invoking the ``gerrit``
+command over an SSH connection, unless the connection is configured
+with an HTTP password, in which case the HTTP API is used.
 
-The dictionary passed to the Gerrit reporter is used for ``gerrit
-review`` arguments, with the boolean value of ``true`` simply
-indicating that the argument should be present without following it
-with a value. For example, ``verified: 1`` becomes ``gerrit review
---verified 1`` and ``submit: true`` becomes ``gerrit review
---submit``.
+.. attr:: pipeline.reporter.<gerrit reporter>
+
+   The dictionary passed to the Gerrit reporter is used to provide label
+   values to Gerrit.  To set the `Verified` label to `1`, add ``verified:
+   1`` to the dictionary.
+
+   The following additional keys are recognized:
+
+   .. attr:: submit
+      :default: False
+
+      Set this to ``True`` to submit (merge) the change.
+
+   .. attr:: comment
+      :default: True
+
+      If this is true (the default), Zuul will leave review messages
+      on the change (including job results).  Set this to false to
+      disable this behavior (file and line commands will still be sent
+      if present).
 
 A :ref:`connection<connections>` that uses the gerrit driver must be
 supplied to the trigger.
@@ -412,31 +426,31 @@ configure a pipeline like this:
              uuid: 'zuul:check'
        enqueue:
          gerrit:
-           checks_api:
+           checks-api:
              uuid: 'zuul:check'
              state: SCHEDULED
              message: 'Change has been enqueued in check'
        start:
          gerrit:
-           checks_api:
+           checks-api:
              uuid: 'zuul:check'
              state: RUNNING
              message: 'Jobs have started running'
        no-jobs:
          gerrit:
-           checks_api:
+           checks-api:
              uuid: 'zuul:check'
              state: NOT_RELEVANT
              message: 'Change has no jobs configured'
        success:
          gerrit:
-           checks_api:
+           checks-api:
              uuid: 'zuul:check'
              state: SUCCESSFUL
              message: 'Change passed all voting jobs'
        failure:
          gerrit:
-           checks_api:
+           checks-api:
              uuid: 'zuul:check'
              state: FAILED
              message: 'Change failed'
@@ -459,31 +473,31 @@ names such as ``zuul_check:project1``, ``zuul_gate:project1``,
              scheme: 'zuul_check'
        enqueue:
          gerrit:
-           checks_api:
+           checks-api:
              scheme: 'zuul_check'
              state: SCHEDULED
              message: 'Change has been enqueued in check'
        start:
          gerrit:
-           checks_api:
+           checks-api:
              scheme: 'zuul_check'
              state: RUNNING
              message: 'Jobs have started running'
        no-jobs:
          gerrit:
-           checks_api:
+           checks-api:
              scheme: 'zuul_check'
              state: NOT_RELEVANT
              message: 'Change has no jobs configured'
        success:
          gerrit:
-           checks_api:
+           checks-api:
              scheme: 'zuul_check'
              state: SUCCESSFUL
              message: 'Change passed all voting jobs'
        failure:
          gerrit:
-           checks_api:
+           checks-api:
              scheme: 'zuul_check'
              state: FAILED
              message: 'Change failed'
