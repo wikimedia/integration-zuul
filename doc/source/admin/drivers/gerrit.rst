@@ -15,6 +15,10 @@ create a Gerrit user with that key::
 
   cat ~/id_rsa.pub | ssh -p29418 review.example.com gerrit create-account --ssh-key - --full-name Zuul zuul
 
+.. note:: If you use an RSA key, ensure it is encoded in the PEM
+          format (use the ``-t rsa -m PEM`` arguments to
+          `ssh-keygen`).
+
 Give that user whatever permissions will be needed on the projects you
 want Zuul to report on.  For instance, you may want to grant
 ``Verified +/-1`` and ``Submit`` to the user.  Additional categories
