@@ -31,8 +31,7 @@ class GerritReporter(BaseReporter):
         action = self.config.copy()
         self._create_comment = action.pop('comment', True)
         self._submit = action.pop('submit', False)
-        self._checks_api = action.pop('checks-api',
-                                      action.pop('checks_api', None))
+        self._checks_api = action.pop('checks-api', None)
         self._labels = action
 
     def _getFileComments(self, item):
