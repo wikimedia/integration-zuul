@@ -946,6 +946,11 @@ class GerritConnection(BaseConnection):
 
     def review_ssh(self, item, message, submit, labels, checks_api,
                    file_comments, zuul_event_id=None):
+        if checks_api:
+            log = get_annotated_logger(self.log, zuul_event_id)
+            log.error("Zuul is configured to report to the checks API, "
+                      "but no HTTP password is present for the connection "
+                      "in the configuration file.")
         change = item.change
         project = change.project.name
         cmd = 'gerrit review --project %s' % project
