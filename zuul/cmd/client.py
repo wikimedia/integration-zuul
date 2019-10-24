@@ -204,16 +204,14 @@ class Client(zuul.cmd.ZuulApp):
         cmd_autohold_delete = subparsers.add_parser(
             'autohold-delete', help='delete autohold request')
         cmd_autohold_delete.set_defaults(func=self.autohold_delete)
-        cmd_autohold_delete.add_argument('--id',
-                                         help='request ID',
-                                         required=True)
+        cmd_autohold_delete.add_argument('id', metavar='REQUEST_ID',
+                                         help='the hold request ID')
 
         cmd_autohold_info = subparsers.add_parser(
             'autohold-info', help='retrieve autohold request detailed info')
         cmd_autohold_info.set_defaults(func=self.autohold_info)
-        cmd_autohold_info.add_argument('--id',
-                                       help='request ID',
-                                       required=True)
+        cmd_autohold_info.add_argument('id', metavar='REQUEST_ID',
+                                       help='the hold request ID')
 
         cmd_autohold_list = subparsers.add_parser(
             'autohold-list', help='list autohold requests')
