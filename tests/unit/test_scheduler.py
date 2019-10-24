@@ -1797,6 +1797,7 @@ class TestScheduler(ZuulTestCase):
         request2 = self.zk.getHoldRequest(request.id)
         self.assertEqual(request.current_count + 1, request2.current_count)
         self.assertEqual(1, len(request2.nodes))
+        self.assertEqual(1, len(request2.nodes[0]["nodes"]))
 
         # Another failed change should not hold any more nodes
         C = self.fake_gerrit.addFakeChange('org/project', 'master', 'C')

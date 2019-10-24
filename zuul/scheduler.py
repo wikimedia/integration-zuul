@@ -1436,7 +1436,7 @@ class Scheduler(threading.Thread):
         request = self._getAutoholdRequest(build)
         self.log.debug("Got autohold %s", request)
         if request is not None:
-            self.nodepool.holdNodeSet(build.nodeset, request)
+            self.nodepool.holdNodeSet(build.nodeset, request, build)
 
     def _doBuildCompletedEvent(self, event):
         build = event.build
