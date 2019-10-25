@@ -785,9 +785,13 @@ class PagureConnection(BaseConnection):
         if self._hasRequiredStatusChecks(change):
             ci_flag = True
 
+        # By default project get -1 in "Minimum score to merge pull-request"
+        # But this makes the API to return None for threshold_reached. We need
+        # to handle this case as threshold_reached: True because it means
+        # no minimal score configured.
         threshold = pr.get('threshold_reached')
         if threshold is None:
-            self.log.debug("No threshold_reached attribute found")
+            threshold = True
 
         log.debug(
             'PR %s#%s mergeability details mergeable: %s '

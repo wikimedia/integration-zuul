@@ -460,7 +460,8 @@ class TestPagureDriver(ZuulTestCase):
         self.assertEqual(0, len(self.history))
 
         # Set the score threshold as reached
-        A.threshold_reached = True
+        # Here we use None that means no specific score is required
+        A.threshold_reached = None
         self.fake_pagure.emitEvent(A.getPullRequestOpenedEvent())
         self.waitUntilSettled()
         # connection.canMerge is not validated
