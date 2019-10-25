@@ -91,6 +91,9 @@ from zuul.driver.pagure.paguremodel import PagureTriggerEvent, PullRequest
 # https://docs.pagure.org/pagure/usage/project_settings.html?highlight=score#activate-only-assignee-can-merge-pull-request
 
 
+TOKEN_VALIDITY = 60 * 24 * 3600
+
+
 def _sign_request(body, secret):
     signature = hmac.new(
         secret.encode('utf-8'), body, hashlib.sha1).hexdigest()
@@ -408,6 +411,10 @@ class PagureAPIClient():
         if code < 400:
             return
         else:
+            if data.get('error_code', '') == 'EINVALIDTOK':
+                # Reset the expiry date of the cached API client
+                # to force the driver to refresh connectors
+                self.token_exp_date = int(time.time())
             raise PagureAPIClientException(
                 "Unable to %s on %s (code: %s) due to: %s" % (
                     verb, url, code, data
@@ -621,7 +628,7 @@ class PagureConnection(BaseConnection):
         api_token, webhook_token = pagure.get_connectors()
         connector = self.connectors.setdefault(
             project, {'api_client': None, 'webhook_token': None})
-        api_token_exp_date = api_token['created_at'] + 60 * 24 * 3600
+        api_token_exp_date = api_token['created_at'] + TOKEN_VALIDITY
         connector['api_client'] = PagureAPIClient(
             self.baseurl, api_token['id'], project,
             token_exp_date=api_token_exp_date)
