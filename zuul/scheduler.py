@@ -991,7 +991,7 @@ class Scheduler(threading.Thread):
                 trigger.postConfig(pipeline)
             for reporter in pipeline.actions:
                 reporter.postConfig()
-        self.tenant_last_reconfigured[tenant.name] = int(time.time())
+        self.tenant_last_reconfigured[tenant.name] = time.time()
         if self.statsd:
             try:
                 for pipeline in tenant.layout.pipelines.values():
