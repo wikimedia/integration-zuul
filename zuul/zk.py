@@ -592,7 +592,15 @@ class ZooKeeper(object):
         def getHeldNodeIDs(request):
             node_ids = []
             for data in request.nodes:
-                node_ids += data['nodes']
+                # TODO(Shrews): Remove type check at some point.
+                # When autoholds were initially changed to be stored in ZK,
+                # the node IDs were originally stored as a list of strings.
+                # A later change embedded them within a dict. Handle both
+                # cases here to deal with the upgrade.
+                if isinstance(data, dict):
+                    node_ids += data['nodes']
+                else:
+                    node_ids.append(data)
             return node_ids
 
         failure = False
