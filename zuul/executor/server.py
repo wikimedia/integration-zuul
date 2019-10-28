@@ -79,6 +79,10 @@ class RoleNotFoundError(ExecutorError):
     pass
 
 
+class PluginFoundError(ExecutorError):
+    pass
+
+
 class RepoLocks:
 
     def __init__(self):
@@ -1437,7 +1441,7 @@ class AnsibleJob(object):
         for entry in os.listdir(path):
             entry = os.path.join(path, entry)
             if os.path.isdir(entry) and entry.endswith('_plugins'):
-                raise ExecutorError(
+                raise PluginFoundError(
                     "Ansible plugin dir %s found adjacent to playbook %s in "
                     "non-trusted repo." % (entry, path))
 
@@ -1695,6 +1699,12 @@ class AnsibleJob(object):
         except RoleNotFoundError:
             if role['implicit']:
                 self.log.debug("Implicit role not found in %s", link)
+                return
+            raise
+        except PluginFoundError:
+            if role['implicit']:
+                self.log.info("Not adding implicit role %s due to "
+                              "plugin", link)
                 return
             raise
         if role_path is None:
