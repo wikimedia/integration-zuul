@@ -216,6 +216,9 @@ class ChangePanel extends React.Component {
         className = 'label-danger'
         break
       case 'unstable':
+      case 'retry_limit':
+      case 'post_failure':
+      case 'node_failure':
         className = 'label-warning'
         break
       case 'paused':
