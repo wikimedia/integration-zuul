@@ -75,11 +75,6 @@ location may be supplied on the command line) which uses an INI file
 syntax.  Each component may have its own configuration file, though
 you may find it simpler to use the same file for all components.
 
-Zuul will interpolate environment variables given in the config file
-escaped as python string expansion, so ``foo=%(HOME)s`` will set the
-value of ``foo`` to the same value as the environment variable named
-``HOME``.
-
 An example ``zuul.conf``:
 
 .. code-block:: ini
