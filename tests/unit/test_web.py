@@ -26,7 +26,7 @@ import zuul.web
 import zuul.rpcclient
 
 from tests.base import ZuulTestCase, ZuulDBTestCase, AnsibleZuulTestCase
-from tests.base import ZuulWebFixture, FIXTURE_DIR
+from tests.base import ZuulWebFixture, FIXTURE_DIR, iterate_timeout
 
 
 class FakeConfig(object):
@@ -1484,13 +1484,17 @@ class TestTenantScopedWebApi(BaseTestWeb):
 
     def test_dequeue(self):
         """Test that the admin web interface can dequeue a change"""
+        start_builds = len(self.builds)
         self.create_branch('org/project', 'stable')
         self.executor_server.hold_jobs_in_build = True
         self.commitConfigUpdate('common-config', 'layouts/timer.yaml')
         self.sched.reconfigure(self.config)
         self.waitUntilSettled()
 
-        time.sleep(5)
+        for _ in iterate_timeout(30, 'Wait for a build on hold'):
+            if len(self.builds) > start_builds:
+                break
+        self.waitUntilSettled()
 
         authz = {'iss': 'zuul_operator',
                  'aud': 'zuul.example.com',
