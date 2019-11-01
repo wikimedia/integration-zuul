@@ -123,7 +123,11 @@ class ZuulApp(object):
         return parser
 
     def readConfig(self):
-        self.config = configparser.ConfigParser()
+        safe_env = {
+            k: v for k, v in os.environ.items()
+            if k.startswith('ZUUL_')
+        }
+        self.config = configparser.ConfigParser(safe_env)
         if self.args.config:
             locations = [self.args.config]
         else:

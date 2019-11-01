@@ -39,7 +39,10 @@ class Dummy(object):
 
 class TestJob(BaseTestCase):
     def setUp(self):
+        self._env_fixture = self.useFixture(
+            fixtures.EnvironmentVariable('HISTTIMEFORMAT', '%Y-%m-%dT%T%z '))
         super(TestJob, self).setUp()
+        # Toss in % in env vars to trigger the configparser issue
         self.connections = zuul.lib.connections.ConnectionRegistry()
         self.addCleanup(self.connections.stop)
         self.connection = Dummy(connection_name='dummy_connection')
