@@ -1561,8 +1561,9 @@ class FakeGitlabAPIClient(gitlabconnection.GitlabAPIClient):
             return self.gen_error("GET")
         return mr
 
-    def get(self, url):
-        self.log.debug("Getting resource %s ..." % url)
+    def get(self, url, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        log.debug("Getting resource %s ..." % url)
 
         match = re.match(r'.+/projects/(.+)/merge_requests/(\d+)$', url)
         if match:
