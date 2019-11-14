@@ -184,7 +184,7 @@ class GitlabAPIClient():
         self.session = requests.Session()
         self.baseurl = '%s/api/v4/' % baseurl
         self.api_token = api_token
-        self.headers = {'Authorization': 'Authorization: Bearer %s' % (
+        self.headers = {'Authorization': 'Bearer %s' % (
             self.api_token)}
 
     def _manage_error(self, data, code, url, verb, zuul_event_id=None):
@@ -204,6 +204,15 @@ class GitlabAPIClient():
             ret.status_code, ret.text))
         return ret.json(), ret.status_code, ret.url, 'GET'
 
+    def post(self, url, params=None, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        log.info(
+            "Posting on resource %s, params (%s) ..." % (url, params))
+        ret = self.session.post(url, data=params, headers=self.headers)
+        log.debug("POST returned (code: %s): %s" % (
+            ret.status_code, ret.text))
+        return ret.json(), ret.status_code, ret.url, 'POST'
+
     # https://docs.gitlab.com/ee/api/merge_requests.html#get-single-mr
     def get_mr(self, project_name, number, zuul_event_id=None):
         path = "/projects/%s/merge_requests/%s" % (
@@ -219,6 +228,17 @@ class GitlabAPIClient():
         resp = self.get(self.baseurl + path, zuul_event_id=zuul_event_id)
         self._manage_error(*resp, zuul_event_id=zuul_event_id)
         return [branch['name'] for branch in resp[0]]
+
+    # https://docs.gitlab.com/ee/api/notes.html#create-new-merge-request-note
+    def comment_mr(self, project_name, number, msg, zuul_event_id=None):
+        path = "/projects/%s/merge_requests/%s/notes" % (
+            quote_plus(project_name), number)
+        params = {'body': msg}
+        resp = self.post(
+            self.baseurl + path, params=params,
+            zuul_event_id=zuul_event_id)
+        self._manage_error(*resp, zuul_event_id=zuul_event_id)
+        return resp[0]
 
 
 class GitlabConnection(BaseConnection):
@@ -392,6 +412,12 @@ class GitlabConnection(BaseConnection):
         mr = self.gl_client.get_mr(project_name, number, zuul_event_id=event)
         log.info('Got MR %s#%s', project_name, number)
         return mr
+
+    def commentMR(self, project_name, number, message, event=None):
+        log = get_annotated_logger(self.log, event)
+        self.gl_client.comment_mr(
+            project_name, number, message, zuul_event_id=event)
+        log.info("Commented on MR %s#%s", project_name, number)
 
 
 class GitlabWebController(BaseWebController):

@@ -6,6 +6,15 @@
         - event: gl_merge_request
           action:
             - opened
+    start:
+      gitlab:
+        comment: True
+    success:
+      gitlab:
+        comment: True
+    failure:
+      gitlab:
+        comment: True
 
 - job:
     name: base
@@ -16,8 +25,13 @@
     name: project-test1
     run: playbooks/project-test1.yaml
 
+- job:
+    name: project-test2
+    run: playbooks/project-test2.yaml
+
 - project:
     name: org/project
     check:
       jobs:
         - project-test1
+        - project-test2

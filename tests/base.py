@@ -1584,6 +1584,18 @@ class FakeGitlabAPIClient(gitlabconnection.GitlabAPIClient):
         if match:
             return [{'name': 'master'}], 200, "", "GET"
 
+    def post(self, url, params=None, zuul_event_id=None):
+
+        self.log.info(
+            "Posting on resource %s, params (%s) ..." % (url, params))
+
+        match = re.match(r'.+/projects/(.+)/merge_requests/(\d+)/notes$', url)
+        if match:
+            mr = self._get_mr(match)
+            mr.addNote(params['body'])
+
+        return {}, 200, "", "POST"
+
 
 class GitlabChangeReference(git.Reference):
     _common_path_default = "refs/merge-requests"
@@ -1612,6 +1624,7 @@ class FakeGitlabMergeRequest(object):
         self.merge_status = 'can_be_merged'
         self.uuid = uuid.uuid4().hex
         self.labels = []
+        self.notes = []
         self.upstream_root = upstream_root
         self.url = "https://%s/%s/merge_requests/%s" % (
             self.gitlab.server, urllib.parse.quote_plus(
@@ -1631,6 +1644,15 @@ class FakeGitlabMergeRequest(object):
 
     def getMRReference(self):
         return '%s/head' % self.number
+
+    def addNote(self, body):
+        self.notes.append(
+            {
+                "body": body,
+                "created_at": datetime.datetime.now().strftime(
+                    '%Y-%m-%dT%H:%M:%S.%fZ'),
+            }
+        )
 
     def _addCommitInMR(self, files=[], reset=False):
         repo = self._getRepo()

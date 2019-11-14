@@ -12,10 +12,13 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import re
 import socket
 
 from tests.base import ZuulTestCase, simple_layout
 from tests.base import ZuulWebFixture
+
+from testtools.matchers import MatchesRegex
 
 
 class TestGitlabWebhook(ZuulTestCase):
@@ -67,3 +70,42 @@ class TestGitlabWebhook(ZuulTestCase):
 
         self.assertEqual('SUCCESS',
                          self.getJobFromHistory('project-test1').result)
+
+
+class TestGitlabDriver(ZuulTestCase):
+    config_file = 'zuul-gitlab-driver.conf'
+
+    @simple_layout('layouts/basic-gitlab.yaml', driver='gitlab')
+    def test_pull_request_opened(self):
+
+        description = "This is the\nMR description."
+        A = self.fake_gitlab.openFakeMergeRequest(
+            'org/project', 'master', 'A', description=description)
+        self.fake_gitlab.emitEvent(
+            A.getMergeRequestEvent(), project='org/project')
+        self.waitUntilSettled()
+
+        self.assertEqual('SUCCESS',
+                         self.getJobFromHistory('project-test1').result)
+
+        self.assertEqual('SUCCESS',
+                         self.getJobFromHistory('project-test2').result)
+
+        job = self.getJobFromHistory('project-test2')
+        zuulvars = job.parameters['zuul']
+        self.assertEqual(str(A.number), zuulvars['change'])
+        self.assertEqual(str(A.patch_number), zuulvars['patchset'])
+        self.assertEqual('master', zuulvars['branch'])
+        self.assertEquals('https://gitlab/org/project/merge_requests/1',
+                          zuulvars['items'][0]['change_url'])
+        self.assertEqual(zuulvars["message"], description)
+        self.assertEqual(2, len(self.history))
+        self.assertEqual(2, len(A.notes))
+        self.assertEqual(
+            A.notes[0]['body'], "Starting check jobs.")
+        self.assertThat(
+            A.notes[1]['body'],
+            MatchesRegex(r'.*project-test1.*SUCCESS.*', re.DOTALL))
+        self.assertThat(
+            A.notes[1]['body'],
+            MatchesRegex(r'.*project-test2.*SUCCESS.*', re.DOTALL))
