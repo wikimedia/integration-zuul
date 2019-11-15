@@ -485,9 +485,6 @@ class FakeGithubClient(object):
         return FakePull(fake_pr)
 
     def search_issues(self, query):
-        def tokenize(s):
-            return re.findall(r'[\w]+', s)
-
         def query_is_sha(s):
             return re.match(r'[a-z0-9]{40}', s)
 
@@ -496,26 +493,26 @@ class FakeGithubClient(object):
                     for pr in self._data.pull_requests.values()
                     if pr.head_sha == query)
 
-        parts = tokenize(query)
-        terms = set()
-        results = []
-        for part in parts:
-            kv = part.split(':', 1)
-            if len(kv) == 2:
-                if kv[0] in set('type', 'is', 'in'):
-                    # We only perform one search now and these aren't
-                    # important; we can honor these terms later if
-                    # necessary.
-                    continue
-            terms.add(part)
+        # Non-SHA queries are of the form:
+        #
+        #     '<url> OR <url> OR ... type:pr is:open in:body'
+        #
+        # For the tests is currently enough to simply check for the
+        # existence of the URLs in the PR body.
+        urls = [u for u in (s.strip() for s in query.split())
+                if not re.match(r'(OR|(type|is|in):.+)', u)]
 
+        results = []
         for pr in self._data.pull_requests.values():
             if not pr.body:
-                body = set()
+                body = ""
             else:
-                body = set(tokenize(pr.body))
-            if terms.intersection(body):
-                issue = FakeIssue(pr)
-                results.append(FakeIssueSearchResult(issue))
+                body = pr.body
+            for url in urls:
+                if url in body:
+                    issue = FakeIssue(pr)
+                    results.append(FakeIssueSearchResult(issue))
+                    # No need to continue checking other URLs
+                    break
 
         return iter(results)

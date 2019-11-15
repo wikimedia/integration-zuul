@@ -101,7 +101,7 @@ class TestZuulTriggerParentChangeEnqueuedGithub(ZuulGithubAppTestCase):
         # and B2 in gate because of differing pipeline requirements.
         self.executor_server.hold_jobs_in_build = True
         A = self.fake_github.openFakePullRequest('org/project', 'master', 'A')
-        msg = "Depends-On: https://github.com/org/project1/pull/%s" % A.number
+        msg = "Depends-On: https://github.com/org/project/pull/%s" % A.number
         B1 = self.fake_github.openFakePullRequest(
             'org/project', 'master', 'B1', body=msg)
         B2 = self.fake_github.openFakePullRequest(
