@@ -1,0 +1,4 @@
+---
+features:
+  - |
+    A new config option enable executor to not performed global merge job.

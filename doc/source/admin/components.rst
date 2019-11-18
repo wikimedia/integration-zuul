@@ -775,6 +775,15 @@ The following sections of ``zuul.conf`` are used by the executor:
             node-attributes:
               executor-zone: vpn
 
+   .. attr:: merge_jobs
+      :default: True
+
+      To disable global merge job, set it to false. This is useful for zoned
+      executors that are running on slow network where you don't want them to
+      perform merge operations for any events. The executor will still perform
+      the merge operations required for the build they are executing.
+
+
 .. attr:: merger
 
    .. attr:: git_user_email
