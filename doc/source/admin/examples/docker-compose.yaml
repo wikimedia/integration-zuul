@@ -46,6 +46,7 @@ services:
       - http_proxy
       - https_proxy
       - no_proxy=${no_proxy},gerrit
+      - ZUUL_MYSQL_PASSWORD=secret
     command: "sh -c '/var/playbooks/wait-to-start.sh && zuul-scheduler -d'"
     # FIXME: The scheduler has no ansible anymore so use the executor image.
     #        This needs to be changes such that ansible is not required for startup.
@@ -62,6 +63,8 @@ services:
     ports:
       - "9000:9000"
     image: zuul/zuul-web
+    environment:
+      ZUUL_MYSQL_PASSWORD: secret
     volumes:
       - "./etc_zuul/:/etc/zuul/:z"
       - "./playbooks/:/var/playbooks/:z"
@@ -71,6 +74,7 @@ services:
       - http_proxy
       - https_proxy
       - no_proxy=${no_proxy},gerrit,scheduler
+      - ZUUL_MYSQL_PASSWORD=secret
     command: "zuul-executor -d"
     depends_on:
       - scheduler
