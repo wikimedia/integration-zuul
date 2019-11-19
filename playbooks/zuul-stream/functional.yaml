@@ -53,23 +53,23 @@
 
     - name: Validate output - shell task with exception
       shell: |
-        egrep "^.+\| node1 \| OSError.+\/shelltask\/" job-output.txt
-        egrep "^.+\| node2 \| OSError.+\/shelltask\/" job-output.txt
+        egrep "^.+\| node1 \| (OSError|FileNotFoundError).+\/shelltask\/" job-output.txt
+        egrep "^.+\| node2 \| (OSError|FileNotFoundError).+\/shelltask\/" job-output.txt
 
     - name: Validate output - item loop with exception
       shell: |
-        egrep "^.+\| node1 \| OSError.+\/itemloop\/" job-output.txt
-        egrep "^.+\| node2 \| OSError.+\/itemloop\/" job-output.txt
+        egrep "^.+\| node1 \| (OSError|FileNotFoundError).+\/itemloop\/" job-output.txt
+        egrep "^.+\| node2 \| (OSError|FileNotFoundError).+\/itemloop\/" job-output.txt
 
     - name: Validate output - failure shell task with exception
       shell: |
-        egrep "^.+\| node1 \| OSError.+\/failure-shelltask\/" job-output.txt
-        egrep "^.+\| node2 \| OSError.+\/failure-shelltask\/" job-output.txt
+        egrep "^.+\| node1 \| (OSError|FileNotFoundError).+\/failure-shelltask\/" job-output.txt
+        egrep "^.+\| node2 \| (OSError|FileNotFoundError).+\/failure-shelltask\/" job-output.txt
 
     - name: Validate output - failure item loop with exception
       shell: |
-        egrep "^.+\| node1 \| OSError.+\/failure-itemloop\/" job-output.txt
-        egrep "^.+\| node2 \| OSError.+\/failure-itemloop\/" job-output.txt
+        egrep "^.+\| node1 \| (OSError|FileNotFoundError).+\/failure-itemloop\/" job-output.txt
+        egrep "^.+\| node2 \| (OSError|FileNotFoundError).+\/failure-itemloop\/" job-output.txt
 
     - name: Validate output - binary data
       shell: |

@@ -30,24 +30,36 @@
 - job:
     name: zuul-stream-functional-2.5
     parent: zuul-stream-functional
+    # Force executor to use same Ansible version as "controller" node so
+    # that the inventory.yaml file will be correct for that version.
+    ansible-version: 2.5
     vars:
       zuul_ansible_version: 2.5
 
 - job:
     name: zuul-stream-functional-2.6
     parent: zuul-stream-functional
+    # Force executor to use same Ansible version as "controller" node so
+    # that the inventory.yaml file will be correct for that version.
+    ansible-version: 2.6
     vars:
       zuul_ansible_version: 2.6
 
 - job:
     name: zuul-stream-functional-2.7
     parent: zuul-stream-functional
+    # Force executor to use same Ansible version as "controller" node so
+    # that the inventory.yaml file will be correct for that version.
+    ansible-version: 2.7
     vars:
       zuul_ansible_version: 2.7
 
 - job:
     name: zuul-stream-functional-2.8
     parent: zuul-stream-functional
+    # Force executor to use same Ansible version as "controller" node so
+    # that the inventory.yaml file will be correct for that version.
+    ansible-version: 2.8
     vars:
       zuul_ansible_version: 2.8
 
