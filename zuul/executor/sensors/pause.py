@@ -20,8 +20,8 @@ from zuul.executor.sensors import SensorInterface
 class PauseSensor(SensorInterface):
     log = logging.getLogger("zuul.executor.sensor.pause")
 
-    def __init__(self):
-        self.pause = False
+    def __init__(self, pause=False):
+        self.pause = pause
 
     def isOk(self):
         if self.pause:

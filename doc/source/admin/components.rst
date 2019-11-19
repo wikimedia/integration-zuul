@@ -756,6 +756,12 @@ The following sections of ``zuul.conf`` are used by the executor:
       where it cannot determine its hostname correctly this can be overridden
       here.
 
+   .. attr:: paused_on_start
+      :default: false
+
+      Whether the executor should start in a paused mode. Such executor will not
+      accept tasks until it is unpaused.
+
    .. attr:: zone
       :default: None
 

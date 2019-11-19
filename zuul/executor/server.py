@@ -2401,7 +2401,10 @@ class ExecutorServer(object):
                                               self.stopJobDiskFull,
                                               self.merge_root)
 
-        self.pause_sensor = PauseSensor()
+        self.pause_sensor = PauseSensor(get_default(self.config, 'executor',
+                                                    'paused_on_start', False))
+        self.log.info("Starting executor (hostname: %s) in %spaused mode" % (
+            self.hostname, "" if self.pause_sensor.pause else "un"))
         cpu_sensor = CPUSensor(config)
         self.sensors = [
             cpu_sensor,
