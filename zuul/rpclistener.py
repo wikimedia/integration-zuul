@@ -189,13 +189,6 @@ class RPCListener(object):
             pipeline = tenant.layout.pipelines.get(args['pipeline'])
             if pipeline:
                 event.forced_pipeline = args['pipeline']
-
-                for trigger in pipeline.triggers:
-                    if trigger.name == args['trigger']:
-                        event.trigger_name = args['trigger']
-                        continue
-                if not event.trigger_name:
-                    errors += 'Invalid trigger: %s\n' % (args['trigger'],)
             else:
                 errors += 'Invalid pipeline: %s\n' % (args['pipeline'],)
         else:

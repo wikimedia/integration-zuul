@@ -310,9 +310,9 @@ class ZuulWebAPI(object):
                    tenant, project))
 
         body = cherrypy.request.json
-        if all(p in body for p in ['trigger', 'change', 'pipeline']):
+        if all(p in body for p in ['change', 'pipeline']):
             return self._enqueue(tenant, project, **body)
-        elif all(p in body for p in ['trigger', 'ref', 'oldrev',
+        elif all(p in body for p in ['ref', 'oldrev',
                                      'newrev', 'pipeline']):
             return self._enqueue_ref(tenant, project, **body)
         else:

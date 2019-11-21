@@ -67,7 +67,6 @@ for tenant in tenants:
                         cid, cps = change['id'].split(',')
                         print("zuul enqueue"
                               " --tenant %s"
-                              " --trigger gerrit"
                               " --pipeline %s"
                               " --project %s"
                               " --change %s,%s" % (tenant, pipeline['name'],
@@ -78,7 +77,6 @@ for tenant in tenants:
                         cmd = 'zuul enqueue-ref' \
                               ' --tenant %s' \
                               ' --pipeline %s' \
-                              ' --trigger timer' \
                               ' --project %s' \
                               ' --ref %s' % (tenant, pipeline['name'],
                                              change['project_canonical'],

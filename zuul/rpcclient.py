@@ -84,6 +84,8 @@ class RPCClient(object):
             return json.loads(job.data[0])
 
     def enqueue(self, tenant, pipeline, project, trigger, change):
+        if trigger is not None:
+            self.log.info('enqueue: the "trigger" argument is deprecated')
         data = {'tenant': tenant,
                 'pipeline': pipeline,
                 'project': project,
@@ -94,6 +96,8 @@ class RPCClient(object):
 
     def enqueue_ref(
             self, tenant, pipeline, project, trigger, ref, oldrev, newrev):
+        if trigger is not None:
+            self.log.info('enqueue_ref: the "trigger" argument is deprecated')
         data = {'tenant': tenant,
                 'pipeline': pipeline,
                 'project': project,
