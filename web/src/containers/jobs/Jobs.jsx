@@ -58,6 +58,27 @@ class JobsList extends React.Component {
     const nodes = []
     // visited contains individual node
     const visited = {}
+    // createNode returns the actual node needed by the tree view component
+    const createNode = (job, extra) => ({
+      text: (
+        <React.Fragment>
+          <Link to={linkPrefix + job.name}>{job.name}</Link>
+          {extra && (<span> ({extra})</span>)}
+          {job.description && (
+            <span style={{marginLeft: '10px'}}>{job.description}</span>
+          )}
+          {job.tags && job.tags.map((tag, idx) => (
+            <Badge
+              key={idx}
+              pullRight>
+              {tag}
+            </Badge>))}
+        </React.Fragment>),
+      icon: 'fa fa-cube',
+      state: {
+        expanded: true,
+      },
+    })
     // getNode returns the tree node and visit each parents
     const getNode = function (job, filtered) {
       if (!visited[job.name]) {
@@ -71,27 +92,9 @@ class JobsList extends React.Component {
             }
           }
         }
-        visited[job.name] = {
-          text: (
-            <React.Fragment>
-              <Link to={linkPrefix + job.name}>{job.name}</Link>
-              {job.description && (
-                <span style={{marginLeft: '10px'}}>{job.description}</span>
-              )}
-              {job.tags && job.tags.map((tag, idx) => (
-                <Badge
-                  key={idx}
-                  pullRight>
-                  {tag}
-                </Badge>))}
-            </React.Fragment>),
-          icon: 'fa fa-cube',
-          state: {
-            expanded: true,
-          },
-          parents: parents,
-          filtered: filtered,
-        }
+        visited[job.name] = createNode(job, null)
+        visited[job.name].parents = parents
+        visited[job.name].filtered = filtered
         // Visit parent recursively
         if (!flatten) {
           for (let parent of parents) {
@@ -139,7 +142,12 @@ class JobsList extends React.Component {
             if (!parentNode.nodes) {
               parentNode.nodes = []
             }
-            parentNode.nodes.push(jobNode)
+            if (attached) {
+              // We need to create a duplicate node to satisfy TreeView constrains for multi parent
+              parentNode.nodes.push(createNode(job, 'branched'))
+            } else {
+              parentNode.nodes.push(jobNode)
+            }
             attached = true
           }
         }
