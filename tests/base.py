@@ -1318,9 +1318,9 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
     log = logging.getLogger("zuul.test.FakePagureAPIClient")
 
     def __init__(self, baseurl, api_token, project,
-                 token_exp_date=None, pull_requests_db={}):
+                 pull_requests_db={}):
         super(FakePagureAPIClient, self).__init__(
-            baseurl, api_token, project, token_exp_date)
+            baseurl, api_token, project)
         self.session = None
         self.pull_requests = pull_requests_db
         self.return_post_error = None
@@ -1427,23 +1427,23 @@ class FakePagureConnection(pagureconnection.PagureConnection):
         self.reports = []
         self.rpcclient = rpcclient
         self.cloneurl = self.upstream_root
-        self.connectors = {}
 
-    def _refresh_project_connectors(self, project):
-        connector = self.connectors.setdefault(
-            project, {'api_client': None, 'webhook_token': None})
-        api_token_exp_date = int(time.time()) + 60 * 24 * 3600
-        connector['api_client'] = FakePagureAPIClient(
-            self.baseurl, "fake_api_token-%s" % project, project,
-            token_exp_date=api_token_exp_date,
+    def get_project_api_client(self, project):
+        return FakePagureAPIClient(
+            self.baseurl, None, project,
             pull_requests_db=self.pull_requests)
-        connector['webhook_token'] = "fake_webhook_token-%s" % project
-        return connector
 
-    def emitEvent(self, event, use_zuulweb=False, project=None):
+    def get_project_webhook_token(self, project):
+        return 'fake_webhook_token-%s' % project
+
+    def emitEvent(self, event, use_zuulweb=False, project=None,
+                  wrong_token=False):
         name, payload = event
-        secret = 'fake_webhook_token-%s' % project
         if use_zuulweb:
+            if not wrong_token:
+                secret = 'fake_webhook_token-%s' % project
+            else:
+                secret = ''
             payload = json.dumps(payload).encode('utf-8')
             signature, _ = pagureconnection._sign_request(payload, secret)
             headers = {'x-pagure-signature': signature,

@@ -1,4 +1,4 @@
-# Copyright 2018 Red Hat, Inc.
+# Copyright 2018, 2019 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -38,34 +38,44 @@ from zuul.driver.pagure.paguremodel import PagureTriggerEvent, PullRequest
 
 # Minimal Pagure version supported 5.3.0
 #
-# Pagure is similar to Github as it handles Pullrequest where PR is a branch
+# Pagure is similar to Github as it handles PullRequest where PR is a branch
 # composed of one or more commits. A PR can be commented, evaluated, updated,
 # CI flagged, and merged. A PR can be flagged (success/failure/pending) and
-# this driver use that capability. Code review (evaluation) is done via
-# comments that contains a :thumbsup: or :thumbsdown:. Pagure computes a
-# score based on that and allow or not the merge of PR if the "minimal score to
-# merge" is set in repository settings. This driver uses that setting and need
-# to be set. This driver expects to receive repository events via webhooks and
-# expects to verify payload signature. The driver connection needs an user's
-# API key with the "Modify an existing project" access. This user needs to be
-# added as admin against projects to be gated by Zuul.
+# this driver uses that capability.
+#
+# PR approval can be driven by (evaluation). This is done via comments that
+# contains a :thumbsup: or :thumbsdown:. Pagure computes a score based on
+# that and allows or not the merge of PR if the "minimal score to merge" is
+# set in repository settings.
+#
+# PR approval can be also driven via PR metadata flag.
+#
+# This driver expects to receive repository events via webhooks and
+# do event validation based on the source IP address of the event.
+#
+# The driver connection needs an user's API token with
+# - "Merge a pull-request"
+# - "Flag a pull-request"
+# - "Comment on a pull-request"
+#
+# On each project to be integrated with Zuul needs:
 #
 # The web hook target must be (in repository settings):
 # - http://<zuul-web>/zuul/api/connection/<conn-name>/payload
 #
 # Repository settings (to be checked):
-# - Always merge (Better to match internal merge strategy of Zuul)
-# - Minimum score to merge pull-request
+# - Minimum score to merge pull-request = 0 or -1
 # - Notify on pull-request flag
 # - Pull requests
+# - Open metadata access to all (unchecked if approval)
 #
 # To define the connection in /etc/zuul/zuul.conf:
-# [connection pagure.sftests.com]
+# [connection pagure.io]
 # driver=pagure
-# server=pagure.sftests.com
-# baseurl=https://pagure.sftests.com/pagure
-# cloneurl=https://pagure.sftests.com/pagure/git
+# server=pagure.io
+# baseurl=https://pagure.io
 # api_token=QX29SXAW96C2CTLUNA5JKEEU65INGWTO2B5NHBDBRMF67S7PYZWCS0L1AKHXXXXX
+# source_whitelist=8.43.85.75
 #
 # Current Non blocking issues:
 # - Pagure does not reset the score when a PR code is updated
@@ -83,9 +93,6 @@ from zuul.driver.pagure.paguremodel import PagureTriggerEvent, PullRequest
 # - Idea would be to prevent PR merge by anybody else than Zuul.
 # Pagure project option: "Activate Only assignee can merge pull-request"
 # https://docs.pagure.org/pagure/usage/project_settings.html?highlight=score#activate-only-assignee-can-merge-pull-request
-
-
-TOKEN_VALIDITY = 60 * 24 * 3600
 
 
 def _sign_request(body, secret):
@@ -400,32 +407,21 @@ class PagureAPIClient():
     log = logging.getLogger("zuul.PagureAPIClient")
 
     def __init__(
-            self, baseurl, api_token, project, token_exp_date=None):
+            self, baseurl, api_token, project):
         self.session = requests.Session()
         self.base_url = '%s/api/0/' % baseurl
         self.api_token = api_token
         self.project = project
         self.headers = {'Authorization': 'token %s' % self.api_token}
-        self.token_exp_date = token_exp_date
 
     def _manage_error(self, data, code, url, verb):
         if code < 400:
             return
         else:
-            if data.get('error_code', '') == 'EINVALIDTOK':
-                # Reset the expiry date of the cached API client
-                # to force the driver to refresh connectors
-                self.token_exp_date = int(time.time())
             raise PagureAPIClientException(
                 "Unable to %s on %s (code: %s) due to: %s" % (
                     verb, url, code, data
                 ))
-
-    def is_expired(self):
-        if self.token_exp_date:
-            if int(time.time()) > (self.token_exp_date - 3600):
-                return True
-        return False
 
     def get(self, url):
         self.log.debug("Getting resource %s ..." % url)
@@ -497,72 +493,13 @@ class PagureAPIClient():
         self._manage_error(*resp)
         return resp[0]
 
-    def create_project_api_token(self):
+    def get_webhook_token(self):
         """ A project admin user's api token must be use with that endpoint
         """
-        param = {
-            "description": "zuul-token-%s" % int(time.time()),
-            "acls": [
-                "pull_request_merge", "pull_request_comment",
-                "pull_request_flag"]
-        }
-        path = '%s/token/new' % self.project
-        resp = self.post(self.base_url + path, param)
-        self._manage_error(*resp)
-        # {"token": {"description": "mytoken", "id": "IED2HC...4QIXS6WPZDTET"}}
-        return resp[0]['token']
-
-    def get_connectors(self):
-        """ A project admin user's api token must be use with that endpoint
-        """
-        def get_token_epoch(token):
-            return int(token['description'].split('-')[-1])
-
         path = '%s/connector' % self.project
         resp = self.get(self.base_url + path)
-        if resp[1] >= 400:
-            # Admin API token is probably invalid or expired
-            self.log.error(
-                ("Unable to get connectors for project %s probably due to "
-                 "an invalid or expired admin API token: %s") % (
-                    self.project, resp[0]))
-            # Allow to process but return empty project API and webhook token
-            # Web hook events for the related project will be denied and
-            # POST on the API will be denied as well.
-            return {"id": "", "created_at": int(time.time())}, ""
-        data = resp[0]
-        # {"connector": {
-        #     "hook_token": "WCL92MLWMRPGKBQ5LI0LZCSIS4TRQMHR0Q",
-        #     "api_tokens": [
-        #         {
-        #             "description": "zuul-token-123",
-        #             "expired": false,
-        #             "id": "X03J4DOJT7P3G4....3DNPPXN4G144BBIAJ"
-        #         }
-        #     ]
-        # }}
-        # Filter expired tokens
-        tokens = [
-            token for token in data['connector'].get('api_tokens', {})
-            if not token['expired']]
-        # Now following the pattern zuul-token-{epoch} find the last
-        # one created
-        api_token = None
-        for token in tokens:
-            if not token['description'].startswith('zuul-token-'):
-                continue
-            epoch = get_token_epoch(token)
-            if api_token:
-                if epoch > get_token_epoch(api_token):
-                    api_token = token
-            else:
-                api_token = token
-        if not api_token:
-            # Let's create one
-            api_token = self.create_project_api_token()
-        api_token['created_at'] = get_token_epoch(api_token)
-        webhook_token = data['connector']['hook_token']
-        return api_token, webhook_token
+        self._manage_error(*resp)
+        return resp[0]['connector']['hook_token']
 
 
 class PagureConnection(BaseConnection):
@@ -580,12 +517,14 @@ class PagureConnection(BaseConnection):
         self.canonical_hostname = self.connection_config.get(
             'canonical_hostname', self.server)
         self.git_ssh_key = self.connection_config.get('sshkey')
-        self.admin_api_token = self.connection_config.get('api_token')
+        self.api_token = self.connection_config.get('api_token')
         self.baseurl = self.connection_config.get(
             'baseurl', 'https://%s' % self.server).rstrip('/')
         self.cloneurl = self.connection_config.get(
             'cloneurl', self.baseurl).rstrip('/')
-        self.connectors = {}
+        self.source_whitelist = self.connection_config.get(
+            'source_whitelist', '').split(',')
+        self.webhook_tokens = {}
         self.source = driver.getSource(self)
         self.event_queue = queue.Queue()
         self.metadata_notif = re.compile(
@@ -623,45 +562,23 @@ class PagureConnection(BaseConnection):
     def eventDone(self):
         self.event_queue.task_done()
 
-    def _refresh_project_connectors(self, project):
-        pagure = PagureAPIClient(
-            self.baseurl, self.admin_api_token, project)
-        api_token, webhook_token = pagure.get_connectors()
-        connector = self.connectors.setdefault(
-            project, {'api_client': None, 'webhook_token': None})
-        api_token_exp_date = api_token['created_at'] + TOKEN_VALIDITY
-        connector['api_client'] = PagureAPIClient(
-            self.baseurl, api_token['id'], project,
-            token_exp_date=api_token_exp_date)
-        connector['webhook_token'] = webhook_token
-        return connector
+    def get_project_api_client(self, project):
+        self.log.debug("Building project %s api_client" % project)
+        return PagureAPIClient(self.baseurl, self.api_token, project)
 
     def get_project_webhook_token(self, project):
-        token = self.connectors.get(
-            project, {}).get('webhook_token', None)
+        token = self.webhook_tokens.get(project)
         if token:
             self.log.debug(
-                "Fetching project %s webhook_token from cache" % project)
+                "Fetching project %s webhook token from cache" % project)
             return token
         else:
+            pagure = self.get_project_api_client(project)
+            token = pagure.get_webhook_token()
+            self.webhook_tokens[project] = token
             self.log.debug(
-                "Fetching project %s webhook_token from API" % project)
-            return self._refresh_project_connectors(project)['webhook_token']
-
-    def get_project_api_client(self, project):
-        api_client = self.connectors.get(
-            project, {}).get('api_client', None)
-        if api_client:
-            if not api_client.is_expired():
-                self.log.debug(
-                    "Fetching project %s api_client from cache" % project)
-                return api_client
-            else:
-                self.log.debug(
-                    "Project %s api token is expired (expiration date %s)" % (
-                        project, api_client.token_exp_date))
-        self.log.debug("Building project %s api_client" % project)
-        return self._refresh_project_connectors(project)['api_client']
+                "Fetching project %s webhook token from API" % project)
+            return token
 
     def maintainCache(self, relevant):
         remove = set()
@@ -928,6 +845,12 @@ class PagureWebController(BaseWebController):
         self.connection = connection
         self.zuul_web = zuul_web
 
+    def _source_whitelisted(self, remote_ip, forwarded_ip):
+        if remote_ip and remote_ip in self.connection.source_whitelist:
+            return True
+        if forwarded_ip and forwarded_ip in self.connection.source_whitelist:
+            return True
+
     def _validate_signature(self, body, headers):
         try:
             request_signature = headers['x-pagure-signature']
@@ -961,9 +884,15 @@ class PagureWebController(BaseWebController):
         for key, value in cherrypy.request.headers.items():
             headers[key.lower()] = value
         body = cherrypy.request.body.read()
-        payload = self._validate_signature(body, headers)
-        json_payload = json.loads(payload.decode('utf-8'))
+        if not self._source_whitelisted(
+                getattr(cherrypy.request.remote, 'ip'),
+                headers.get('x-forwarded-for')):
+            self._validate_signature(body, headers)
+        else:
+            self.log.info(
+                "Payload origin IP address whitelisted. Skip verify")
 
+        json_payload = json.loads(body.decode('utf-8'))
         job = self.zuul_web.rpc.submitJob(
             'pagure:%s:payload' % self.connection.connection_name,
             {'payload': json_payload})

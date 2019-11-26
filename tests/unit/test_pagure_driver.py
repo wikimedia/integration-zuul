@@ -992,7 +992,6 @@ class TestPagureWebhook(ZuulTestCase):
 
     def setUp(self):
         super(TestPagureWebhook, self).setUp()
-
         # Start the web server
         self.web = self.useFixture(
             ZuulWebFixture(self.gearman_server.port,
@@ -1010,14 +1009,18 @@ class TestPagureWebhook(ZuulTestCase):
 
         self.fake_pagure.setZuulWebPort(port)
 
-    def tearDown(self):
-        super(TestPagureWebhook, self).tearDown()
-
     @simple_layout('layouts/basic-pagure.yaml', driver='pagure')
     def test_webhook(self):
 
         A = self.fake_pagure.openFakePullRequest(
             'org/project', 'master', 'A')
+        self.fake_pagure.emitEvent(A.getPullRequestOpenedEvent(),
+                                   use_zuulweb=True,
+                                   project='org/project',
+                                   wrong_token=True)
+        self.waitUntilSettled()
+        self.assertEqual(len(self.history), 0)
+
         self.fake_pagure.emitEvent(A.getPullRequestOpenedEvent(),
                                    use_zuulweb=True,
                                    project='org/project')
@@ -1029,38 +1032,40 @@ class TestPagureWebhook(ZuulTestCase):
                          self.getJobFromHistory('project-test2').result)
 
 
-class TestPagureProjectConnector(ZuulTestCase):
-    config_file = 'zuul-pagure-driver.conf'
+class TestPagureWebhookWhitelist(ZuulTestCase):
+    config_file = 'zuul-pagure-driver-whitelist.conf'
+
+    def setUp(self):
+        super(TestPagureWebhookWhitelist, self).setUp()
+        # Start the web server
+        self.web = self.useFixture(
+            ZuulWebFixture(self.gearman_server.port,
+                           self.config, self.test_root))
+
+        host = '127.0.0.1'
+        # Wait until web server is started
+        while True:
+            port = self.web.port
+            try:
+                with socket.create_connection((host, port)):
+                    break
+            except ConnectionRefusedError:
+                pass
+
+        self.fake_pagure.setZuulWebPort(port)
 
     @simple_layout('layouts/basic-pagure.yaml', driver='pagure')
-    def test_connectors(self):
-
-        project_api_token_exp_date = self.fake_pagure.connectors[
-            'org/project']['api_client'].token_exp_date
+    def test_webhook_whitelist(self):
 
         A = self.fake_pagure.openFakePullRequest(
             'org/project', 'master', 'A')
-        self.fake_pagure.emitEvent(A.getPullRequestOpenedEvent())
+        self.fake_pagure.emitEvent(A.getPullRequestOpenedEvent(),
+                                   use_zuulweb=True,
+                                   project='org/project',
+                                   wrong_token=True)
         self.waitUntilSettled()
 
-        self.assertEqual(
-            project_api_token_exp_date,
-            self.fake_pagure.connectors[
-                'org/project']['api_client'].token_exp_date)
-
-        # Now force a POST error with EINVALIDTOK code and check
-        # The connector has been refreshed
-        self.fake_pagure.connectors[
-            'org/project']['api_client'].return_post_error = {
-                'error': 'Invalid or expired token',
-                'error_code': 'EINVALIDTOK'
-        }
-
-        self.fake_pagure.emitEvent(A.getPullRequestUpdatedEvent())
-        self.waitUntilSettled()
-
-        # Expiry date changed meaning the token has been refreshed
-        self.assertNotEqual(
-            project_api_token_exp_date,
-            self.fake_pagure.connectors[
-                'org/project']['api_client'].token_exp_date)
+        self.assertEqual('SUCCESS',
+                         self.getJobFromHistory('project-test1').result)
+        self.assertEqual('SUCCESS',
+                         self.getJobFromHistory('project-test2').result)
