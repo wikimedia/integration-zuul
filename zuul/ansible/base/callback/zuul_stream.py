@@ -330,10 +330,13 @@ class CallbackModule(default.CallbackModule):
 
         self._process_result_for_localhost(result)
 
+        def is_module_failure(msg):
+            return isinstance(msg, str) and msg.startswith('MODULE FAILURE')
+
         if result._task.loop and 'results' in result_dict:
             # items have their own events
             pass
-        elif result_dict.get('msg', '').startswith('MODULE FAILURE'):
+        elif is_module_failure(result_dict.get('msg', '')):
             self._log_module_failure(result, result_dict)
         else:
             self._log_message(
