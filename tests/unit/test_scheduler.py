@@ -3486,6 +3486,35 @@ class TestScheduler(ZuulTestCase):
         # Ensure the removed job was not included in the report.
         self.assertNotIn('project1-project2-integration', A.messages[0])
 
+    def test_live_reconfiguration_shared_queue_removed(self):
+        # Test that changes in a shared queue survive a change of the
+        # queue during reconfiguration. This is a regression test
+        # for the dependent pipeline manager.
+        self.executor_server.hold_jobs_in_build = True
+
+        A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
+        B = self.fake_gerrit.addFakeChange('org/project2', 'master', 'B')
+        A.addApproval('Code-Review', 2)
+        B.addApproval('Code-Review', 2)
+
+        self.fake_gerrit.addEvent(A.addApproval('Approved', 1))
+        self.fake_gerrit.addEvent(B.addApproval('Approved', 1))
+        self.waitUntilSettled()
+
+        # Remove the integration job.
+        self.commitConfigUpdate(
+            'common-config',
+            'layouts/live-reconfiguration-shared-queue-removed.yaml')
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        self.assertEqual(A.data['status'], 'MERGED')
+        self.assertEqual(B.data['status'], 'MERGED')
+
     def test_double_live_reconfiguration_shared_queue(self):
         # This was a real-world regression.  A change is added to
         # gate; a reconfigure happens, a second change which depends

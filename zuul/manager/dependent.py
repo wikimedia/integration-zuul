@@ -78,8 +78,9 @@ class DependentPipelineManager(PipelineManager):
     def getChangeQueue(self, change, event, existing=None):
         log = get_annotated_logger(self.log, event)
 
-        if existing:
-            return StaticChangeQueueContextManager(existing)
+        # Ignore the existing queue, since we can always get the correct queue
+        # from the pipeline. This avoids enqueuing changes in a wrong queue
+        # e.g. during re-configuration.
         queue = self.pipeline.getQueue(change.project)
         if queue:
             return StaticChangeQueueContextManager(queue)
