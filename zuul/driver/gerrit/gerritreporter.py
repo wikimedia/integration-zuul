@@ -17,6 +17,7 @@ import voluptuous as v
 
 from zuul.driver.gerrit.gerritsource import GerritSource
 from zuul.lib.logutil import get_annotated_logger
+from zuul.model import Change
 from zuul.reporter import BaseReporter
 
 
@@ -52,6 +53,10 @@ class GerritReporter(BaseReporter):
 
         # If the source is no GerritSource we cannot report anything here.
         if not isinstance(item.change.project.source, GerritSource):
+            return
+
+        # We can only report changes, not plain branches
+        if not isinstance(item.change, Change):
             return
 
         # For supporting several Gerrit connections we also must filter by
