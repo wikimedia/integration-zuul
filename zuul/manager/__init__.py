@@ -259,9 +259,12 @@ class PipelineManager(object):
                 # will go ahead and refresh the job graph if needed;
                 # or it will send a new merge job if necessary, or it
                 # will do nothing if we're waiting on a merge job.
+                has_job_graph = bool(item.job_graph)
                 item.job_graph = None
                 item.layout = None
-                if item.active:
+                # If the item is no longer active, but has a job graph we
+                # will make sure to update it.
+                if item.active or has_job_graph:
                     self.prepareItem(item)
 
                 # Re-set build results in case any new jobs have been
