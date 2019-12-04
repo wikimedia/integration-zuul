@@ -68,10 +68,6 @@ from zuul.driver.pagure.paguremodel import PagureTriggerEvent, PullRequest
 # api_token=QX29SXAW96C2CTLUNA5JKEEU65INGWTO2B5NHBDBRMF67S7PYZWCS0L1AKHXXXXX
 #
 # Current Non blocking issues:
-# - Pagure does not send the oldrev info when a branch is updated/created
-#   https://pagure.io/pagure/issue/4401
-# - Pagure does not send an event when a branch is deleted
-#   https://pagure.io/pagure/issue/4399 (merged so need to be used)
 # - Pagure does not reset the score when a PR code is updated
 #   https://pagure.io/pagure/issue/3985
 # - CI status flag updated field unit is second, better to have millisecond
@@ -204,6 +200,8 @@ class PagureEventConnector(threading.Thread):
             'pull-request.new': self._event_pull_request,
             'pull-request.flag.added': self._event_flag_added,
             'git.receive': self._event_ref_updated,
+            'git.branch.creation': self._event_ref_created,
+            'git.branch.deletion': self._event_ref_deleted,
             'pull-request.initial_comment.edited':
                 self._event_issue_initial_comment,
             'pull-request.tag.added':
@@ -346,45 +344,40 @@ class PagureEventConnector(threading.Thread):
 
     def _event_ref_updated(self, body):
         """ Handles ref updated """
-        # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#git-receive
+        # https://fedora-fedmsg.readthedocs.io/en/latest/topics.html#pagure-git-receive
         event, data = self._event_base(body)
         event.project_name = data.get('project_fullname')
         event.branch = data.get('branch')
         event.ref = 'refs/heads/%s' % event.branch
-        event.newrev = data.get('end_commit', data.get('stop_commit'))
-        # There is no concept of old rev (that is the previous branch tip) in
-        # pagure. end_commit is the new tip, start_commit is the oldest
-        # commit on the branch merged. stop_commit is the youngest commit
-        # on the branch. When a PR is merged (with a merge commit) end_commit
-        # is the merge commit sha, start and stop commits are the boundaries
-        # of the branch.
-
-        # Then do not set oldrev as this information is missing
-        # event.oldrev = data.get('start_commit')
+        event.newrev = data.get('end_commit')
+        event.oldrev = data.get('old_commit')
         event.branch_updated = True
+        return event
 
-        # TODO(fbo): Pagure sends an event when a branch is created but the
-        # old rev info is not set by pagure. A new branch will be handled
-        # as ref updated. https://pagure.io/pagure/issue/4401
-        # TODO(fbo): Pagure does not send an event when a branch is deleted
-        # https://pagure.io/pagure/issue/4399
+    def _event_ref_created(self, body):
+        """ Handles ref created """
+        event, data = self._event_base(body)
+        event.project_name = data.get('project_fullname')
+        event.branch = data.get('branch')
+        event.ref = 'refs/heads/%s' % event.branch
+        event.newrev = data.get('rev')
+        event.oldrev = '0' * 40
+        event.branch_created = True
+        self.connection.project_branch_cache[
+            event.project_name].append(event.branch)
+        return event
 
-        # if event.oldrev == '0' * 40:
-        #     event.branch_created = True
-        # if event.newrev == '0' * 40:
-        #     event.branch_deleted = True
-        #
-        # if event.branch:
-        #     project = self.connection.source.getProject(event.project_name)
-        #     if event.branch_deleted:
-        #         self.connection.project_branch_cache[project].remove(
-        #             event.branch)
-        #     elif event.branch_created:
-        #         self.connection.project_branch_cache[project].append(
-        #             event.branch)
-        #     else:
-        #         pass
-
+    def _event_ref_deleted(self, body):
+        """ Handles ref deleted """
+        event, data = self._event_base(body)
+        event.project_name = data.get('project_fullname')
+        event.branch = data.get('branch')
+        event.ref = 'refs/heads/%s' % event.branch
+        event.oldrev = data.get('rev')
+        event.newrev = '0' * 40
+        event.branch_deleted = True
+        self.connection.project_branch_cache[
+            event.project_name].remove(event.branch)
         return event
 
     def run(self):

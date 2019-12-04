@@ -184,7 +184,8 @@ class TestPagureDriver(ZuulTestCase):
     def test_ref_updated(self):
 
         event = self.fake_pagure.getGitReceiveEvent('org/project')
-        expected_newrev = event[1]['msg']['stop_commit']
+        expected_newrev = event[1]['msg']['end_commit']
+        expected_oldrev = event[1]['msg']['old_commit']
         self.fake_pagure.emitEvent(event)
         self.waitUntilSettled()
         self.assertEqual(1, len(self.history))
@@ -202,6 +203,43 @@ class TestPagureDriver(ZuulTestCase):
             'https://pagure/org/project/c/%s' % zuulvars['newrev'],
             zuulvars['change_url'])
         self.assertEqual(expected_newrev, zuulvars['newrev'])
+        self.assertEqual(expected_oldrev, zuulvars['oldrev'])
+
+    @simple_layout('layouts/basic-pagure.yaml', driver='pagure')
+    def test_ref_created(self):
+
+        self.create_branch('org/project', 'stable-1.0')
+        path = os.path.join(self.upstream_root, 'org/project')
+        repo = git.Repo(path)
+        newrev = repo.commit('refs/heads/stable-1.0').hexsha
+        event = self.fake_pagure.getGitBranchEvent(
+            'org/project', 'stable-1.0', 'creation', newrev)
+        old = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        self.fake_pagure.emitEvent(event)
+        self.waitUntilSettled()
+        new = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        # New timestamp should be greater than the old timestamp
+        self.assertLess(old, new)
+        self.assertEqual(1, len(self.history))
+        self.assertEqual(
+            'SUCCESS',
+            self.getJobFromHistory('project-post-job').result)
+        job = self.getJobFromHistory('project-post-job')
+        zuulvars = job.parameters['zuul']
+        self.assertEqual('refs/heads/stable-1.0', zuulvars['ref'])
+        self.assertEqual('post', zuulvars['pipeline'])
+        self.assertEqual('project-post-job', zuulvars['job'])
+        self.assertEqual('stable-1.0', zuulvars['branch'])
+        self.assertEqual(newrev, zuulvars['newrev'])
+
+    @simple_layout('layouts/basic-pagure.yaml', driver='pagure')
+    def test_ref_deleted(self):
+
+        event = self.fake_pagure.getGitBranchEvent(
+            'org/project', 'stable-1.0', 'deletion', '0' * 40)
+        self.fake_pagure.emitEvent(event)
+        self.waitUntilSettled()
+        self.assertEqual(0, len(self.history))
 
     @simple_layout('layouts/basic-pagure.yaml', driver='pagure')
     def test_ref_updated_and_tenant_reconfigure(self):
