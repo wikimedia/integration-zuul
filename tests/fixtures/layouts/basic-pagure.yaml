@@ -32,6 +32,15 @@
         - event: pg_push
           ref: ^refs/heads/.*$
 
+- pipeline:
+    name: tag
+    post-review: true
+    manager: independent
+    trigger:
+      pagure:
+        - event: pg_push
+          ref: ^refs/tags/.*$
+
 - job:
     name: base
     parent: null
@@ -49,6 +58,10 @@
     name: project-post-job
     run: playbooks/project-post.yaml
 
+- job:
+    name: project-tag-job
+    run: playbooks/project-tag.yaml
+
 - project:
     name: org/project
     check:
@@ -58,3 +71,6 @@
     post:
       jobs:
         - project-post-job
+    tag:
+      jobs:
+        - project-tag-job
