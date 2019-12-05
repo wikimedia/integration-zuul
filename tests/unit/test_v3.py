@@ -5818,6 +5818,8 @@ class TestProvidesRequires(ZuulDBTestCase):
             dict(name='image-user', result='SUCCESS', changes='1,1 2,1 3,1'),
             dict(name='library-user', result='SUCCESS',
                  changes='1,1 2,1 3,1'),
+            dict(name='library-user2', result='SUCCESS',
+                 changes='1,1 2,1 3,1'),
             dict(name='hold', result='SUCCESS', changes='1,1 2,1 3,1'),
         ], ordered=False)
         image_user = self.getJobFromHistory('image-user')
@@ -5942,6 +5944,8 @@ class TestProvidesRequires(ZuulDBTestCase):
             dict(name='image-user', result='SUCCESS', changes='1,1 2,1 3,1'),
             dict(name='library-user', result='SUCCESS',
                  changes='1,1 2,1 3,1'),
+            dict(name='library-user2', result='SUCCESS',
+                 changes='1,1 2,1 3,1'),
             dict(name='hold', result='SUCCESS', changes='1,1 2,1 3,1'),
         ], ordered=False)
 
@@ -5960,6 +5964,8 @@ class TestProvidesRequires(ZuulDBTestCase):
             dict(name='hold', result='SUCCESS', changes='1,1 2,1'),
             dict(name='image-user', result='SUCCESS', changes='1,1 2,1 3,1'),
             dict(name='library-user', result='SUCCESS',
+                 changes='1,1 2,1 3,1'),
+            dict(name='library-user2', result='SUCCESS',
                  changes='1,1 2,1 3,1'),
             dict(name='hold', result='SUCCESS', changes='1,1 2,1 3,1'),
             dict(name='both-user', result='SUCCESS', changes='1,1 2,1 4,1'),

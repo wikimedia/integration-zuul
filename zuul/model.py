@@ -2471,6 +2471,7 @@ class QueueItem(object):
             fakebuild = Build(job, None)
             fakebuild.result = 'FAILURE'
             self.addBuild(fakebuild)
+            self.setResult(fakebuild)
             ret = True
         return ret
 

@@ -58,6 +58,10 @@
     requires: libraries
 
 - job:
+    name: library-user2
+    dependencies: library-user
+
+- job:
     name: both-user
     requires:
       - images
@@ -84,6 +88,7 @@
       jobs:
         - image-user
         - library-user
+        - library-user2
         - hold
     gate:
       queue: integrated
