@@ -7822,6 +7822,56 @@ class TestSchedulerFailFast(ZuulTestCase):
             dict(name='project-test6', result='FAILURE', changes='1,1'),
         ], ordered=False)
 
+    def test_fail_fast_reconfigure(self):
+        """
+        Tests that a pipeline that is flagged with fail-fast
+        doesn't abort jobs when a job is removed during reconfig.
+        """
+        self.executor_server.hold_jobs_in_build = True
+        self.fake_nodepool.pause()
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.executor_server.failJob('project-test1', A)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.waitUntilSettled()
+        self.assertEqual(len(self.builds), 1)
+        self.assertEqual(self.builds[0].name, 'project-merge')
+        self.executor_server.release('project-merge')
+        self.waitUntilSettled()
+
+        # Now project-test1, project-test2 and project-test6
+        # should be running
+        self.assertEqual(len(self.builds), 3)
+
+        # Commit new config that removes project-test1
+        self.commitConfigUpdate('common-config',
+                                'layouts/fail-fast-reconfigure.yaml')
+        self.sched.reconfigure(self.config)
+
+        # Release project-test1
+        self.executor_server.release('project-test1')
+        self.waitUntilSettled()
+
+        self.fake_nodepool.unpause()
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 0)
+        self.assertEqual(A.reported, 1)
+        self.assertEqual(A.patchsets[0]['approvals'][0]['value'], "1")
+        self.assertHistory([
+            dict(name='project-merge', result='SUCCESS', changes='1,1'),
+            dict(name='project-test1', result='ABORTED', changes='1,1'),
+            dict(name='project-test2', result='SUCCESS', changes='1,1'),
+            dict(name='project-test3', result='SUCCESS', changes='1,1'),
+            dict(name='project-test4', result='SUCCESS', changes='1,1'),
+            dict(name='project-test5', result='SUCCESS', changes='1,1'),
+            dict(name='project-test6', result='SUCCESS', changes='1,1'),
+        ], ordered=False)
+
 
 class TestPipelineSupersedes(ZuulTestCase):
 

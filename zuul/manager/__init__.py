@@ -986,9 +986,14 @@ class PipelineManager(object):
         item = build.build_set.item
 
         log.debug("Build %s of %s completed" % (build, item.change))
+        item.pipeline.tenant.semaphore_handler.release(item, build.job)
+
+        if item.getJob(build.job.name) is None:
+            log.info("Build %s no longer in job graph for item %s",
+                     build, item)
+            return
 
         item.setResult(build)
-        item.pipeline.tenant.semaphore_handler.release(item, build.job)
         log.debug("Item %s status is now:\n %s", item, item.formatStatus())
 
         if build.retry:
