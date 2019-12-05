@@ -2191,6 +2191,7 @@ class QueueItem(object):
 
     def warning(self, msg):
         self.current_build_set.warning_messages.append(msg)
+        self.log.info(msg)
 
     def freezeJobGraph(self, skip_file_matcher=False):
         """Find or create actual matching jobs for this item's change and
