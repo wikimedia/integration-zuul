@@ -833,6 +833,7 @@ class ZuulWebAPI(object):
                 'ref': buildset.ref,
                 'newrev': buildset.newrev,
                 'ref_url': buildset.ref_url,
+                'event_id': buildset.event_id,
                 'buildset': {
                     'uuid': buildset.uuid,
                 },
@@ -909,6 +910,7 @@ class ZuulWebAPI(object):
             'ref': buildset.ref,
             'newrev': buildset.newrev,
             'ref_url': buildset.ref_url,
+            'event_id': buildset.event_id,
         }
         if builds:
             ret['builds'] = []

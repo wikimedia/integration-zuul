@@ -58,8 +58,8 @@ class DatabaseSession(object):
 
     def getBuilds(self, tenant=None, project=None, pipeline=None,
                   change=None, branch=None, patchset=None, ref=None,
-                  newrev=None, uuid=None, job_name=None, voting=None,
-                  node_name=None, result=None, provides=None,
+                  newrev=None, event_id=None, uuid=None, job_name=None,
+                  voting=None, node_name=None, result=None, provides=None,
                   limit=50, offset=0):
 
         build_table = self.connection.zuul_build_table
@@ -96,6 +96,7 @@ class DatabaseSession(object):
         q = self.listFilter(q, buildset_table.c.patchset, patchset)
         q = self.listFilter(q, buildset_table.c.ref, ref)
         q = self.listFilter(q, buildset_table.c.newrev, newrev)
+        q = self.listFilter(q, buildset_table.c.event_id, event_id)
         q = self.listFilter(q, build_table.c.uuid, uuid)
         q = self.listFilter(q, build_table.c.job_name, job_name)
         q = self.listFilter(q, build_table.c.voting, voting)
@@ -275,6 +276,7 @@ class SQLConnection(BaseConnection):
             result = sa.Column(sa.String(255))
             message = sa.Column(sa.TEXT())
             tenant = sa.Column(sa.String(255))
+            event_id = sa.Column(sa.String(255), nullable=True)
 
             def createBuild(self, *args, **kw):
                 session = orm.session.Session.object_session(self)

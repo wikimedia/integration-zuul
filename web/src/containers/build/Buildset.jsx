@@ -30,7 +30,7 @@ class Buildset extends React.Component {
     const { buildset } = this.props
     const rows = []
     const myColumns = [
-      'change', 'project', 'branch', 'pipeline', 'result', 'message'
+      'change', 'project', 'branch', 'pipeline', 'result', 'message', 'event_id'
     ]
     const buildRows = []
     const buildColumns = [
@@ -46,6 +46,9 @@ class Buildset extends React.Component {
             {buildset.change},{buildset.patchset}
           </a>
         )
+      }
+      if (column === 'event_id') {
+        label = 'event id'
       }
       if (value) {
         rows.push({key: label, value: value})
