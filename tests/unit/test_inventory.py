@@ -143,6 +143,8 @@ class TestInventory(TestInventoryBase):
             self.assertEqual(
                 '/usr/bin/python2', node_vars['ansible_python_interpreter'])
         self.assertIn('zuul', inventory['all']['vars'])
+        self.assertIn('attempts', inventory['all']['vars']['zuul'])
+        self.assertEqual(1, inventory['all']['vars']['zuul']['attempts'])
         z_vars = inventory['all']['vars']['zuul']
         self.assertIn('executor', z_vars)
         self.assertIn('src_root', z_vars['executor'])
