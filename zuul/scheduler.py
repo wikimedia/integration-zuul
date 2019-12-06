@@ -485,7 +485,10 @@ class Scheduler(threading.Thread):
                     pipekey, hostname, projectname, branchname, jobname)
                 # zuul.tenant.<tenant>.pipeline.<pipeline>.project.
                 #   <host>.<project>.<branch>.job.<job>.<result>
-                key = '%s.%s' % (jobkey, build.result)
+                key = '%s.%s' % (
+                    jobkey,
+                    'RETRY' if build.result is None else build.result
+                )
                 if build.result in ['SUCCESS', 'FAILURE'] and build.start_time:
                     dt = int((build.end_time - build.start_time) * 1000)
                     self.statsd.timing(key, dt)
