@@ -1173,6 +1173,17 @@ class GithubConnection(BaseConnection):
                 proj = pr.get('base').get('repo').get('full_name')
                 sha = pr.get('head').get('sha')
                 key = (proj, num, sha)
+
+                # A single tenant could have multiple projects with the same
+                # name on different sources. Ensure we use the canonical name
+                # to handle that case.
+                s_project = self.source.getProject(proj)
+                trusted, t_project = tenant.getProject(
+                    s_project.canonical_name)
+                # ignore projects zuul doesn't know about
+                if not t_project:
+                    continue
+
                 if key in keys:
                     continue
                 self.log.debug("Found PR %s/%s needs %s/%s" %
