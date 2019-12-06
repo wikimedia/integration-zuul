@@ -84,7 +84,7 @@ class GerritSource(BaseSource):
             return changes
         queries = set()
         for uri in change.uris:
-            queries.add('message:{%s}' % uri)
+            queries.add('message:{Depends-On: %s}' % uri)
         query = '(' + ' OR '.join(queries) + ')'
         results = self.connection.simpleQuery(query)
         seen = set()

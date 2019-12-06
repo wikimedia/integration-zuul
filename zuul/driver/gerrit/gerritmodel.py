@@ -49,7 +49,8 @@ class GerritChange(Change):
         self.branch = data['branch']
         self.url = data['url']
         urlparse = urllib.parse.urlparse(connection.baseurl)
-        baseurl = "%s%s" % (urlparse.netloc, urlparse.path)
+        baseurl = "%s://%s%s" % (urlparse.scheme, urlparse.netloc,
+                                 urlparse.path)
         baseurl = baseurl.rstrip('/')
         self.uris = [
             '%s/%s' % (baseurl, self.number),
@@ -91,7 +92,8 @@ class GerritChange(Change):
 
     def updateFromHTTP(self, data, connection):
         urlparse = urllib.parse.urlparse(connection.baseurl)
-        baseurl = "%s%s" % (urlparse.netloc, urlparse.path)
+        baseurl = "%s://%s%s" % (urlparse.scheme, urlparse.netloc,
+                                 urlparse.path)
         baseurl = baseurl.rstrip('/')
         current_revision = data['revisions'][data['current_revision']]
         if self.patchset is None:
@@ -99,7 +101,7 @@ class GerritChange(Change):
         self.project = connection.source.getProject(data['project'])
         self.id = data['change_id']
         self.branch = data['branch']
-        self.url = '%s://%s/%s' % (urlparse.scheme, baseurl, self.number)
+        self.url = '%s/%s' % (baseurl, self.number)
         self.uris = [
             '%s/%s' % (baseurl, self.number),
             '%s/#/c/%s' % (baseurl, self.number),

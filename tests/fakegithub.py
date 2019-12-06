@@ -485,6 +485,15 @@ class FakeGithubClient(object):
         return FakePull(fake_pr)
 
     def search_issues(self, query):
+        def tokenize(s):
+            # Tokenize with handling for quoted substrings.
+            # Bit hacky and needs PDA, but our current inputs are
+            # constrained enough that this should work.
+            s = s[:-len(" type:pr is:open in:body")]
+            OR_split = [x.strip() for x in s.split('OR')]
+            tokens = [x.strip('"') for x in OR_split]
+            return tokens
+
         def query_is_sha(s):
             return re.match(r'[a-z0-9]{40}', s)
 
@@ -495,24 +504,23 @@ class FakeGithubClient(object):
 
         # Non-SHA queries are of the form:
         #
-        #     '<url> OR <url> OR ... type:pr is:open in:body'
+        #     '"Depends-On: <url>" OR "Depends-On: <url>"
+        #      OR ... type:pr is:open in:body'
         #
         # For the tests is currently enough to simply check for the
-        # existence of the URLs in the PR body.
-        urls = [u for u in (s.strip() for s in query.split())
-                if not re.match(r'(OR|(type|is|in):.+)', u)]
-
+        # existence of the Depends-On strings in the PR body.
+        tokens = tokenize(query)
+        terms = set(tokens)
         results = []
         for pr in self._data.pull_requests.values():
             if not pr.body:
                 body = ""
             else:
                 body = pr.body
-            for url in urls:
-                if url in body:
+            for term in terms:
+                if term in body:
                     issue = FakeIssue(pr)
                     results.append(FakeIssueSearchResult(issue))
-                    # No need to continue checking other URLs
                     break
 
         return iter(results)

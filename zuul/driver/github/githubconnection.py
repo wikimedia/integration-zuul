@@ -1052,7 +1052,8 @@ class GithubConnection(BaseConnection):
                 change.url = self.getPullUrl(
                     event.project_name, event.change_number)
             change.uris = [
-                '%s/%s/pull/%s' % (self.server, project, change.number),
+                'https://%s/%s/pull/%s' % (
+                    self.server, project, change.number),
             ]
             change.source_event = event
             change.is_current_patchset = (change.pr.get('head').get('sha') ==
@@ -1159,7 +1160,11 @@ class GithubConnection(BaseConnection):
                     installation_projects.add(project_name)
 
         keys = set()
-        pattern = ' OR '.join(change.uris)
+        # TODO: Max of 5 OR operators can be used per query and
+        # query can be max of 256 characters long
+        # If making changes to this pattern you may need to update
+        # tests/fakegithub.py
+        pattern = ' OR '.join(['"Depends-On: %s"' % x for x in change.uris])
         query = '%s type:pr is:open in:body' % pattern
         # Repeat the search for each installation id (project)
         for installation_project in installation_projects:
@@ -1258,8 +1263,8 @@ class GithubConnection(BaseConnection):
                 change.pr.get('updated_at'))
         change.url = change.pr.get('url')
         change.uris = [
-            '%s/%s/pull/%s' % (self.server, change.project.name,
-                               change.number),
+            'https://%s/%s/pull/%s' % (
+                self.server, change.project.name, change.number),
         ]
 
         if self.sched:
