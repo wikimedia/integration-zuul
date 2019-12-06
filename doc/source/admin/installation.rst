@@ -22,6 +22,7 @@ directory.
 
 It is further required to run ``zuul-manage-ansible`` on the zuul-executor
 in order to install all supported ansible versions so zuul can use them.
+See :ref:`ansible-installation-options` for details.
 
 Zuul Components
 ---------------
@@ -97,17 +98,29 @@ components, and also to communicate with Zuul.  You can run a simple
 single-node ZooKeeper instance, or a multi-node cluster.  Ensure that
 the host running the Zuul scheduler has access to the cluster.
 
+.. _ansible-installation-options:
+
 Ansible
 ~~~~~~~
 
-Zuul uses Ansible to run jobs.  Each version of Zuul is designed to
-work with a specific, contemporary versions of Ansible. Zuul manages
-its Ansible installations using ``zuul-manage-ansible``. It is
-recommended to run ``zuul-manage-ansible`` before starting the zuul-executor
-the first time.
+There are two approaches that can be used to install Ansible for Zuul.
+
+First you may set ``manage_ansible`` to True in the executor config. If you
+do this Zuul will install all supported Ansible versions on zuul-executor
+startup. These installations end up in Zuul's state dir,
+``/var/lib/zuul/ansible-bin`` if unchanged.
+
+The second option is to use ``zuul-manage-ansible`` to install the supported
+Ansible versions. By default this will install Ansible to
+``zuul_install_prefix/lib/zuul/ansible``. This method is preferable to the
+first because it speeds up zuul-executor start time and allows you to
+preinstall ansible in containers (avoids problems with bind mounted zuul
+state dirs).
 
 .. program-output:: zuul-manage-ansible -h
 
+In both cases if using a non default path you will want to set
+``ansible_root`` in the executor config file.
 
 Zuul Setup
 ----------
