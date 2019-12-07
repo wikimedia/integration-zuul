@@ -37,6 +37,10 @@ class SQLReporter(BaseReporter):
             log.warning("SQL reporter (%s) is disabled ", self)
             return
 
+        event_id = None
+        if item.event is not None:
+            event_id = getattr(item.event, "zuul_event_id", None)
+
         with self.connection.getSession() as db:
             db_buildset = db.createBuildSet(
                 uuid=item.current_build_set.uuid,
@@ -52,6 +56,7 @@ class SQLReporter(BaseReporter):
                 zuul_ref=item.current_build_set.ref,
                 ref_url=item.change.url,
                 result=item.current_build_set.result,
+                event_id=event_id,
                 message=self._formatItemReport(item, with_jobs=False),
             )
             for job in item.getJobs():

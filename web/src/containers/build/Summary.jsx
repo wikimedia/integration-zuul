@@ -34,7 +34,7 @@ class Summary extends React.Component {
       'job_name', 'result', 'buildset', 'voting',
       'pipeline', 'start_time', 'end_time', 'duration',
       'project', 'branch', 'change', 'patchset', 'oldrev', 'newrev',
-      'ref', 'new_rev', 'ref_url', 'log_url']
+      'ref', 'new_rev', 'ref_url', 'log_url', 'event_id']
 
     if (!build.buildset) {
       // Safely handle missing buildset information
@@ -74,6 +74,9 @@ class Summary extends React.Component {
       }
       if (column === 'ref_url') {
         label = 'ref url'
+      }
+      if (column === 'event_id') {
+        label = 'event id'
       }
       if (value) {
         rows.push({key: label, value: value})
