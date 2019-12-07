@@ -313,6 +313,13 @@ of item.
 
       A boolean indicating whether the job is voting.
 
+   .. var:: attempts
+
+      An integer count of how many attempts have been made to run this
+      job for the current buildset. If there are pre-run failures or network
+      connectivity issues then previous attempts may have been cancelled,
+      and this value will be greater than 1.
+
    .. var:: project
 
       The item's project.  This is a data structure with the following

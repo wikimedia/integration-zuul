@@ -318,6 +318,11 @@ class ExecutorClient(object):
             self.sched.onBuildCompleted(build, 'SUCCESS', {}, [])
             return build
 
+        # Update zuul attempts after addBuild above to ensure build_set
+        # is up to date.
+        attempts = build.build_set.getTries(job.name)
+        zuul_params['attempts'] = attempts
+
         functions = getGearmanFunctions(self.gearman)
         function_name = 'executor:execute'
         # Because all nodes belong to the same provider, region and
