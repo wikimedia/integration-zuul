@@ -10,21 +10,16 @@ python-prettytable 0.7.2 is available in Jessie so we should use it.
 Bug: T158243
 Change-Id: I7446aa6441ed975c8ec1f35ba70085a1bb598bf9
 ---
- requirements.txt | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+ requirements.txt | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/requirements.txt b/requirements.txt
-index ced583d..553b272 100644
+index e372e92..22bfb00 100644
 --- a/requirements.txt
 +++ b/requirements.txt
-@@ -4,13 +4,18 @@ PyYAML>=3.1.0
- Paste
- WebOb>=1.2.3
- paramiko>=1.8.0,<2.0.0
--GitPython>=0.3.3
-+GitPython==2.0.8
-+smmap==0.9.0
-+gitdb==0.6.4
+@@ -8,11 +8,14 @@ GitPython==2.1.11
+ smmap==0.9.0
+ gitdb==0.6.4
  python-daemon>=2.0.4,<2.1.0
 +lockfile==0.12.2
  extras
