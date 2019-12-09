@@ -1,4 +1,4 @@
-zuul (2.5.1-wmf11) UNRELEASED; urgency=medium
+zuul (2.5.1-wmf11) jessie-wikimedia; urgency=medium
 
   * Drop patch Do-not-import-paramiko-before-daemonization, fixed by Paramiko
     1.11.6 or later which we have on Jessie and later. That was for T137525.
