@@ -13,10 +13,10 @@ Change-Id: I7dd587e6664783ac636fc879f8f5880cfc5db497
  2 files changed, 5 insertions(+), 2 deletions(-)
 
 diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
-index 05c1cf4..db1ce3c 100644
+index 3a84aad..af6a347 100644
 --- a/zuul/connection/gerrit.py
 +++ b/zuul/connection/gerrit.py
-@@ -309,6 +309,9 @@ class GerritConnection(BaseConnection):
+@@ -311,6 +311,9 @@ class GerritConnection(BaseConnection):
                         (pprint.pformat(data)))
          return data
  

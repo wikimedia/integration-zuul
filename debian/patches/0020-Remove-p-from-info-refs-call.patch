@@ -13,10 +13,10 @@ Change-Id: Id37f53213b3d2a88bd7b02fa6de9ae5f77935642
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/zuul/connection/gerrit.py b/zuul/connection/gerrit.py
-index e46eb25..05c1cf4 100644
+index 488c2b3..3a84aad 100644
 --- a/zuul/connection/gerrit.py
 +++ b/zuul/connection/gerrit.py
-@@ -396,7 +396,7 @@ class GerritConnection(BaseConnection):
+@@ -398,7 +398,7 @@ class GerritConnection(BaseConnection):
          return (out, err)
  
      def getInfoRefs(self, project):
