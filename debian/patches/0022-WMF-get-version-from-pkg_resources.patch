@@ -16,10 +16,10 @@ Change-Id: Ia9f95b4d44d04ea962d61a9e3786fdb43bf47368
  3 files changed, 5 insertions(+), 22 deletions(-)
 
 diff --git a/zuul/cmd/__init__.py b/zuul/cmd/__init__.py
-index 471fe15..e8cbf40 100644
+index 5ffd431..e6e80f0 100644
 --- a/zuul/cmd/__init__.py
 +++ b/zuul/cmd/__init__.py
-@@ -62,8 +62,8 @@ class ZuulApp(object):
+@@ -64,8 +64,8 @@ class ZuulApp(object):
          self.connections = {}
  
      def _get_version(self):

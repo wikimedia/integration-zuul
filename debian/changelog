@@ -1,3 +1,10 @@
+zuul (2.5.1-wmf11) UNRELEASED; urgency=medium
+
+  * Drop patch Do-not-import-paramiko-before-daemonization, fixed by Paramiko
+    1.11.6 or later which we have on Jessie and later. That was for T137525.
+
+ -- Antoine Musso <hashar@free.fr>  Mon, 09 Dec 2019 21:08:29 +0100
+
 zuul (2.5.1-wmf10) jessie-wikimedia; urgency=medium
 
   * Fix 0018-wmf-ignore-submit-error-on-merged-change - T203846
