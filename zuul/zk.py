@@ -544,7 +544,7 @@ class ZooKeeper(object):
         Get the current list of all hold requests.
         '''
         try:
-            return self.client.get_children(self.HOLD_REQUEST_ROOT)
+            return sorted(self.client.get_children(self.HOLD_REQUEST_ROOT))
         except kze.NoNodeError:
             return []
 
