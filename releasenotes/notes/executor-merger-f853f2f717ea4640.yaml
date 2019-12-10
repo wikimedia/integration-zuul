@@ -1,4 +1,5 @@
 ---
 features:
   - |
-    A new config option enable executor to not performed global merge job.
+    A new executor option :attr:`executor.merge_jobs` has been added to toggle
+    global merge operations.
