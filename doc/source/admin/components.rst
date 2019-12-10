@@ -821,6 +821,8 @@ To enable or disable running Ansible in verbose mode (with the
 ``-vvv`` argument to ansible-playbook) run ``zuul-executor verbose``
 and ``zuul-executor unverbose``.
 
+.. _ansible-and-python-3:
+
 Ansible and Python 3
 ~~~~~~~~~~~~~~~~~~~~
 
