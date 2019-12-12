@@ -14,12 +14,12 @@ Change-Id: I7446aa6441ed975c8ec1f35ba70085a1bb598bf9
  1 file changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/requirements.txt b/requirements.txt
-index e372e92..22bfb00 100644
+index 60968cb..b5030e2 100644
 --- a/requirements.txt
 +++ b/requirements.txt
 @@ -8,11 +8,14 @@ GitPython==2.1.11
- smmap==0.9.0
- gitdb==0.6.4
+ smmap2==2.0.5
+ gitdb2==2.0.5
  python-daemon>=2.0.4,<2.1.0
 +lockfile==0.12.2
  extras
