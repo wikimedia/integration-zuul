@@ -651,6 +651,15 @@ def make_setup_inventory_dict(nodes):
     return inventory
 
 
+def is_group_var_set(name, host, args):
+    for group in args['groups']:
+        if host in group['nodes']:
+            group_vars = args['group_vars'].get(group['name'], {})
+            if name in group_vars:
+                return True
+    return False
+
+
 def make_inventory_dict(nodes, args, all_vars):
     hosts = {}
     for node in nodes:
@@ -1377,15 +1386,21 @@ class AnsibleJob(object):
                 # Fedoras).  For "auto" with prior versions, fall back
                 # to the old default of /usr/bin/python2 for backwards
                 # compatability.
-                python = node.get('python_path', 'auto')
-                compat = self.arguments.get('ansible_version') in \
-                    ('2.5', '2.6', '2.7')
-                if python == "auto" and compat:
-                    self.log.debug(
-                        "ansible_version set to auto but "
-                        "overriding to python2 for Ansible <2.8")
-                    python = '/usr/bin/python2'
-                host_vars.setdefault('ansible_python_interpreter', python)
+                # If ansible_python_interpreter is set either as a group
+                # var or all-var, then don't do anything here; let the
+                # user control.
+                api = 'ansible_python_interpreter'
+                if (api not in args['vars'] and
+                    not is_group_var_set(api, name, args)):
+                    python = node.get('python_path', 'auto')
+                    compat = self.arguments.get('ansible_version') in \
+                        ('2.5', '2.6', '2.7')
+                    if python == "auto" and compat:
+                        self.log.debug(
+                            "ansible_version set to auto but "
+                            "overriding to python2 for Ansible <2.8")
+                        python = '/usr/bin/python2'
+                    host_vars.setdefault(api, python)
 
                 username = node.get('username')
                 if username:
