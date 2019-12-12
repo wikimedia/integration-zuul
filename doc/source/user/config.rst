@@ -203,6 +203,12 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
          these cases, build resources can be conserved by avoiding
          building intermediate versions.
 
+         .. note:: Since this pipeline filters intermediate buildsets using
+                   it in combination with file filters on jobs is dangerous.
+                   In this case jobs of in between buildsets can be
+                   unexpectedly skipped entirely. If file filters are needed
+                   the independent pipeline manager should be used.
+
    .. attr:: post-review
       :default: false
 
