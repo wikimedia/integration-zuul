@@ -82,6 +82,8 @@ class TimerDriver(Driver, TriggerInterface):
                     jobs.append(job)
 
     def _onTrigger(self, tenant, pipeline_name, timespec):
+        self.log.debug('Got trigger for tenant %s and pipeline %s with '
+                       'timespec %s', tenant.name, pipeline_name, timespec)
         for project_name, pcs in tenant.layout.project_configs.items():
             # timer operates on branch heads and doesn't need speculative
             # layouts to decide if it should be enqueued or not.
