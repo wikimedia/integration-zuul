@@ -1,0 +1,61 @@
+- pipeline:
+    name: check
+    manager: independent
+    trigger:
+      gerrit:
+        - event: patchset-created
+    success:
+      gerrit:
+        Verified: 1
+    failure:
+      gerrit:
+        Verified: -1
+
+- job:
+    name: base
+    parent: null
+    run: playbooks/run.yaml
+
+- job:
+    name: project-merge
+
+- job:
+    name: project-test1
+
+- job:
+    name: project-test2
+
+- job:
+    name: project-test3
+
+- job:
+    name: project-test4
+
+- job:
+    name: project-test5
+    nodeset:
+      nodes:
+        - name: controller
+          label: label1
+
+- job:
+    name: project-test6
+
+- project:
+    name: org/project
+    check:
+      fail-fast: true
+      jobs:
+        - project-merge
+        - project-test2:
+            dependencies: project-merge
+        - project-test3:
+            dependencies:
+              - name: project-test2
+                soft: true
+        - project-test4:
+            dependencies: project-test2
+        - project-test5
+        - project-test6:
+            dependencies: project-merge
+            voting: false
