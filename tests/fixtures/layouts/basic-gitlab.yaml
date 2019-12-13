@@ -4,6 +4,9 @@
     trigger:
       gitlab:
         - event: gl_merge_request
+          action: comment
+          comment: (?i)^\s*recheck\s*$
+        - event: gl_merge_request
           action:
             - opened
     start:

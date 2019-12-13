@@ -1649,8 +1649,7 @@ class FakeGitlabMergeRequest(object):
         self.notes.append(
             {
                 "body": body,
-                "created_at": datetime.datetime.now().strftime(
-                    '%Y-%m-%dT%H:%M:%S.%fZ'),
+                "created_at": datetime.datetime.now(),
             }
         )
 
@@ -1687,7 +1686,7 @@ class FakeGitlabMergeRequest(object):
     def _updateTimeStamp(self):
         self.updated_at = datetime.datetime.now()
 
-    def getMergeRequestEvent(self):
+    def getMergeRequestOpenedEvent(self):
         name = 'gl_merge_request'
         data = {
             'object_kind': 'merge_request',
@@ -1705,6 +1704,32 @@ class FakeGitlabMergeRequest(object):
                 'last_commit': {
                     'id': self.patch_number,
                 }
+            },
+        }
+        return (name, data)
+
+    def getMergeRequestCommentedEvent(self, note):
+        self.addNote(note)
+        note_date = self.notes[-1]['created_at'].strftime(
+            '%Y-%m-%d %H:%M:%S UTC')
+        name = 'gl_merge_request'
+        data = {
+            'object_kind': 'note',
+            'project': {
+                'path_with_namespace': self.project
+            },
+            'merge_request': {
+                'title': self.title,
+                'iid': self.number,
+                'target_branch': self.branch,
+                'last_commit': {
+                    'id': self.patch_number,
+                },
+            },
+            'object_attributes': {
+                'created_at': note_date,
+                'updated_at': note_date,
+                'note': self.notes[-1]['body'],
             },
         }
         return (name, data)
