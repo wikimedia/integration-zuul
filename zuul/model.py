@@ -2618,7 +2618,7 @@ class QueueItem(object):
         # NOTE(pabelanger): Check successful jobs to see if zuul_return
         # includes zuul.child_jobs.
         build_result = build.result_data.get('zuul', {})
-        if 'child_jobs' in build_result:
+        if build.result == 'SUCCESS' and 'child_jobs' in build_result:
             zuul_return = build_result.get('child_jobs', [])
             dependent_jobs = self.job_graph.getDirectDependentJobs(
                 build.job.name)

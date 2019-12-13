@@ -3732,6 +3732,16 @@ class TestDataReturn(AnsibleZuulTestCase):
         self.assertIn('data-return : SKIPPED', A.messages[-1])
         self.assertIn('Build succeeded', A.messages[-1])
 
+    def test_data_return_child_jobs_failure(self):
+        A = self.fake_gerrit.addFakeChange('org/project5', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='data-return-child-jobs-failure',
+                 result='FAILURE', changes='1,1'),
+        ])
+
 
 class TestDiskAccounting(AnsibleZuulTestCase):
     config_file = 'zuul-disk-accounting.conf'

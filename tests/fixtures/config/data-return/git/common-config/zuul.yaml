@@ -38,6 +38,12 @@
     run: playbooks/data-return-relative.yaml
 
 - job:
+    name: data-return-child-jobs-failure
+    run:
+      - playbooks/data-return-child-jobs.yaml
+      - playbooks/failure.yaml
+
+- job:
     name: data-return-a
     run: playbooks/data-return-a.yaml
 
@@ -130,6 +136,15 @@
         - data-return:
             dependencies:
               - several-zuul-return-child
+
+- project:
+    name: org/project5
+    check:
+      jobs:
+        - data-return-child-jobs-failure
+        - data-return:
+            dependencies:
+              - data-return-child-jobs-failure
 
 - project:
     name: org/project-soft
