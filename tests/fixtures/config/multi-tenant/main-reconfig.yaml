@@ -26,9 +26,10 @@
           - tenant-two-config
         untrusted-projects:
           - org/project2
+          - org/project2b
 
 - tenant:
-    name: tenant-three
+    name: tenant-four
     max-nodes-per-job: 10
     allowed-triggers: gerrit
     source:
@@ -36,4 +37,4 @@
         config-projects:
           - common-config
         untrusted-projects:
-          - org/project3
+          - org/project4

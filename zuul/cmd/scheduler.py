@@ -59,6 +59,15 @@ class Scheduler(zuul.cmd.ZuulDaemonApp):
         except Exception:
             self.log.exception("Reconfiguration failed:")
 
+    def smartReconfigure(self):
+        self.log.debug("Smart reconfiguration triggered")
+        self.readConfig()
+        self.setup_logging('scheduler', 'log_config')
+        try:
+            self.sched.reconfigure(self.config, smart=True)
+        except Exception:
+            self.log.exception("Reconfiguration failed:")
+
     def reconfigure_handler(self, signum, frame):
         signal.signal(signal.SIGHUP, signal.SIG_IGN)
         self.fullReconfigure()

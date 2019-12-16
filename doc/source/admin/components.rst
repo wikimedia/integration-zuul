@@ -356,13 +356,25 @@ Operation
 To start the scheduler, run ``zuul-scheduler``.  To stop it, kill the
 PID which was saved in the pidfile specified in the configuration.
 
+Reconfiguration
+~~~~~~~~~~~~~~~
+
 Most of Zuul's configuration is automatically updated as changes to
 the repositories which contain it are merged.  However, Zuul must be
 explicitly notified of changes to the tenant config file, since it is
-not read from a git repository.  To do so, run
-``zuul-scheduler full-reconfigure``. The signal based method by sending
+not read from a git repository. Zuul supports two kinds of reconfigurations.
+
+The full reconfiguration refetches and reloads the configuration of all
+tenants. To do so, run `zuul-scheduler full-reconfigure`. For example this
+can be used to fix eventual configuration inconsistencies after connection
+problems to Gerrit/Gibhub. The signal based method by sending
 a `SIGHUP` signal to the scheduler PID is deprecated.
 
+The smart reconfiguration reloads only the tenants that changed their
+configuration in the tenant config file. To do so, run
+`zuul-scheduler smart-reconfigure`. In multi tenant systems this can be much
+faster than the full reconfiguration so it is recommended to use the smart
+reconfiguration after changing the tenant configuration file.
 
 Merger
 ------

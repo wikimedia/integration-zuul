@@ -40,9 +40,9 @@ from zuul.lib.logutil import get_annotated_logger
 from zuul.lib.statsd import get_statsd
 import zuul.lib.queue
 import zuul.lib.repl
-from zuul.model import Build, HoldRequest
+from zuul.model import Build, HoldRequest, Tenant
 
-COMMANDS = ['full-reconfigure', 'stop', 'repl', 'norepl']
+COMMANDS = ['full-reconfigure', 'smart-reconfigure', 'stop', 'repl', 'norepl']
 
 
 class ManagementEvent(object):
@@ -76,6 +76,17 @@ class ReconfigureEvent(ManagementEvent):
     """
     def __init__(self, config):
         super(ReconfigureEvent, self).__init__()
+        self.config = config
+
+
+class SmartReconfigureEvent(ManagementEvent):
+    """Reconfigure the scheduler.  The layout will be (re-)loaded from
+    the path specified in the configuration.
+
+    :arg ConfigParser config: the new configuration
+    """
+    def __init__(self, config, smart=False):
+        super().__init__()
         self.config = config
 
 
@@ -282,6 +293,7 @@ class Scheduler(threading.Thread):
         self.command_map = {
             'stop': self.stop,
             'full-reconfigure': self.fullReconfigureCommandHandler,
+            'smart-reconfigure': self.smartReconfigureCommandHandler,
             'repl': self.start_repl,
             'norepl': self.stop_repl,
         }
@@ -534,6 +546,9 @@ class Scheduler(threading.Thread):
     def fullReconfigureCommandHandler(self):
         self._zuul_app.fullReconfigure()
 
+    def smartReconfigureCommandHandler(self):
+        self._zuul_app.smartReconfigure()
+
     def start_repl(self):
         if self.repl:
             return
@@ -546,9 +561,12 @@ class Scheduler(threading.Thread):
         self.repl.stop()
         self.repl = None
 
-    def reconfigure(self, config):
+    def reconfigure(self, config, smart=False):
         self.log.debug("Submitting reconfiguration event")
-        event = ReconfigureEvent(config)
+        if smart:
+            event = SmartReconfigureEvent(config)
+        else:
+            event = ReconfigureEvent(config)
         self.management_event_queue.put(event)
         self.wake_event.set()
         self.log.debug("Waiting for reconfiguration")
@@ -810,6 +828,60 @@ class Scheduler(threading.Thread):
         duration = round(time.monotonic() - start, 3)
         self.log.info("Full reconfiguration complete (duration: %s seconds)",
                       duration)
+
+    def _doSmartReconfigureEvent(self, event):
+        # This is called in the scheduler loop after another thread submits
+        # a request
+        reconfigured_tenants = []
+        with self.layout_lock:
+            self.config = event.config
+            self.log.info("Smart reconfiguration beginning")
+            start = time.monotonic()
+
+            # Reload the ansible manager in case the default ansible version
+            # changed.
+            default_ansible_version = get_default(
+                self.config, 'scheduler', 'default_ansible_version', None)
+            self.ansible_manager = AnsibleManager(
+                default_version=default_ansible_version)
+
+            loader = configloader.ConfigLoader(
+                self.connections, self, self.merger,
+                self._get_key_dir())
+            tenant_config, script = self._checkTenantSourceConf(self.config)
+            old_unparsed_abide = self.unparsed_abide
+            self.unparsed_abide = loader.readConfig(
+                tenant_config, from_script=script)
+
+            # We need to handle new and deleted tenants so we need to process
+            # all tenants from the currently known and the new ones.
+            tenant_names = {t for t in self.abide.tenants}
+            tenant_names.update(self.unparsed_abide.known_tenants)
+            for tenant_name in tenant_names:
+                old_tenant = [x for x in old_unparsed_abide.tenants
+                              if x['name'] == tenant_name]
+                new_tenant = [x for x in self.unparsed_abide.tenants
+                              if x['name'] == tenant_name]
+                if old_tenant == new_tenant:
+                    continue
+
+                reconfigured_tenants.append(tenant_name)
+                old_tenant = self.abide.tenants.get(tenant_name)
+                if old_tenant is None:
+                    # If there is no old tenant, use a fake tenant with the
+                    # correct name
+                    old_tenant = Tenant(tenant_name)
+                abide = loader.reloadTenant(
+                    self.abide, old_tenant, self.ansible_manager,
+                    self.unparsed_abide)
+
+                tenant = abide.tenants.get(tenant_name)
+                if tenant is not None:
+                    self._reconfigureTenant(tenant)
+                self.abide = abide
+        duration = round(time.monotonic() - start, 3)
+        self.log.info("Smart reconfiguration of tenants %s complete "
+                      "(duration: %s seconds)", reconfigured_tenants, duration)
 
     def _doTenantReconfigureEvent(self, event):
         # This is called in the scheduler loop after another thread submits
@@ -1242,6 +1314,8 @@ class Scheduler(threading.Thread):
         try:
             if isinstance(event, ReconfigureEvent):
                 self._doReconfigureEvent(event)
+            if isinstance(event, SmartReconfigureEvent):
+                self._doSmartReconfigureEvent(event)
             elif isinstance(event, TenantReconfigureEvent):
                 self._doTenantReconfigureEvent(event)
             elif isinstance(event, PromoteEvent):

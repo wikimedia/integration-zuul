@@ -3346,6 +3346,18 @@ class ZuulTestCase(BaseTestCase):
         except Exception:
             self.log.exception("Reconfiguration failed:")
 
+    def smartReconfigure(self, command_socket=False):
+        try:
+            if command_socket:
+                command_socket = self.config.get('scheduler', 'command_socket')
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                    s.connect(command_socket)
+                    s.sendall('smart-reconfigure\n'.encode('utf8'))
+            else:
+                self.sched.reconfigure(self.config, smart=True)
+        except Exception:
+            self.log.exception("Reconfiguration failed:")
+
     def configure_connections(self, source_only=False):
         # Set up gerrit related fakes
         # Set a changes database so multiple FakeGerrit's can report back to
