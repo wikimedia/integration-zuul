@@ -28,15 +28,6 @@
       - playbooks/zuul-stream/.*
 
 - job:
-    name: zuul-stream-functional-2.5
-    parent: zuul-stream-functional
-    # Force executor to use same Ansible version as "controller" node so
-    # that the inventory.yaml file will be correct for that version.
-    ansible-version: 2.5
-    vars:
-      zuul_ansible_version: 2.5
-
-- job:
     name: zuul-stream-functional-2.6
     parent: zuul-stream-functional
     # Force executor to use same Ansible version as "controller" node so
@@ -227,7 +218,6 @@
             success-url: 'npm/reports/bundle.html'
             files:
               - web/.*
-        - zuul-stream-functional-2.5
         - zuul-stream-functional-2.6
         - zuul-stream-functional-2.7
         - zuul-stream-functional-2.8
@@ -273,7 +263,6 @@
             success-url: 'npm/reports/bundle.html'
             files:
               - web/.*
-        - zuul-stream-functional-2.5
         - zuul-stream-functional-2.6
         - zuul-stream-functional-2.7
         - zuul-stream-functional-2.8
