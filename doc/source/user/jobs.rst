@@ -804,7 +804,7 @@ Zuul and stored in the SQL database.  These will then be available via
 the web interface and subsequent jobs.
 
 To provide artifact URLs for a build, use *zuul_return* to set keys
-under the **zuul.artifacts** dictionary.  For example:
+under the :var:`zuul.artifacts` dictionary.  For example:
 
 .. code-block:: yaml
 
@@ -826,7 +826,7 @@ the **zuul.log_url** value if set to create an absolute URL.  The
 dictionary; its keys and values may be anything.
 
 If *zuul_return* is invoked multiple times (e.g., via multiple
-playbooks), then the elements of **zuul.artifacts** from each
+playbooks), then the elements of :var:`zuul.artifacts` from each
 invocation will be appended.
 
 Skipping child jobs
@@ -917,23 +917,22 @@ Build Status
 A job build may have the following status:
 
 **SUCCESS**
-  nominal job execution
+  Nominal job execution.
 
 **FAILURE**
-  job executed correctly, but exited with a failure
+  Job executed correctly, but exited with a failure.
 
 **RETRY_LIMIT**
-  the ``pre-run`` playbook failed more than the maximum number of
+  The ``pre-run`` playbook failed more than the maximum number of
   retry ``attempts``.
 
 **POST_FAILURE**
-  the ``post-run`` playbook failed.
+  The ``post-run`` playbook failed.
 
 **SKIPPED**
-  one of the build dependencies failed and this job was not executed.
+  One of the build dependencies failed and this job was not executed.
 
 **NODE_FAILURE**
-  the test instance provider was unable to fullfill the nodeset
-  request.  Note: this can happen if the Nodepool quota is exceeding
-  the provider capacity, resulting in ``ERROR server creation: "No valid
-  host found"``.
+  The test instance provider was unable to fullfill the nodeset request.
+  This can happen if Nodepool is unable to provide the requested node(s)
+  for the request.
