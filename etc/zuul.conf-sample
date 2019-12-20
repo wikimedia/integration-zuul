@@ -52,6 +52,8 @@ default=true
 client_id=zuul.example.com
 issuer_id=zuul_operator
 secret=NoDanaOnlyZuul
+max_validity_time=36000
+skew=0
 
 [connection gerrit]
 driver=gerrit
