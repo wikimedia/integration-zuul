@@ -4,10 +4,36 @@ set -eu
 
 cd $(dirname $0)
 
-MYSQL="docker exec zuul-test-mysql mysql  -u root -pinsecure_slave"
+# Select docker or podman
+if command -v docker > /dev/null; then
+  DOCKER=docker
+elif command -v podman > /dev/null; then
+  DOCKER=podman
+else
+  echo "Please install docker or podman."
+  exit 1
+fi
 
-docker-compose rm -sf
-docker-compose up -d
+# Select docker-compose or podman-compose
+if command -v docker-compose > /dev/null; then
+  COMPOSE=docker-compose
+elif command -v podman-compose > /dev/null; then
+  COMPOSE=podman-compose
+else
+  echo "Please install docker-compose or podman-compose."
+  exit 1
+fi
+
+
+MYSQL="${DOCKER} exec zuul-test-mysql mysql  -u root -pinsecure_slave"
+
+if [ "${COMPOSE}" == "docker-compose" ]; then
+  docker-compose rm -sf
+else
+  podman-compose down
+fi
+
+${COMPOSE} up -d
 
 echo "Waiting for mysql"
 timeout 30 bash -c "until ${MYSQL} -e 'show databases'; do sleep 0.5; done"
