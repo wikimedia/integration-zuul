@@ -767,6 +767,15 @@ For example:
 
 Will return the dictionary ``{'foo': 'bar'}`` to Zuul.
 
+Optionally, if you have a large supply of data to return, you may specify the
+path to a JSON-formatted file with that data. For example:
+
+.. code-block:: yaml
+
+  tasks:
+    - zuul_return:
+        file: /path/to/data.json
+
 .. TODO: xref to section describing formatting
 
 Any values other than those in the ``zuul`` hierarchy will be supplied

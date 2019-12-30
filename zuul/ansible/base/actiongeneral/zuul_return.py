@@ -60,6 +60,8 @@ def merge_data(dict_a, dict_b):
 def set_value(path, new_data, new_file):
     workdir = os.path.dirname(path)
     data = None
+
+    # Read any existing zuul_return data.
     if os.path.exists(path):
         with open(path, 'r') as f:
             data = f.read()
@@ -68,12 +70,16 @@ def set_value(path, new_data, new_file):
     else:
         data = {}
 
+    # If a file of data was supplied, merge its contents.
     if new_file:
         with open(new_file, 'r') as f:
             merge_data(json.load(f), data)
+
+    # If a 'data' value was supplied, merge it.
     if new_data:
         merge_data(new_data, data)
 
+    # Replace our results file ('path') with the updated data.
     (f, tmp_path) = tempfile.mkstemp(dir=workdir)
     try:
         f = os.fdopen(f, 'w')
@@ -87,6 +93,26 @@ def set_value(path, new_data, new_file):
 
 class ActionModule(ActionBase):
     def run(self, tmp=None, task_vars=None):
+        """
+        Implementation of our action plugin.
+
+        Our plugin currently accepts these arguments:
+
+           data - A dictionary of arbitrary data to return to Zuul.
+           path - File location on the executor to store the return data.
+                  Unlikely to be supplied.
+           file - A JSON-formatted file storing the data to return to Zuul.
+                  This can be used instead of, or in conjunction with, the
+                  'data' argument to return large amounts of data.
+
+        Note: The plugin parameters are stored in the self._task.args variable.
+
+        :param tmp: Deprecated parameter.
+        :param task_vars: The variables (host vars, group vars, config vars,
+            etc) associated with this task.
+
+        :returns: Dictionary of results from the plugin.
+        """
         if task_vars is None:
             task_vars = dict()
         results = super(ActionModule, self).run(tmp, task_vars)
