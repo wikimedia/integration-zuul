@@ -1517,6 +1517,9 @@ pipeline.
          attribute, however, it may still be used if
          :attr:`scheduler.relative_priority` is enabled.
 
+         .. note:: This attribute is not evaluated speculatively and
+                   its setting shall be merged to be effective.
+
       .. attr:: debug
 
          If this is set to `true`, Zuul will include debugging
