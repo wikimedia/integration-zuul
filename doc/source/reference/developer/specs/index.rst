@@ -3,7 +3,10 @@ Specifications
 
 This section contains specifications for future Zuul development.  As
 we work on implementing significant changes, these document our plans
-for those changes and help us work on them collaboratively.
+for those changes and help us work on them collaboratively. Once a
+specification is implemented, it should be removed. All relevant
+details for implemented work must be reflected correctly in Zuul's
+documentation instead.
 
 .. warning:: These are not authoritative documentation.  These
    features are not currently available in Zuul.  They may change
@@ -13,9 +16,6 @@ for those changes and help us work on them collaboratively.
 .. toctree::
    :maxdepth: 1
 
-   container-build-resources
-   multiple-ansible-versions
-   logs
    tenant-scoped-admin-web-API
    kubernetes-operator
    circular-dependencies
