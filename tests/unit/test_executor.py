@@ -443,13 +443,19 @@ class TestAnsibleJob(ZuulTestCase):
                 'host_keys': ['fake-host-key'],
                 'interface_ip': 'localhost'}
         keys = self.test_job.getHostList({'nodes': [node],
-                                          'host_vars': {}})[0]['host_keys']
+                                          'host_vars': {},
+                                          'vars': {},
+                                          'groups': [],
+                                          })[0]['host_keys']
         self.assertEqual(keys[0], 'localhost fake-host-key')
 
         # Test with custom connection_port set
         node['connection_port'] = 22022
         keys = self.test_job.getHostList({'nodes': [node],
-                                          'host_vars': {}})[0]['host_keys']
+                                          'host_vars': {},
+                                          'vars': {},
+                                          'groups': [],
+                                          })[0]['host_keys']
         self.assertEqual(keys[0], '[localhost]:22022 fake-host-key')
 
 

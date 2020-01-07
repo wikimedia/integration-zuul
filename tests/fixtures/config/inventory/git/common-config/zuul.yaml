@@ -75,11 +75,16 @@
     name: group-inventory
     nodeset: nodeset1
     run: playbooks/group-inventory.yaml
+    group-vars:
+      ceph-osd:
+        ansible_python_interpreter: python4
 
 - job:
     name: hostvars-inventory
     run: playbooks/hostvars-inventory.yaml
     nodeset: nodeset2
+    vars:
+      ansible_python_interpreter: python1.5.2
 
 - job:
     name: jinja2-message
