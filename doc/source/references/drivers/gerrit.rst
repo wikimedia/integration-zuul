@@ -357,7 +357,7 @@ Reference Pipelines Configuration
 
 Here is an example of standard pipelines you may want to define:
 
-.. literalinclude:: ../examples/pipelines/gerrit-reference-pipelines.yaml
+.. literalinclude:: /examples/pipelines/gerrit-reference-pipelines.yaml
    :language: yaml
 
 Checks Plugin Support (Experimental)

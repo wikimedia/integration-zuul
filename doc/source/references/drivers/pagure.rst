@@ -252,5 +252,5 @@ Reference pipelines configuration
 
 Here is an example of standard pipelines you may want to define:
 
-.. literalinclude:: ../examples/pipelines/pagure-reference-pipelines.yaml
+.. literalinclude:: /examples/pipelines/pagure-reference-pipelines.yaml
    :language: yaml

@@ -2,7 +2,7 @@
   when: not local
   shell:
     cmd: docker-compose up -d
-    chdir: src/opendev.org/zuul/zuul/doc/source/admin/examples
+    chdir: src/opendev.org/zuul/zuul/doc/source/examples
 - name: Run docker-compose up
   when: local
   shell:
@@ -63,7 +63,7 @@
     dest: "{{ workspace }}/zuul-config"
 - name: Make initial change in zuul-config
   copy:
-    src: ../../doc/source/admin/examples/zuul-config/
+    src: ../../doc/source/examples/zuul-config/
     dest: "{{ workspace }}/zuul-config/"
 - name: Commit and upload initial change in zuul-config
   shell:
@@ -129,7 +129,7 @@
     dest: "{{ workspace }}/test1"
 - name: Make test change in test1
   copy:
-    src: ../../doc/source/admin/examples/test1/
+    src: ../../doc/source/examples/test1/
     dest: "{{ workspace }}/test1/"
 - name: Commit and upload test change in test1
   shell:

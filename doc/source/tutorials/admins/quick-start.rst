@@ -71,11 +71,11 @@ docker-compose in order to start Zuul, Nodepool and Gerrit.
 
 .. code-block:: shell
 
-   cd zuul/doc/source/admin/examples
+   cd zuul/doc/source/examples
    sudo -E docker-compose up
 
 For reference, the files in that directory are also `browsable on the web
-<https://opendev.org/zuul/zuul/src/branch/master/doc/source/admin/examples>`_.
+<https://opendev.org/zuul/zuul/src/branch/master/doc/source/examples>`_.
 
 All of the services will be started with debug-level logging sent to
 the standard output of the terminal where docker-compose is running.
@@ -127,25 +127,25 @@ system at any time.
 To create your Gerrit account, visit http://localhost:8080 in your
 browser and click `Sign in` in the top right corner.
 
-.. image:: images/sign-in.png
+.. image:: /images/sign-in.png
    :align: center
 
 Then click `New Account` under `Register`.
 
-.. image:: images/register.png
+.. image:: /images/register.png
    :align: center
 
 Don't bother to enter anything into the confirmation dialog that pops
 up, instead, click the `settings` link at the bottom.
 
-.. image:: images/confirm.png
+.. image:: /images/confirm.png
    :align: center
 
 In the `Profile` section at the top, enter the username you use to log
 into your workstation in the `Username` field and your full name in
 the `Full name` field, then click `Save Changes`.
 
-.. image:: images/profile.png
+.. image:: /images/profile.png
    :align: center
 
 Scroll down to the `Email Addresses` section and enter your email
@@ -155,14 +155,14 @@ actually send any email, and the address will be automatically
 confirmed.  This step is useful since several parts of the Gerrit user
 interface expect to be able to display email addresses.
 
-.. image:: images/email.png
+.. image:: /images/email.png
    :align: center
 
 Scroll down to the `SSH keys` section and copy and paste the contents
 of ``~/.ssh/id_rsa.pub`` into the `New SSH key` field and click `Add
 New SSH Key`.
 
-.. image:: images/sshkey.png
+.. image:: /images/sshkey.png
    :align: center
 
 .. We ask them to click reload so that the page refreshes and their
@@ -227,7 +227,7 @@ uploaded) and if these final tests pass, will automatically merge the
 change.  To configure these pipelines, copy the following file into
 `zuul.d/pipelines.yaml`:
 
-.. literalinclude:: examples/zuul-config/zuul.d/pipelines.yaml
+.. literalinclude:: /examples/zuul-config/zuul.d/pipelines.yaml
    :language: yaml
 
 Once we have bootstrapped our initial Zuul configuration, we will want
@@ -245,7 +245,7 @@ pipelines for ``zuul-config`` to run the ``noop`` job, and add all
 projects to those pipelines (with no jobs), copy the following file
 into ``zuul.d/projects.yaml``:
 
-.. literalinclude:: examples/zuul-config/zuul.d/projects.yaml
+.. literalinclude:: /examples/zuul-config/zuul.d/projects.yaml
    :language: yaml
 
 Every real job (i.e., all jobs other than ``noop``) must inherit from a
@@ -253,7 +253,7 @@ Every real job (i.e., all jobs other than ``noop``) must inherit from a
 :term:`config-project`.  Let's go ahead and add a simple base job that
 we can build on later.  Copy the following into ``zuul.d/jobs.yaml``:
 
-.. literalinclude:: examples/zuul-config/zuul.d/jobs.yaml
+.. literalinclude:: /examples/zuul-config/zuul.d/jobs.yaml
    :language: yaml
 
 Commit the changes and push them up for review:
@@ -273,23 +273,23 @@ then:
 
 Click the avatar image in the top right corner then click `Sign out`.
 
-.. image:: images/sign-out-user.png
+.. image:: /images/sign-out-user.png
    :align: center
 
 Then click the `Sign in` link again.
 
-.. image:: images/sign-in.png
+.. image:: /images/sign-in.png
    :align: center
 
 Click `admin` to log in as the `admin` user.
 
-.. image:: images/become-select.png
+.. image:: /images/become-select.png
    :align: center
 
 You will then see a list of open changes; click on the change you
 uploaded.
 
-.. image:: images/open-changes.png
+.. image:: /images/open-changes.png
    :align: center
 
 Click `Reply...` at the top center of the change screen.  This will
@@ -299,7 +299,7 @@ review categories, even `Verified` which is normally reserved for
 Zuul.  Vote Code-Review: +2, Verified: +2, Workflow: +1, and then
 click `Send` to leave your approval votes.
 
-.. image:: images/review-1001.png
+.. image:: /images/review-1001.png
    :align: center
 
 Once the required votes have been set, the `Submit` button will appear
@@ -307,7 +307,7 @@ in the top right; click it.  This will cause the change to be merged
 immediately.  This is normally handled by Zuul, but as the
 administrator you can bypass Zuul to forcibly merge a change.
 
-.. image:: images/submit-1001.png
+.. image:: /images/submit-1001.png
    :align: center
 
 Now that the initial configuration has been bootstrapped, you should
@@ -315,17 +315,17 @@ not need to bypass testing and code review again, so switch back to
 the account you created for yourself.  Click on the avatar image in
 the top right corner then click `Sign out`.
 
-.. image:: images/sign-out-admin.png
+.. image:: /images/sign-out-admin.png
    :align: center
 
 Then click the `Sign in` link again.
 
-.. image:: images/sign-in.png
+.. image:: /images/sign-in.png
    :align: center
 
 And click your username to log into your account.
 
-.. image:: images/become-select.png
+.. image:: /images/become-select.png
    :align: center
 
 Test Zuul Pipelines
@@ -358,7 +358,7 @@ sub-directory in the project to hold playbooks:
 Start with a simple playbook which just outputs a debug message.  Copy
 the following to ``playbooks/testjob.yaml``:
 
-.. literalinclude:: examples/test1/playbooks/testjob.yaml
+.. literalinclude:: /examples/test1/playbooks/testjob.yaml
    :language: yaml
 
 Now define a Zuul job which runs that playbook.  Zuul will read its
@@ -368,7 +368,7 @@ project* which isn't dedicated entirely to Zuul, it's best to put
 Zuul's configuration in a hidden file.  Copy the following to
 ``.zuul.yaml`` in the root of the project:
 
-.. literalinclude:: examples/test1/zuul.yaml
+.. literalinclude:: /examples/test1/zuul.yaml
    :language: yaml
 
 Commit the changes and push them up to Gerrit for review:
@@ -391,7 +391,7 @@ there are no logs and no way to see the output, only a `finger` URL
 (which is what Zuul reports when it doesn't know where build logs are
 stored).
 
-.. image:: images/check1-1002.png
+.. image:: /images/check1-1002.png
    :align: center
 
 This means everything is working so far, but we need to configure a
@@ -431,7 +431,7 @@ Zuul supports running any number of playbooks before a job (called
 We're going to add a single *pre-run* playbook now.  Copy the
 following to ``playbooks/base/pre.yaml``:
 
-.. literalinclude:: examples/zuul-config/playbooks/base/pre.yaml
+.. literalinclude:: /examples/zuul-config/playbooks/base/pre.yaml
    :language: yaml
 
 This playbook does two things; first it creates a new SSH key and adds
@@ -446,7 +446,7 @@ changes being tested) to all of the nodes used in the job.
 Next, add a *post-run* playbook to remove the per-build SSH key.  Copy
 the following to ``playbooks/base/post-ssh.yaml``:
 
-.. literalinclude:: examples/zuul-config/playbooks/base/post-ssh.yaml
+.. literalinclude:: /examples/zuul-config/playbooks/base/post-ssh.yaml
    :language: yaml
 
 This is the complement of the `add-build-sshkey` role in the pre-run
@@ -457,7 +457,7 @@ always want log collection to run and we want it to run last, we
 create a second post-run playbook for it.  Copy the following to
 ``playbooks/base/post-logs.yaml``:
 
-.. literalinclude:: examples/zuul-config/playbooks/base/post-logs.yaml
+.. literalinclude:: /examples/zuul-config/playbooks/base/post-logs.yaml
    :language: yaml
 
 This tutorial is running an Apache webserver in a container which will
@@ -481,7 +481,7 @@ Now that the new playbooks are in place, update the ``base`` job
 definition to include them.  Overwrite ``zuul.d/jobs.yaml`` with the
 following:
 
-.. literalinclude:: examples/zuul-config/zuul.d/jobs2.yaml
+.. literalinclude:: /examples/zuul-config/zuul.d/jobs2.yaml
    :language: yaml
 
 Then commit the change and upload it to Gerrit for review:
@@ -498,7 +498,7 @@ Visit http://localhost:8080/dashboard/self and open the
 You should see a Verified +1 vote from Zuul.  Click `Reply` then vote
 Code-Review: +2 and Workflow: +1 then click `Send`.
 
-.. image:: images/review-1003.png
+.. image:: /images/review-1003.png
    :align: center
 
 Wait a few moments for Zuul to process the event, and then reload the
@@ -508,7 +508,7 @@ Visit http://localhost:8080/dashboard/self and return to the
 ``test1`` change you uploaded earlier.  Click `Reply` then type
 `recheck` into the text field and click `Send`.
 
-.. image:: images/recheck-1002.png
+.. image:: /images/recheck-1002.png
    :align: center
 
 This will cause Zuul to re-run the test job we created earlier.  This
@@ -516,7 +516,7 @@ time it will run with the updated base job configuration, and when
 complete, it will report the published log location as a comment on
 the change:
 
-.. image:: images/check2-1002.png
+.. image:: /images/check2-1002.png
    :align: center
 
 Follow the link and you will be able to browse the console log for the
@@ -527,7 +527,7 @@ Further Steps
 -------------
 
 If you would like to make further changes to Zuul, its configuration
-files are located in the ``zuul/doc/source/admin/examples`` directory
+files are located in the ``zuul/doc/source/examples`` directory
 and are bind-mounted into the running containers.  You may edit them
 and restart the Zuul containers to make changes.
 

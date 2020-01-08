@@ -1,5 +1,5 @@
-User's Guide
-============
+Discussions
+===========
 
 This guide is for all users of Zuul.  If you work on a project where
 Zuul is used to drive automation (whether that's testing proposed
@@ -12,12 +12,8 @@ configure it to meet your needs.
    :maxdepth: 2
 
    concepts
+   components
    gating
-   config
-   jobs
+   tenants
    encryption
-   web
-   client-user
-   badges
-   howtos
-   vulnerabilities
+   tenant-scoped-rest-api
