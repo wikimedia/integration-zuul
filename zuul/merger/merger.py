@@ -221,7 +221,7 @@ class Repo(object):
             try:
                 with timeout_handler(self.local_path):
                     repo.git.fetch(remote, ref,
-                                   kill_after_timeout=self.git_timeout,
+                                   kill_after_timeout=self.git_timeout, f=True,
                                    **kwargs)
                 break
             except Exception as e:
