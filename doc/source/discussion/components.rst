@@ -977,8 +977,9 @@ protected endpoints and configure JWT validation:
 
    .. attr:: driver
 
-      The signing algorithm to use. Accepted values are ``HS256``, ``RS256`` or
-      ``RS256withJWKS``. See below for driver-specific configuration options.
+      The signing algorithm to use. Accepted values are ``HS256``, ``RS256``,
+      ``RS256withJWKS`` or ``OpenIDConnect``. See below for driver-specific
+      configuration options.
 
    .. attr:: allow_authz_override
       :default: false
@@ -1064,6 +1065,10 @@ the public key is needed by Zuul for signature validation.
 RS256withJWKS
 ,,,,,,,,,,,,,
 
+.. warning::
+
+   This driver is deprecated, use ``OpenIDConnect`` instead.
+
 Some Identity Providers use key sets (also known as **JWKS**), therefore the key to
 use when verifying the Authentication Token's signatures cannot be known in
 advance; the key's id is stored in the JWT's header and the key must then be
@@ -1075,6 +1080,31 @@ The key set is usually available at a specific URL that can be found in the
 
    The URL where the Identity Provider's key set can be found. For example, for
    Google's OAuth service: https://www.googleapis.com/oauth2/v3/certs
+
+OpenIDConnect
+,,,,,,,,,,,,,
+
+Use a third-party Identity Provider implementing the OpenID Connect protocol.
+The issuer ID should be an URI, from which the "well-known" configuration URI
+of the Identity Provider can be inferred. This is intended to be used for
+authentication on Zuul's web user interface.
+
+.. attr:: scope
+   :default: openid profile
+
+   The scope(s) to use when requesting access to a user's details. This attribute
+   can be multivalued (values must be separated by a space). Most OpenID Connect
+   Identity Providers support the default scopes "openid profile". A full list
+   of supported scopes can be found in the well-known configuration of the
+   Identity Provider under the key "scopes_supported".
+
+.. attr:: keys_url
+
+   Optional. The URL where the Identity Provider's key set can be found.
+   For example, for Google's OAuth service: https://www.googleapis.com/oauth2/v3/certs
+   The well-known configuration of the Identity Provider should provide this URL
+   under the key "jwks_uri", therefore this attribute is usually not necessary.
+
 
 Operation
 ~~~~~~~~~
