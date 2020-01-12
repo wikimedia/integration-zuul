@@ -1126,6 +1126,39 @@ class TestBuildInfo(ZuulDBTestCase, BaseTestWeb):
         resp = self.get_url("api/tenant/non-tenant/builds")
         self.assertEqual(404, resp.status_code)
 
+    def test_web_badge(self):
+        # Generate some build records in the db.
+        self.add_base_changes()
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        # Now request badge for the buildsets
+        result = self.get_url("api/tenant/tenant-one/badge")
+
+        self.log.error(result.content)
+        result.raise_for_status()
+        self.assertTrue(result.text.startswith('<svg '))
+        self.assertIn('passing', result.text)
+
+        # Generate a failing record
+        self.executor_server.hold_jobs_in_build = True
+        C = self.fake_gerrit.addFakeChange('org/project', 'master', 'C')
+        C.addApproval('Code-Review', 2)
+        self.fake_gerrit.addEvent(C.addApproval('Approved', 1))
+        self.waitUntilSettled()
+        self.executor_server.failJob('project-merge', C)
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        # Request again badge for the buildsets
+        result = self.get_url("api/tenant/tenant-one/badge")
+        self.log.error(result.content)
+        result.raise_for_status()
+        self.assertTrue(result.text.startswith('<svg '))
+        self.assertIn('failing', result.text)
+
     def test_web_list_buildsets(self):
         # Generate some build records in the db.
         self.add_base_changes()

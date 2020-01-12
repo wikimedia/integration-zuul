@@ -6,6 +6,44 @@ openapi: 3.0.0
 tags:
 - name: tenant
 paths:
+  /api/tenant/{tenant}/badge:
+    get:
+      operationId: get-badge
+      parameters:
+      - description: The tenant name
+        in: path
+        name: tenant
+        required: true
+        schema:
+          type: string
+      - description: A project name
+        in: query
+        name: project
+        schema:
+          type: string
+      - description: A pipeline name
+        in: query
+        name: pipeline
+        schema:
+          type: string
+      - description: A branch name
+        in: query
+        name: branch
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            image/svg+xml:
+              schema:
+                description: SVG image
+                type: object
+          description: Badge describing the result of the latest buildset found.
+        '404':
+          description: No buildset found
+      summary: Get a badge describing the result of the latest buildset found.
+      tags:
+      - tenant
   /api/tenant/{tenant}/builds:
     get:
       operationId: list-builds

@@ -529,6 +529,7 @@ class ZuulWebAPI(object):
             'project_ssh_key': '/api/tenant/{tenant}/project-ssh-key/'
                                '{project:.*}.pub',
             'console_stream': '/api/tenant/{tenant}/console-stream',
+            'badge': '/api/tenant/{tenant}/badge',
             'builds': '/api/tenant/{tenant}/builds',
             'build': '/api/tenant/{tenant}/build/{uuid}',
             'buildsets': '/api/tenant/{tenant}/buildsets',
@@ -929,6 +930,26 @@ class ZuulWebAPI(object):
 
     @cherrypy.expose
     @cherrypy.tools.save_params()
+    def badge(self, tenant, project=None, pipeline=None, branch=None):
+        connection = self._get_connection(tenant)
+
+        buildsets = connection.getBuildsets(
+            tenant=tenant, project=project, pipeline=pipeline,
+            branch=branch, limit=1)
+        if not buildsets:
+            raise cherrypy.HTTPError(404, 'No buildset found')
+
+        if buildsets[0].result == 'SUCCESS':
+            file = 'passing.svg'
+        else:
+            file = 'failing.svg'
+        path = os.path.join(self.zuulweb.static_path, file)
+
+        return cherrypy.lib.static.serve_file(
+            path=path, content_type="image/svg+xml")
+
+    @cherrypy.expose
+    @cherrypy.tools.save_params()
     @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
     def buildsets(self, tenant, project=None, pipeline=None, change=None,
                   branch=None, patchset=None, ref=None, newrev=None,
@@ -1179,6 +1200,8 @@ class ZuulWeb(object):
                           controller=api, action='console_stream')
         route_map.connect('api', '/api/tenant/{tenant}/builds',
                           controller=api, action='builds')
+        route_map.connect('api', '/api/tenant/{tenant}/badge',
+                          controller=api, action='badge')
         route_map.connect('api', '/api/tenant/{tenant}/build/{uuid}',
                           controller=api, action='build')
         route_map.connect('api', '/api/tenant/{tenant}/buildsets',
