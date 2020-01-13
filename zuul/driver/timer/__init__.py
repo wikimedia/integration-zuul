@@ -73,8 +73,19 @@ class TimerDriver(Driver, TriggerInterface):
                         second = parts[5]
                     else:
                         second = None
-                    trigger = CronTrigger(day=dom, day_of_week=dow, hour=hour,
-                                          minute=minute, second=second)
+
+                    try:
+                        trigger = CronTrigger(day=dom, day_of_week=dow,
+                                              hour=hour, minute=minute,
+                                              second=second)
+                    except ValueError:
+                        self.log.exception(
+                            "Unable to create CronTrigger "
+                            "for value '%s' defined in "
+                            "pipeline %s",
+                            timespec,
+                            pipeline.name)
+                        continue
 
                     job = self.apsched.add_job(
                         self._onTrigger, trigger=trigger,

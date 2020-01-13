@@ -29,3 +29,10 @@
     name: org/project2
     check:
       jobs: []
+
+- pipeline:
+      name: broken_periodic
+      manager: independent
+      trigger:
+        timer:
+          time: "*/30 * * * * 300"
