@@ -2409,7 +2409,11 @@ class ExecutorServer(object):
                 if not os.path.isdir(fn):
                     continue
                 self.log.info("Deleting stale jobdir %s", fn)
-                shutil.rmtree(os.path.join(self.jobdir_root, fn))
+                # We use rm here instead of shutil because of
+                # https://bugs.python.org/issue22040
+                jobdir = os.path.join(self.jobdir_root, fn)
+                if subprocess.Popen(["rm", "-Rf", jobdir]).wait():
+                    raise RuntimeError("Couldn't delete: " + jobdir)
 
         self.job_workers = {}
         self.disk_accountant = DiskAccountant(self.jobdir_root,
