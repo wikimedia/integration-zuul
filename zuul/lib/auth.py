@@ -19,6 +19,7 @@ import jwt
 
 from zuul import exceptions
 import zuul.driver.auth.jwt as auth_jwt
+import zuul.lib.capabilities as cpb
 
 
 """AuthN/AuthZ related library, used by zuul-web."""
@@ -34,6 +35,8 @@ class AuthenticatorRegistry(object):
         self.default_realm = None
 
     def configure(self, config):
+        capabilities = {'realms': {}}
+        first_realm = None
         for section_name in config.sections():
             auth_match = re.match(r'^auth ([\'\"]?)(.*)(\1)$',
                                   section_name, re.I)
@@ -54,10 +57,21 @@ class AuthenticatorRegistry(object):
                                                        auth_name))
             # TODO catch config specific errors (missing fields)
             self.authenticators[auth_name] = driver(**auth_config)
+            caps = self.authenticators[auth_name].get_capabilities()
+            # TODO there should be a bijective relationship between realms and
+            # authenticators. This should be enforced at config parsing.
+            capabilities['realms'].update(caps)
+            if first_realm is None:
+                first_realm = auth_config.get('realm', None)
             if auth_config.get('default', 'false').lower() == 'true':
                 self.default_realm = auth_config.get('realm', 'DEFAULT')
-        if self.default_realm is None:
-            self.default_realm = 'DEFAULT'
+        # do we have any auth defined ?
+        if len(capabilities['realms'].keys()) > 0:
+            if self.default_realm is None:
+                # pick arbitrarily the first defined realm
+                self.default_realm = first_realm
+        capabilities['default_realm'] = self.default_realm
+        cpb.capabilities_registry.register_capabilities('auth', capabilities)
 
     def authenticate(self, rawToken):
         unverified = jwt.decode(rawToken, verify=False)

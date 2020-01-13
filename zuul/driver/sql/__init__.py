@@ -15,6 +15,7 @@
 from zuul.driver import Driver, ConnectionInterface, ReporterInterface
 from zuul.driver.sql import sqlconnection
 from zuul.driver.sql import sqlreporter
+from zuul.lib import capabilities as cpb
 
 
 class SQLDriver(Driver, ConnectionInterface, ReporterInterface):
@@ -22,6 +23,8 @@ class SQLDriver(Driver, ConnectionInterface, ReporterInterface):
 
     def __init__(self):
         self.tenant_connections = {}
+        cpb.capabilities_registry.register_capabilities(
+            'job_history', True)
 
     def reconfigure(self, tenant):
         # NOTE(corvus): This stores the connection of the first

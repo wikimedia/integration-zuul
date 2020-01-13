@@ -54,6 +54,16 @@ class JWTAuthenticator(AuthenticatorInterface):
         except ValueError:
             raise ValueError('"max_validity_time" must be a numerical value')
 
+    def get_capabilities(self):
+        return {
+            self.realm: {
+                'authority': self.issuer_id,
+                'client_id': self.audience,
+                'type': 'JWT',
+                'driver': getattr(self, 'name', 'N/A'),
+            }
+        }
+
     def _decode(self, rawToken):
         raise NotImplementedError
 
@@ -173,7 +183,7 @@ class OpenIDConnectAuthenticator(JWTAuthenticator):
     described in
     https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderConfig"""  # noqa
 
-    # default algorithm, TOFO: should this be a config param?
+    # default algorithm, TODO: should this be a config param?
     algorithm = 'RS256'
     name = 'OpenIDConnect'
 
@@ -233,6 +243,11 @@ class OpenIDConnectAuthenticator(JWTAuthenticator):
                 realm=self.realm,
                 msg='There was an error while fetching '
                     'OpenID configuration, check logs for details')
+
+    def get_capabilities(self):
+        d = super(OpenIDConnectAuthenticator, self).get_capabilities()
+        d[self.realm]['scope'] = self.scope
+        return d
 
     def _decode(self, rawToken):
         unverified_headers = jwt.get_unverified_header(rawToken)
