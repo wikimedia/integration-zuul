@@ -1045,16 +1045,6 @@ class GithubConnection(BaseConnection):
             change = self._getChange(project, event.change_number,
                                      event.patch_number, refresh=refresh,
                                      event=event)
-            if hasattr(event, 'change_url') and event.change_url:
-                change.url = event.change_url
-            else:
-                # The event has no change url so just construct it
-                change.url = self.getPullUrl(
-                    event.project_name, event.change_number)
-            change.uris = [
-                'https://%s/%s/pull/%s' % (
-                    self.server, project, change.number),
-            ]
             change.source_event = event
             change.is_current_patchset = (change.pr.get('head').get('sha') ==
                                           event.patch_number)
@@ -1261,7 +1251,12 @@ class GithubConnection(BaseConnection):
         if not change.updated_at:
             change.updated_at = self._ghTimestampToDate(
                 change.pr.get('updated_at'))
-        change.url = change.pr.get('url')
+
+        # Note: Github returns different urls for the pr:
+        #  - url: this is the url meant for api use
+        #  - html_url: this is the url meant for use in browser (this is what
+        #              change.url means)
+        change.url = change.pr.get('html_url')
         change.uris = [
             'https://%s/%s/pull/%s' % (
                 self.server, change.project.name, change.number),

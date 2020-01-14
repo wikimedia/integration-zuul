@@ -5,12 +5,17 @@
     trigger:
       gerrit:
         - event: patchset-created
+      github:
+        - event: pull_request
+          action: opened
     success:
       gerrit:
         Verified: 1
+      github: {}
     failure:
       gerrit:
         Verified: -1
+      github: {}
 
 - nodeset:
     name: nodeset1
