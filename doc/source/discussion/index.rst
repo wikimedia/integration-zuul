@@ -1,5 +1,5 @@
-Discussions
-===========
+Discussion
+==========
 
 This guide is for all users of Zuul.  If you work on a project where
 Zuul is used to drive automation (whether that's testing proposed

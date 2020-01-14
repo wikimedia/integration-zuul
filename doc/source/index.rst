@@ -53,12 +53,12 @@ Digging Deeper
 .. toctree::
    :maxdepth: 2
 
-   discussions/index
+   discussion/index
 
 .. toctree::
    :maxdepth: 2
 
-   references/index
+   reference/index
 
 Indices and tables
 ------------------
