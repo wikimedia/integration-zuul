@@ -512,7 +512,7 @@ class TestAuthorizationRuleParser(ZuulTestCase):
                   'groups': ['admin', 'ghostbusters']}
         self.assertTrue(rule(claims))
 
-    def test_check_complex_rule_from_yaml(self):
+    def test_check_complex_rule_from_yaml_jsonpath(self):
         rule_d = {'name': 'my-rule',
                   'conditions': [{'hello.this.is': 'a complex value'},
                                 ],
@@ -523,6 +523,31 @@ class TestAuthorizationRuleParser(ZuulTestCase):
                   'hello': {
                       'this': {
                           'is': 'a complex value'
+                      },
+                      'and': {
+                          'this one': 'too'
+                      }
+                  }
+                 }
+        self.assertTrue(rule(claims))
+
+    def test_check_complex_rule_from_yaml_nested_dict(self):
+        rule_d = {'name': 'my-rule',
+                  'conditions': [{'hello': {'this': {'is': 'a complex value'
+                                                    }
+                                           }
+                                 },
+                                ],
+                 }
+        rule = AuthorizationRuleParser().fromYaml(rule_d)
+        self.assertEqual('my-rule', rule.name)
+        claims = {'iss': 'my-idp',
+                  'hello': {
+                      'this': {
+                          'is': 'a complex value'
+                      },
+                      'and': {
+                          'this one': 'too'
                       }
                   }
                  }

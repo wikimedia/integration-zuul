@@ -355,7 +355,9 @@ Below are some examples of how access rules can be defined:
    - admin-rule:
        name: affiliate_or_admin
        conditions:
-         - resources_access.account.roles: "affiliate"
+         - resources_access:
+             account:
+               roles: "affiliate"
            iss: external_institution
          - resources_access.account.roles: "admin"
    - admin-rule:
@@ -381,7 +383,8 @@ Below are some examples of how access rules can be defined:
       This is the list of conditions that define a rule. A JWT must match **at
       least one** of the conditions for the rule to apply. A condition is a
       dictionary where keys are claims. **All** the associated values must
-      match the claims in the user's token.
+      match the claims in the user's token; in other words the condition dictionary
+      must be a "sub-dictionary" of the user's JWT.
 
       Zuul's authorization engine will adapt matching tests depending on the
       nature of the claim in the token, eg:
@@ -391,45 +394,57 @@ Below are some examples of how access rules can be defined:
       * if the claim is a string, check that the condition value is equal to
         the claim's value
 
-        In order to allow the parsing of claims with complex structures like
-        dictionaries, claim names can be written in the XPath format.
+      The claim names can also be written in the XPath format for clarity: the
+      condition
 
-        The special ``zuul_uid`` claim refers to the ``uid_claim`` setting in an
-        authenticator's configuration. By default it refers to the ``sub`` claim
-        of a token. For more details see the :ref:`configuration section
-        <web-server-tenant-scoped-api>` for Zuul web server.
+      .. code-block:: yaml
 
-        Under the above example, the following token would match rules
-        ``affiliate_or_admin`` and ``alice_or_bob``:
+        resources_access:
+          account:
+            roles: "affiliate"
 
-        .. code-block:: javascript
+      is equivalent to the condition
 
-          {
-           'iss': 'external_institution',
-           'aud': 'my_zuul_deployment',
-           'exp': 1234567890,
-           'iat': 1234556780,
-           'sub': 'alice',
-           'resources_access': {
-               'account': {
-                   'roles': ['affiliate', 'other_role']
-               }
-           },
-          }
+      .. code-block:: yaml
 
-        And this token would only match rule ``affiliate_or_admin``:
+        resources_access.account.roles: "affiliate"
 
-        .. code-block:: javascript
+      The special ``zuul_uid`` claim refers to the ``uid_claim`` setting in an
+      authenticator's configuration. By default it refers to the ``sub`` claim
+      of a token. For more details see the :ref:`configuration section
+      <web-server-tenant-scoped-api>` for Zuul web server.
 
-          {
-           'iss': 'some_other_institution',
-           'aud': 'my_zuul_deployment',
-           'exp': 1234567890,
-           'sub': 'carol',
-           'iat': 1234556780,
-           'resources_access': {
-               'account': {
-                   'roles': ['admin', 'other_role']
-               }
-           },
-          }
+      Under the above example, the following token would match rules
+      ``affiliate_or_admin`` and ``alice_or_bob``:
+
+      .. code-block:: javascript
+
+        {
+         'iss': 'external_institution',
+         'aud': 'my_zuul_deployment',
+         'exp': 1234567890,
+         'iat': 1234556780,
+         'sub': 'alice',
+         'resources_access': {
+             'account': {
+                 'roles': ['affiliate', 'other_role']
+             }
+         },
+        }
+
+      And this token would only match rule ``affiliate_or_admin``:
+
+      .. code-block:: javascript
+
+        {
+         'iss': 'some_other_institution',
+         'aud': 'my_zuul_deployment',
+         'exp': 1234567890,
+         'sub': 'carol',
+         'iat': 1234556780,
+         'resources_access': {
+             'account': {
+                 'roles': ['admin', 'other_role']
+             }
+         },
+        }
