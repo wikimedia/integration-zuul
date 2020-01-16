@@ -9,4 +9,7 @@ Reference
    monitoring
    web
    developer/index
+   governance
+   vulnerabilities
+   releasenotes
    glossary
