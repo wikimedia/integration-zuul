@@ -3826,15 +3826,14 @@ class TestScheduler(ZuulTestCase):
                  ref='refs/heads/stable'),
         ], ordered=False)
 
-    def test_timer(self):
-        "Test that a periodic job is triggered"
+    def _test_timer(self, config_file):
         # This test can not use simple_layout because it must start
         # with a configuration which does not include a
         # timer-triggered job so that we have an opportunity to set
         # the hold flag before the first job.
         self.create_branch('org/project', 'stable')
         self.executor_server.hold_jobs_in_build = True
-        self.commitConfigUpdate('common-config', 'layouts/timer.yaml')
+        self.commitConfigUpdate('common-config', config_file)
         self.sched.reconfigure(self.config)
 
         # The pipeline triggers every second, so we should have seen
@@ -3887,6 +3886,14 @@ class TestScheduler(ZuulTestCase):
             dict(name='project-bitrot', result='SUCCESS',
                  ref='refs/heads/stable'),
         ], ordered=False)
+
+    def test_timer(self):
+        "Test that a periodic job is triggered"
+        self._test_timer('layouts/timer.yaml')
+
+    def test_timer_with_jitter(self):
+        "Test that a periodic job with a jitter is triggered"
+        self._test_timer('layouts/timer-jitter.yaml')
 
     def test_idle(self):
         "Test that frequent periodic jobs work"
