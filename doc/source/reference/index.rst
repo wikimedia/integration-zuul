@@ -4,13 +4,7 @@ Reference
 .. toctree::
    :maxdepth: 2
 
-   developer/index
-   jobs
    config
-   connections
-   client
-   monitoring
-   web
    pipeline_def
    project_def
    job_def
@@ -18,4 +12,10 @@ Reference
    nodeset_def
    semaphore_def
    pragma_def
+   jobs
+   connections
+   client
+   monitoring
+   web
+   developer/index
    glossary
