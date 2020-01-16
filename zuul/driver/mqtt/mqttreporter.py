@@ -47,6 +47,7 @@ class MQTTReporter(BaseReporter):
             'enqueue_time': item.enqueue_time,
             'buildset': {
                 'uuid': item.current_build_set.uuid,
+                'result': item.current_build_set.result,
                 'builds': []
             },
             'zuul_event_id': item.event.zuul_event_id,
