@@ -14,6 +14,5 @@ configure it to meet your needs.
    concepts
    components
    gating
-   tenants
    encryption
    tenant-scoped-rest-api
