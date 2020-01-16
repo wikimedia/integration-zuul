@@ -80,10 +80,13 @@ example using number prefixes in file's names::
 Below are references to the different configuration items you may use within
 the YAML files:
 
-* :ref:`pipeline`
-* :ref:`project` and :ref:`project-template`
-* :ref:`job`
-* :ref:`secret`
-* :ref:`nodeset`
-* :ref:`semaphore`
-* :ref:`pragma`
+.. toctree::
+   :maxdepth: 1
+
+   pipeline_def
+   job_def
+   project_def
+   secret_def
+   nodeset_def
+   semaphore_def
+   pragma_def

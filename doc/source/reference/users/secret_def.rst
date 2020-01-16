@@ -1,10 +1,7 @@
-Secret Definition
-=================
-
 .. _secret:
 
 Secret
-~~~~~~
+======
 
 A Secret is a collection of private data for use by one or more jobs.
 In order to maintain the security of the data, the values are usually
@@ -95,4 +92,3 @@ branch will not immediately produce a configuration error.
       available to the job.  The values can be any of the normal YAML
       data types (strings, integers, dictionaries or lists) or
       encrypted strings.  See :ref:`encryption` for more information.
-

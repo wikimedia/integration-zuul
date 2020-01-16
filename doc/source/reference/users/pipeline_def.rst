@@ -1,10 +1,7 @@
-Pipeline Definition
-===================
-
 .. _pipeline:
 
 Pipeline
-~~~~~~~~
+========
 
 A pipeline describes a workflow operation in Zuul.  It associates jobs
 for a given project with triggering and reporting events.
@@ -411,4 +408,3 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       <pipeline.manager.dependent>` only. The value to be subtracted
       or divided against the previous window value to determine the
       new window after unsuccessful change merges.
-

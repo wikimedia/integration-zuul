@@ -1,10 +1,7 @@
-Nodeset Definition
-==================
-
 .. _nodeset:
 
 Nodeset
-~~~~~~~
+=======
 
 A Nodeset is a named collection of nodes for use by a job.  Jobs may
 specify what nodes they require individually, however, by defining

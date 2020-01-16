@@ -1,10 +1,7 @@
-Semaphore Definition
-====================
-
 .. _semaphore:
 
 Semaphore
-~~~~~~~~~
+=========
 
 Semaphores can be used to restrict the number of certain jobs which
 are running at the same time.  This may be useful for jobs which

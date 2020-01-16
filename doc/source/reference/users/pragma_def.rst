@@ -1,10 +1,7 @@
-Pragma Definition
-=================
-
 .. _pragma:
 
 Pragma
-~~~~~~
+======
 
 The `pragma` item does not behave like the others.  It can not be
 included or excluded from configuration loading by the administrator,
