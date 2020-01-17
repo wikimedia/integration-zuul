@@ -34,6 +34,7 @@ Zuul Admins
 
    tutorials/admins/index
    howtos/admins/index
+   reference/admins/index
 
 Digging Deeper
 **************

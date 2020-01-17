@@ -18,9 +18,9 @@ Connections
 
 In order to interact with external systems, Zuul must have a
 *connection* to that system configured.  Zuul includes a number of
-drivers, each of which implements the functionality necessary to
-connect to a system.  Each connection in Zuul is associated with a
-driver.
+:ref:`drivers <drivers>`, each of which implements the functionality
+necessary to connect to a system.  Each connection in Zuul is
+associated with a driver.
 
 To configure a connection in Zuul, select a unique name for the
 connection and add a section to ``zuul.conf`` with the form
@@ -41,33 +41,3 @@ for a given server, however, if you need more than one (for example,
 to satisfy unique reporting requirements) be sure to list the primary
 connection first as that is what Zuul will use to look up all changes
 for that server.
-
-.. _drivers:
-
-Drivers
--------
-
-Drivers may support any of the following functions:
-
-* Sources -- hosts git repositories for projects.  Zuul can clone git
-  repos for projects and fetch refs.
-* Triggers -- emits events to which Zuul may respond.  Triggers are
-  configured in pipelines to cause changes or other refs to be
-  enqueued.
-* Reporters -- outputs information when a pipeline is finished
-  processing an item.
-
-Zuul includes the following drivers:
-
-.. toctree::
-   :maxdepth: 2
-
-   drivers/gerrit
-   drivers/github
-   drivers/pagure
-   drivers/git
-   drivers/mqtt
-   drivers/smtp
-   drivers/sql
-   drivers/timer
-   drivers/zuul
