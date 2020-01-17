@@ -34,7 +34,11 @@ class ChangePanel extends React.Component {
     this.clicked = false
   }
 
-  onClick () {
+  onClick (e) {
+    // Skip middle mouse button
+    if (e.button === 1) {
+      return
+    }
     let expanded = this.state.expanded
     if (!this.clicked) {
       expanded = this.props.globalExpanded
