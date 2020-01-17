@@ -13,11 +13,6 @@ If you are looking for the Javascript testing tool named Zuul, it
 can be found here:
 https://github.com/defunctzombie/zuul
 
-.. toctree::
-   :maxdepth: 2
-
-   overview/index
-
 Documentation
 -------------
 
