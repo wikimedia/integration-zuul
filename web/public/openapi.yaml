@@ -96,6 +96,86 @@ paths:
       summary: List the executed builds
       tags:
       - tenant
+  /api/tenant/{tenant}/buildsets:
+    get:
+      operationId: list-buildsets
+      parameters:
+      - description: The tenant name
+        in: path
+        name: tenant
+        required: true
+        schema:
+          type: string
+      - description: A project name
+        in: query
+        name: project
+        schema:
+          type: string
+      - description: A pipeline name
+        in: query
+        name: pipeline
+        schema:
+          type: string
+      - description: A branch name
+        in: query
+        name: branch
+        schema:
+          type: string
+      - description: A change number
+        in: query
+        name: change
+        schema:
+          type: string
+      - description: A patchset number
+        in: query
+        name: patchset
+        schema:
+          type: string
+      - description: A ref
+        in: query
+        name: ref
+        schema:
+          type: string
+      - description: A new revision hash
+        in: query
+        name: newrev
+        schema:
+          type: string
+      - description: A buildset uuid
+        in: query
+        name: uuid
+        schema:
+          type: string
+      - description: A buildset result
+        in: query
+        name: result
+        schema:
+          type: string
+      - description: The limit count (default 50)
+        in: query
+        name: limit
+        schema:
+          type: string
+      - description: Skip number of results
+        in: query
+        name: skip
+        schema:
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: The list of buildsets
+                items:
+                  $ref: '#/components/schemas/buildset'
+                type: array
+          description: Returns the list of builds
+        '404':
+          description: Tenant not found
+      summary: List the executed builds
+      tags:
+      - tenant
   /api/tenant/{tenant}/jobs:
     get:
       operationId: list-jobs
@@ -284,6 +364,45 @@ components:
         voting:
           description: The build voting status
           type: boolean
+      type: object
+    buildset:
+      description: A buildset
+      properties:
+        project:
+          description: The buildset project name
+          type: string
+        event_id:
+          description: The event id that triggered the buildset
+          type: string
+        uuid:
+          description: The buildset uuid
+          type: string
+        branch:
+          description: The buildset change branch
+          type: string
+        ref_url:
+          description: The buildset change reference url
+          type: string
+        newrev:
+          description: The buildset newrev
+          type: string
+        result:
+          description: The buildset result
+          type: string
+        change:
+          description: The buildset change number
+          type: integer
+        patchset:
+          description: The buildset patchset number
+          type: integer
+        ref:
+          description: The buildset change reference
+          type: string
+        pipeline:
+          description: The buildset pipeline
+          type: string
+        message:
+          description: The message that got reported by the buildset
       type: object
     changeQueue:
       description: A change queue
