@@ -472,6 +472,7 @@ class TestMQTTConnection(ZuulTestCase):
         mqtt_payload = start_event['msg']
         self.assertEquals(mqtt_payload['project'], 'org/project')
         self.assertEquals(mqtt_payload['branch'], 'master')
+        self.assertEquals(mqtt_payload['buildset']['result'], None)
         self.assertEquals(mqtt_payload['buildset']['builds'][0]['job_name'],
                           'test')
         self.assertNotIn('result', mqtt_payload['buildset']['builds'][0])
@@ -481,6 +482,7 @@ class TestMQTTConnection(ZuulTestCase):
         mqtt_payload = success_event['msg']
         self.assertEquals(mqtt_payload['project'], 'org/project')
         self.assertEquals(mqtt_payload['branch'], 'master')
+        self.assertEquals(mqtt_payload['buildset']['result'], 'SUCCESS')
         builds = mqtt_payload['buildset']['builds']
         test_job = [b for b in builds if b['job_name'] == 'test'][0]
         dependent_test_job = [

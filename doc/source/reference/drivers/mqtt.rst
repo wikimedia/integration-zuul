@@ -66,6 +66,10 @@ An MQTT report uses this schema:
 
       The buildset global uuid.
 
+      .. attr:: result
+
+      The buildset result
+
       .. attr:: builds
 
       The list of builds.
