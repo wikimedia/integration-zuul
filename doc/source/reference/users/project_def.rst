@@ -1,10 +1,7 @@
-Project and Project Template Definition
-=======================================
-
 .. _project:
 
 Project
-~~~~~~~
+=======
 
 A project corresponds to a source code repository with which Zuul is
 configured to interact.  The main responsibility of the project
@@ -68,27 +65,6 @@ value for those projects.
 The ``gate`` project-pipeline definition above specifies that this
 project participates in the ``integrated`` shared queue for that
 pipeline.
-
-.. _project-template:
-
-Project Template
-~~~~~~~~~~~~~~~~
-
-A Project Template defines one or more project-pipeline definitions
-which can be re-used by multiple projects.
-
-A Project Template uses the same syntax as a :ref:`project`
-definition, however, in the case of a template, the
-:attr:`project.name` attribute does not refer to the name of a
-project, but rather names the template so that it can be referenced in
-a :ref:`project` definition.
-
-Because Project Templates may be used outside of the projects where
-they are defined, they honor the implied branch :ref:`pragmas <pragma>`
-(unlike Projects).  The same heuristics described in
-:attr:`job.branches` that determine what implied branches a :ref:`job`
-will receive apply to Project Templates (with the exception that it is
-not possible to explicity set a branch matcher on a Project Template).
 
 .. attr:: project
 
@@ -234,3 +210,23 @@ not possible to explicity set a branch matcher on a Project Template).
          can be forced to a specific value by e.g. defining it in a config
          repo.
 
+.. _project-template:
+
+Project Template
+================
+
+A Project Template defines one or more project-pipeline definitions
+which can be re-used by multiple projects.
+
+A Project Template uses the same syntax as a :ref:`project`
+definition, however, in the case of a template, the
+:attr:`project.name` attribute does not refer to the name of a
+project, but rather names the template so that it can be referenced in
+a :ref:`project` definition.
+
+Because Project Templates may be used outside of the projects where
+they are defined, they honor the implied branch :ref:`pragmas <pragma>`
+(unlike Projects).  The same heuristics described in
+:attr:`job.branches` that determine what implied branches a :ref:`job`
+will receive apply to Project Templates (with the exception that it is
+not possible to explicity set a branch matcher on a Project Template).

@@ -1,10 +1,7 @@
-Job Definition
-==============
-
 .. _job:
 
 Job
-~~~
+===
 
 A job is a unit of work performed by Zuul on an item enqueued into a
 pipeline.  Items may run any number of jobs (which may depend on each
@@ -839,4 +836,3 @@ Here is an example of two job definitions:
       This means that changes to jobs with file matchers will be
       self-testing without requiring that the file matchers include
       the Zuul configuration file defining the job.
-
