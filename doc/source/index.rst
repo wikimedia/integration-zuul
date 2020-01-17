@@ -22,9 +22,9 @@ Zuul Users
 .. toctree::
    :maxdepth: 2
 
-   tutorials/users/index
-   howtos/users/index
-   reference/users/index
+   tutorials/user
+   howtos/user
+   reference/user
 
 Zuul Admins
 ***********
@@ -32,9 +32,9 @@ Zuul Admins
 .. toctree::
    :maxdepth: 2
 
-   tutorials/admins/index
-   howtos/admins/index
-   reference/admins/index
+   tutorials/admin
+   howtos/admin
+   reference/admin
 
 Digging Deeper
 **************
