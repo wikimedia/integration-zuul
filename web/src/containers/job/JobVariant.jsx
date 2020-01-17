@@ -175,6 +175,12 @@ class JobVariant extends React.Component {
               item = <JobProject project={value} />
             } else if (label === 'roles') {
               item = <Role role={value} />
+            } else if (label === 'dependencies') {
+              if (value['soft']) {
+                item = value['name'] + ' (soft)'
+              } else {
+                item = value['name']
+              }
             } else {
               item = value
             }
