@@ -191,7 +191,11 @@ class AnsibleManager:
         self.default_version = default_version
 
     def install(self, upgrade=False):
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Note: With higher number of threads pip seems to have some race
+        # leading to occasional failures during setup of all ansible
+        # environments. Thus we limit the number of workers to reduce the risk
+        # of hitting this race.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             futures = {executor.submit(a.ensure_ansible, upgrade): a
                        for a in self._supported_versions.values()}
             for future in concurrent.futures.as_completed(futures):
