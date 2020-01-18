@@ -1239,6 +1239,7 @@ class Job(ConfigObject):
         d = {}
         d['name'] = self.name
         d['branches'] = self._branches
+        d['override_checkout'] = self.override_checkout
         d['files'] = self._files
         d['irrelevant_files'] = self._irrelevant_files
         d['variant_description'] = self.variant_description
