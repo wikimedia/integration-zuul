@@ -3740,19 +3740,22 @@ class ZuulTestCase(BaseTestCase):
         self.printHistory()
         # We whitelist watchdog threads as they have relatively long delays
         # before noticing they should exit, but they should exit on their own.
-        # Further the pydevd threads also need to be whitelisted so debugging
-        # e.g. in PyCharm is possible without breaking shutdown.
         whitelist = ['watchdog',
-                     'pydevd.CommandThread',
-                     'pydevd.Reader',
-                     'pydevd.Writer',
                      'socketserver_Thread',
                      'GerritWebServer',
                      ]
-        # Ignore Kazoo TreeCache threads that start with "Thread-"
+        # Ignore threads that start with
+        # * Thread- : Kazoo TreeCache
+        # * Dummy-  : Seen during debugging in VS Code
+        # * pydevd  : Debug helper threads of pydevd (used by many IDEs)
+        # * ptvsd   : Debug helper threads used by VS Code
         threads = [t for t in threading.enumerate()
                    if t.name not in whitelist
-                   and not t.name.startswith("Thread-")]
+                   and not t.name.startswith("Thread-")
+                   and not t.name.startswith('Dummy-')
+                   and not t.name.startswith('pydevd.')
+                   and not t.name.startswith('ptvsd.')
+                   ]
         if len(threads) > 1:
             log_str = ""
             for thread_id, stack_frame in sys._current_frames().items():
