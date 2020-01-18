@@ -1315,7 +1315,7 @@ class Scheduler(threading.Thread):
         try:
             if isinstance(event, ReconfigureEvent):
                 self._doReconfigureEvent(event)
-            if isinstance(event, SmartReconfigureEvent):
+            elif isinstance(event, SmartReconfigureEvent):
                 self._doSmartReconfigureEvent(event)
             elif isinstance(event, TenantReconfigureEvent):
                 self._doTenantReconfigureEvent(event)
