@@ -91,7 +91,7 @@ class JobVariant extends React.Component {
       let label = key
       let value = variant[key]
 
-      if (label === 'context') {
+      if (label === 'context' && value) {
         value = (
           <SourceContext
             context={variant.source_context}
