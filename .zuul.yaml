@@ -203,7 +203,7 @@
       jobs:
         - zuul-build-image
         - zuul-tox-docs
-        - tox-pep8
+        - tox-linters
         - tox-py35:
             irrelevant-files:
               - zuul/cmd/migrate.py
@@ -259,7 +259,7 @@
       jobs:
         - zuul-upload-image
         - zuul-tox-docs
-        - tox-pep8
+        - tox-linters
         - tox-py35:
             irrelevant-files:
               - zuul/cmd/migrate.py
