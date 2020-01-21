@@ -93,7 +93,7 @@ For example, to *run a single Zuul test*::
 To *run one test in the foreground* (after previously having run tox
 to set up the virtualenv)::
 
-  .tox/py35/bin/stestr run -t tests.unit.test_scheduler.TestScheduler.test_jobs_executed
+  .tox/py35/bin/stestr run tests.unit.test_scheduler.TestScheduler.test_jobs_executed
 
 List Failing Tests
 ------------------
