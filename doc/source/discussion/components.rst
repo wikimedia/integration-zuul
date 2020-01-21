@@ -5,6 +5,14 @@
 Components
 ==========
 
+.. contents::
+   :depth: 1
+   :local:
+   :backlinks: none
+
+Overview
+--------
+
 Zuul is a distributed system consisting of several components, each of
 which is described below.
 
@@ -14,12 +22,17 @@ which is described below.
    graph  {
       node [shape=box]
       Database [fontcolor=grey]
+      Executor [href="#executor"]
+      Finger [href="#finger-gateway"]
       Gearman [shape=ellipse]
       Gerrit [fontcolor=grey]
+      Merger [href="#merger"]
       Statsd [shape=ellipse fontcolor=grey]
+      Scheduler [href="#scheduler"]
       Zookeeper [shape=ellipse]
       Nodepool
       GitHub [fontcolor=grey]
+      Web [href="#web-server"]
 
       Merger -- Gearman
       Executor -- Gearman
