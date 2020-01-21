@@ -505,6 +505,16 @@ Here is an example of two job definitions:
 
    .. attr:: roles
 
+      .. code-block:: yaml
+         :name: job-roles-example
+
+         - job:
+             name: myjob
+             roles:
+               - zuul: myorg/our-roles-project
+               - zuul: myorg/ansible-role-foo
+                 name: foo
+
       A list of Ansible roles to prepare for the job.  Because a job
       runs an Ansible playbook, any roles which are used by the job
       must be prepared and installed by Zuul before the job begins.
@@ -559,9 +569,9 @@ Here is an example of two job definitions:
       explicitly listing the project in the roles list in the usual
       way.
 
-      .. note:: Galaxy roles are not yet implemented.
-
       .. attr:: galaxy
+
+         .. warning:: Galaxy roles are not yet implemented.
 
          The name of the role in Ansible Galaxy.  If this attribute is
          supplied, Zuul will search Ansible Galaxy for a role by this
