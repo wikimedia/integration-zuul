@@ -10,7 +10,6 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-import abc
 import base64
 import collections
 from contextlib import contextmanager
@@ -436,22 +435,7 @@ def ansible_vars_dict(value):
         ansible_var_name(key)
 
 
-class Parser(abc.ABC):
-    def __init__(self, pcontext):
-        self.log = logging.getLogger("zuul.%s" % self.__class__.__name__)
-        self.pcontext = pcontext
-        self.schema = self.getSchema()
-
-    @abc.abstractmethod
-    def fromYaml(self, conf):
-        pass
-
-    @abc.abstractmethod
-    def getSchema(self):
-        pass
-
-
-class PragmaParser(Parser):
+class PragmaParser(object):
     pragma = {
         'implied-branch-matchers': bool,
         'implied-branches': to_list(str),
@@ -459,8 +443,11 @@ class PragmaParser(Parser):
         '_start_mark': ZuulMark,
     }
 
-    def getSchema(self):
-        return vs.Schema(self.pragma)
+    schema = vs.Schema(pragma)
+
+    def __init__(self, pcontext):
+        self.log = logging.getLogger("zuul.PragmaParser")
+        self.pcontext = pcontext
 
     def fromYaml(self, conf):
         self.schema(conf)
@@ -476,9 +463,11 @@ class PragmaParser(Parser):
             source_context.implied_branches = as_list(branches)
 
 
-class NodeSetParser(Parser):
+class NodeSetParser(object):
     def __init__(self, pcontext):
-        super().__init__(pcontext)
+        self.log = logging.getLogger("zuul.NodeSetParser")
+        self.pcontext = pcontext
+        self.schema = self.getSchema(False)
         self.anon_schema = self.getSchema(True)
 
     def getSchema(self, anonymous=False):
@@ -540,7 +529,12 @@ class NodeSetParser(Parser):
         return ns
 
 
-class SecretParser(Parser):
+class SecretParser(object):
+    def __init__(self, pcontext):
+        self.log = logging.getLogger("zuul.SecretParser")
+        self.pcontext = pcontext
+        self.schema = self.getSchema()
+
     def getSchema(self):
         secret = {vs.Required('name'): str,
                   vs.Required('data'): dict,
@@ -560,7 +554,7 @@ class SecretParser(Parser):
         return s
 
 
-class JobParser(Parser):
+class JobParser(object):
     ANSIBLE_ROLE_RE = re.compile(r'^(ansible[-_.+]*)*(role[-_.+]*)*')
 
     zuul_role = {vs.Required('zuul'): str,
@@ -636,6 +630,8 @@ class JobParser(Parser):
 
     job = dict(collections.ChainMap(job_name, job_attributes))
 
+    schema = vs.Schema(job)
+
     simple_attributes = [
         'final',
         'abstract',
@@ -655,8 +651,9 @@ class JobParser(Parser):
         'match-on-config-updates',
     ]
 
-    def getSchema(self):
-        return vs.Schema(self.job)
+    def __init__(self, pcontext):
+        self.log = logging.getLogger("zuul.JobParser")
+        self.pcontext = pcontext
 
     def fromYaml(self, conf, project_pipeline=False, name=None,
                  validate=True):
@@ -931,9 +928,11 @@ class JobParser(Parser):
                               implicit=True)
 
 
-class ProjectTemplateParser(Parser):
+class ProjectTemplateParser(object):
     def __init__(self, pcontext):
-        super().__init__(pcontext)
+        self.log = logging.getLogger("zuul.ProjectTemplateParser")
+        self.pcontext = pcontext
+        self.schema = self.getSchema()
         self.not_pipelines = ['name', 'description', 'templates',
                               'merge-mode', 'default-branch', 'vars',
                               '_source_context', '_start_mark']
@@ -1016,7 +1015,12 @@ class ProjectTemplateParser(Parser):
                 name=jobname, validate=False))
 
 
-class ProjectParser(Parser):
+class ProjectParser(object):
+    def __init__(self, pcontext):
+        self.log = logging.getLogger("zuul.ProjectParser")
+        self.pcontext = pcontext
+        self.schema = self.getSchema()
+
     def getSchema(self):
         job = {str: vs.Any(str, JobParser.job_attributes)}
         job_list = [vs.Any(str, job)]
@@ -1112,7 +1116,7 @@ class ProjectParser(Parser):
         return project_config
 
 
-class PipelineParser(Parser):
+class PipelineParser(object):
     # A set of reporter configuration keys to action mapping
     reporter_actions = {
         'enqueue': 'enqueue_actions',
@@ -1123,6 +1127,11 @@ class PipelineParser(Parser):
         'no-jobs': 'no_jobs_actions',
         'disabled': 'disabled_actions',
     }
+
+    def __init__(self, pcontext):
+        self.log = logging.getLogger("zuul.PipelineParser")
+        self.pcontext = pcontext
+        self.schema = self.getSchema()
 
     def getDriverSchema(self, dtype):
         methods = {
@@ -1289,7 +1298,12 @@ class PipelineParser(Parser):
         return pipeline
 
 
-class SemaphoreParser(Parser):
+class SemaphoreParser(object):
+    def __init__(self, pcontext):
+        self.log = logging.getLogger("zuul.SemaphoreParser")
+        self.pcontext = pcontext
+        self.schema = self.getSchema()
+
     def getSchema(self):
         semaphore = {vs.Required('name'): str,
                      'max': int,
