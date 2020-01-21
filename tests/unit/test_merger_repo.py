@@ -296,12 +296,6 @@ class TestMergerRepo(ZuulTestCase):
         self.assertEqual(sorted(['messy1.txt', 'messy2.txt']),
                          sorted(changed_files))
 
-    def test_repo_repr(self):
-        local_path = "/dev/null"
-        repo = Repo("remote", local_path,
-                    "none@example.org", "User Name", "0", "0")
-        self.assertIn(local_path, repr(repo))
-
     def test_update_needed(self):
         parent_path = os.path.join(self.upstream_root, 'org/project1')
         repo = git.Repo(parent_path)
