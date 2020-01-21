@@ -203,7 +203,9 @@
       jobs:
         - zuul-build-image
         - zuul-tox-docs
-        - tox-linters
+        - tox-linters:
+            vars:
+              tox_install_bindep: false
         - tox-py35:
             irrelevant-files:
               - zuul/cmd/migrate.py
@@ -259,7 +261,9 @@
       jobs:
         - zuul-upload-image
         - zuul-tox-docs
-        - tox-linters
+        - tox-linters:
+            vars:
+              tox_install_bindep: false
         - tox-py35:
             irrelevant-files:
               - zuul/cmd/migrate.py
