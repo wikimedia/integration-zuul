@@ -1,9 +1,9 @@
-:title: Project Configuration
+:title: Configuration Syntax
 
 .. _project-config:
 
-Project Configuration
-=====================
+Configuration Syntax
+====================
 
 The following sections describe the main part of Zuul's configuration.
 All of what follows is found within files inside of the repositories
