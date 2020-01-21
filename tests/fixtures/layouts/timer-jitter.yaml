@@ -16,7 +16,7 @@
     manager: independent
     trigger:
       timer:
-        - time: '* * * * * */1 5'
+        - time: '* * * * * */1 1'
 
 - job:
     name: base
