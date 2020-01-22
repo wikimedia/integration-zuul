@@ -3838,10 +3838,9 @@ class TestScheduler(ZuulTestCase):
 
         # The pipeline triggers every second, so we should have seen
         # several by now.
-        time.sleep(5)
-        self.waitUntilSettled()
-
-        self.assertEqual(len(self.builds), 2)
+        for _ in iterate_timeout(60, 'jobs started'):
+            if len(self.builds) > 1:
+                break
 
         merge_count_project1 = 0
         for job in self.gearman_server.jobs_history:
@@ -3855,18 +3854,6 @@ class TestScheduler(ZuulTestCase):
         self.assertEquals(merge_count_project1, 0,
                           "project1 shouldn't have any refstate call")
 
-        self.executor_server.hold_jobs_in_build = False
-        # Stop queuing timer triggered jobs so that the assertions
-        # below don't race against more jobs being queued.
-        self.commitConfigUpdate('common-config', 'layouts/no-timer.yaml')
-        self.sched.reconfigure(self.config)
-        self.waitUntilSettled()
-        # If APScheduler is in mid-event when we remove the job, we
-        # can end up with one more event firing, so give it an extra
-        # second to settle.
-        time.sleep(1)
-        self.waitUntilSettled()
-
         # Ensure that the status json has the ref so we can render it in the
         # web ui.
         data = json.loads(self.sched.formatStatusJSON('tenant-one'))
@@ -3877,15 +3864,27 @@ class TestScheduler(ZuulTestCase):
         self.assertIn(second['ref'],
                       ['refs/heads/master', 'refs/heads/stable'])
 
+        self.executor_server.hold_jobs_in_build = False
+
+        # Stop queuing timer triggered jobs so that the assertions
+        # below don't race against more jobs being queued.
+        self.commitConfigUpdate('common-config', 'layouts/no-timer.yaml')
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+        # If APScheduler is in mid-event when we remove the job, we
+        # can end up with one more event firing, so give it an extra
+        # second to settle.
+        time.sleep(3)
+        self.waitUntilSettled()
+
         self.executor_server.release()
         self.waitUntilSettled()
 
-        self.assertHistory([
-            dict(name='project-bitrot', result='SUCCESS',
-                 ref='refs/heads/master'),
-            dict(name='project-bitrot', result='SUCCESS',
-                 ref='refs/heads/stable'),
-        ], ordered=False)
+        self.assertTrue(len(self.history) > 1)
+        for job in self.history[:1]:
+            self.assertEqual(job.result, 'SUCCESS')
+            self.assertEqual(job.name, 'project-bitrot')
+            self.assertIn(job.ref, ('refs/heads/stable', 'refs/heads/master'))
 
     def test_timer(self):
         "Test that a periodic job is triggered"
