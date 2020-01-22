@@ -43,8 +43,8 @@ class TestTenantValidationClient(BaseClientTestCase):
         self.config.set(
             'scheduler', 'tenant_config',
             os.path.join(FIXTURE_DIR, 'config/tenant-parser/simple.yaml'))
-        self.config.write(
-            open(os.path.join(self.test_root, 'tenant_ok.conf'), 'w'))
+        with open(os.path.join(self.test_root, 'tenant_ok.conf'), 'w') as f:
+            self.config.write(f)
         p = subprocess.Popen(
             [os.path.join(sys.prefix, 'bin/zuul'),
              '-c', os.path.join(self.test_root, 'tenant_ok.conf'),
@@ -55,8 +55,8 @@ class TestTenantValidationClient(BaseClientTestCase):
         self.config.set(
             'scheduler', 'tenant_config',
             os.path.join(FIXTURE_DIR, 'config/tenant-parser/invalid.yaml'))
-        self.config.write(
-            open(os.path.join(self.test_root, 'tenant_ko.conf'), 'w'))
+        with open(os.path.join(self.test_root, 'tenant_ko.conf'), 'w') as f:
+            self.config.write(f)
         p = subprocess.Popen(
             [os.path.join(sys.prefix, 'bin/zuul'),
              '-c', os.path.join(self.test_root, 'tenant_ko.conf'),
@@ -76,8 +76,9 @@ class TestWebTokenClient(BaseClientTestCase):
         old_conf = io.StringIO()
         self.config.write(old_conf)
         self.config.remove_section('auth zuul_operator')
-        self.config.write(
-            open(os.path.join(self.test_root, 'no_zuul_operator.conf'), 'w'))
+        with open(os.path.join(self.test_root,
+                               'no_zuul_operator.conf'), 'w') as f:
+            self.config.write(f)
         p = subprocess.Popen(
             [os.path.join(sys.prefix, 'bin/zuul'),
              '-c', os.path.join(self.test_root, 'no_zuul_operator.conf'),
@@ -98,8 +99,8 @@ class TestWebTokenClient(BaseClientTestCase):
         self.config.write(old_conf)
         self.config.add_section('auth someauth')
         self.config.set('auth someauth', 'driver', 'RS256withJWKS')
-        self.config.write(
-            open(os.path.join(self.test_root, 'JWKS.conf'), 'w'))
+        with open(os.path.join(self.test_root, 'JWKS.conf'), 'w') as f:
+            self.config.write(f)
         p = subprocess.Popen(
             [os.path.join(sys.prefix, 'bin/zuul'),
              '-c', os.path.join(self.test_root, 'JWKS.conf'),
@@ -116,8 +117,8 @@ class TestWebTokenClient(BaseClientTestCase):
 
     def test_token_generation(self):
         """Test token generation"""
-        self.config.write(
-            open(os.path.join(self.test_root, 'good.conf'), 'w'))
+        with open(os.path.join(self.test_root, 'good.conf'), 'w') as f:
+            self.config.write(f)
         p = subprocess.Popen(
             [os.path.join(sys.prefix, 'bin/zuul'),
              '-c', os.path.join(self.test_root, 'good.conf'),
