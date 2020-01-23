@@ -2568,11 +2568,12 @@ class TestInRepoJoin(ZuulTestCase):
         self.assertHistory([])
 
 
-class TestAnsible26(AnsibleZuulTestCase):
+class FunctionalAnsibleMixIn(object):
     # A temporary class to hold new tests while others are disabled
 
     tenant_config_file = 'config/ansible/main.yaml'
-    ansible_version = '2.6'
+    # This should be overriden in child classes.
+    ansible_version = '2.9'
 
     def test_playbook(self):
         # This test runs a bit long and needs extra time.
@@ -2690,7 +2691,6 @@ class TestAnsible26(AnsibleZuulTestCase):
                 ansible-version: {ansible_version}
 
             - project:
-                name: org/plugin-project
                 check:
                   jobs:
                     - {job_name}
@@ -2701,7 +2701,6 @@ class TestAnsible26(AnsibleZuulTestCase):
         A = self.fake_gerrit.addFakeChange('org/plugin-project', 'master', 'A',
                                            files=file_dict)
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
-        self.waitUntilSettled()
 
     def _test_plugins(self, plugin_tests):
         # This test runs a bit long and needs extra time.
@@ -2715,14 +2714,19 @@ class TestAnsible26(AnsibleZuulTestCase):
 
         count = 0
 
+        # Kick off all test jobs in parallel
         for job_name, result in plugin_tests:
             count += 1
             self._add_job(job_name)
+        # Wait for all jobs to complete
+        self.waitUntilSettled()
 
-            job = self.getJobFromHistory(job_name)
-            with self.jobLog(job):
-                self.assertEqual(count, len(self.history))
-                build = self.history[-1]
+        # Check the correct number of jobs ran
+        self.assertEqual(count, len(self.history))
+        # Check the job results
+        for job_name, result in plugin_tests:
+            build = self.getJobFromHistory(job_name)
+            with self.jobLog(build):
                 self.assertEqual(build.result, result)
 
         # TODOv3(jeblair): parse the ansible output and verify we're
@@ -2764,15 +2768,19 @@ class TestAnsible26(AnsibleZuulTestCase):
         self._test_plugins(plugin_tests)
 
 
-class TestAnsible27(TestAnsible26):
+class TestAnsible26(AnsibleZuulTestCase, FunctionalAnsibleMixIn):
+    ansible_version = '2.6'
+
+
+class TestAnsible27(AnsibleZuulTestCase, FunctionalAnsibleMixIn):
     ansible_version = '2.7'
 
 
-class TestAnsible28(TestAnsible27):
+class TestAnsible28(AnsibleZuulTestCase, FunctionalAnsibleMixIn):
     ansible_version = '2.8'
 
 
-class TestAnsible29(TestAnsible28):
+class TestAnsible29(AnsibleZuulTestCase, FunctionalAnsibleMixIn):
     ansible_version = '2.9'
 
 
