@@ -2089,6 +2089,23 @@ class FakeGithubPullRequest(object):
         }
         return (name, data)
 
+    def getCheckRunRequestedEvent(self, cr_name, app="zuul"):
+        name = "check_run"
+        data = {
+            "action": "rerequested",
+            "check_run": {
+                "head_sha": self.head_sha,
+                "name": cr_name,
+                "app": {
+                    "slug": app,
+                },
+            },
+            "repository": {
+                "full_name": self.project,
+            },
+        }
+        return (name, data)
+
     def setMerged(self, commit_message):
         self.is_merged = True
         self.merge_message = commit_message

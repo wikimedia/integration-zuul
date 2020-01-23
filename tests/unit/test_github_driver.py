@@ -26,7 +26,8 @@ import github3.exceptions
 from zuul.driver.github.githubconnection import GithubShaCache
 import zuul.rpcclient
 
-from tests.base import BaseTestCase, ZuulTestCase, simple_layout, random_sha1
+from tests.base import (BaseTestCase, ZuulGithubAppTestCase, ZuulTestCase,
+                        simple_layout, random_sha1)
 from tests.base import ZuulWebFixture
 
 
@@ -575,6 +576,37 @@ class TestGithubDriver(ZuulTestCase):
         self.assertEqual(4, len(self.fake_github.reports))
         self.executor_server.release()
         self.waitUntilSettled()
+
+    @simple_layout("layouts/reporting-github.yaml", driver="github")
+    def test_reporting_checks_api_unauthorized(self):
+        # Using the checks API only works with app authentication. As all tests
+        # within the TestGithubDriver class are executed without app
+        # authentication, the checks API won't work here.
+
+        project = "org/project3"
+        github = self.fake_github.getGithubClient(None)
+
+        # The pipeline reports pull request status both on start and success.
+        # As we are not authenticated as app, this won't create or update any
+        # check runs, but should post two comments (start, success) informing
+        # the user about the missing authentication.
+        A = self.fake_github.openFakePullRequest(project, "master", "A")
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        self.assertIn(
+            A.head_sha, github.repo_from_project(project)._commits.keys()
+        )
+        check_runs = self.fake_github.getCommitChecks(project, A.head_sha)
+        self.assertEqual(0, len(check_runs))
+
+        expected_warning = (
+            "Unable to create or update check tenant-one/checks-api-reporting."
+            " Must be authenticated as app integration."
+        )
+        self.assertEqual(2, len(A.comments))
+        self.assertIn(expected_warning, A.comments[0])
+        self.assertIn(expected_warning, A.comments[1])
 
     @simple_layout('layouts/merging-github.yaml', driver='github')
     def test_report_pull_merge(self):
@@ -1554,3 +1586,128 @@ class TestGithubShaCache(BaseTestCase):
         }
         cache.update('foo/bar', pr_dict)
         self.assertEqual(cache.get('foo/bar', '123456'), set({1}))
+
+
+class TestGithubAppDriver(ZuulGithubAppTestCase):
+    """Inheriting from ZuulGithubAppTestCase will enable app authentication"""
+    config_file = 'zuul-github-driver.conf'
+
+    @simple_layout("layouts/reporting-github.yaml", driver="github")
+    def test_reporting_checks_api(self):
+        """Using the checks API only works with app authentication"""
+        project = "org/project3"
+        github = self.fake_github.getGithubClient(None)
+
+        # pipeline reports pull request status both on start and success
+        self.executor_server.hold_jobs_in_build = True
+        A = self.fake_github.openFakePullRequest(project, "master", "A")
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        # We should have a pending check for the head sha
+        self.assertIn(
+            A.head_sha, github.repo_from_project(project)._commits.keys())
+        check_runs = self.fake_github.getCommitChecks(project, A.head_sha)
+
+        self.assertEqual(1, len(check_runs))
+        check_run = check_runs[0]
+
+        self.assertEqual("tenant-one/checks-api-reporting", check_run["name"])
+        self.assertEqual("in_progress", check_run["status"])
+        self.assertThat(
+            check_run["output"]["summary"],
+            MatchesRegex(r'.*Starting checks-api-reporting jobs.*', re.DOTALL)
+        )
+
+        # TODO (felix): How can we test if the details_url was set correctly?
+        # How can the details_url be configured on the test case?
+
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        # We should now have an updated status for the head sha
+        check_runs = self.fake_github.getCommitChecks(project, A.head_sha)
+        self.assertEqual(1, len(check_runs))
+        check_run = check_runs[0]
+
+        self.assertEqual("tenant-one/checks-api-reporting", check_run["name"])
+        self.assertEqual("completed", check_run["status"])
+        self.assertEqual("success", check_run["conclusion"])
+        self.assertThat(
+            check_run["output"]["summary"],
+            MatchesRegex(r'.*Build succeeded.*', re.DOTALL)
+        )
+        self.assertIsNotNone(check_run["completed_at"])
+
+    @simple_layout("layouts/reporting-github.yaml", driver="github")
+    def test_update_non_existing_check_run(self):
+        project = "org/project3"
+        github = self.fake_github.getGithubClient(None)
+
+        # pipeline reports pull request status both on start and success
+        self.executor_server.hold_jobs_in_build = True
+        A = self.fake_github.openFakePullRequest(project, "master", "A")
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        # We should have a pending check for the head sha
+        commit = github.repo_from_project(project)._commits.get(A.head_sha)
+        check_runs = commit.check_runs()
+        self.assertEqual(1, len(check_runs))
+
+        # Delete this check_run to simulate a failed check_run creation
+        commit._check_runs = []
+
+        # Now run the build and check if the update of the check_run could
+        # still be accomplished.
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        check_runs = self.fake_github.getCommitChecks(project, A.head_sha)
+        self.assertEqual(1, len(check_runs))
+        check_run = check_runs[0]
+
+        self.assertEqual("tenant-one/checks-api-reporting", check_run["name"])
+        self.assertEqual("completed", check_run["status"])
+        self.assertEqual("success", check_run["conclusion"])
+        self.assertThat(
+            check_run["output"]["summary"],
+            MatchesRegex(r'.*Build succeeded.*', re.DOTALL)
+        )
+        self.assertIsNotNone(check_run["completed_at"])
+
+    @simple_layout("layouts/reporting-github.yaml", driver="github")
+    def test_update_check_run_missing_permissions(self):
+        project = "org/project3"
+        github = self.fake_github.getGithubClient(None)
+
+        repo = github.repo_from_project(project)
+        repo._set_permission("checks", False)
+
+        A = self.fake_github.openFakePullRequest(project, "master", "A")
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        # Alghough we are authenticated as github app, we are lacking the
+        # necessary "checks" permissions for the test repository. Thus, the
+        # check run creation/update should fail and we end up in two comments
+        # being posted to the PR with appropriate warnings.
+        commit = github.repo_from_project(project)._commits.get(A.head_sha)
+        check_runs = commit.check_runs()
+        self.assertEqual(0, len(check_runs))
+
+        self.assertIn(
+            A.head_sha, github.repo_from_project(project)._commits.keys()
+        )
+        check_runs = self.fake_github.getCommitChecks(project, A.head_sha)
+        self.assertEqual(0, len(check_runs))
+
+        expected_warning = (
+            "Failed to update check run tenant-one/checks-api-reporting: "
+            "403 Resource not accessible by integration"
+        )
+        self.assertEqual(2, len(A.comments))
+        self.assertIn(expected_warning, A.comments[0])
+        self.assertIn(expected_warning, A.comments[1])

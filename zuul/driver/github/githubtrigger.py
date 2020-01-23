@@ -33,6 +33,7 @@ class GithubTrigger(BaseTrigger):
                 branches=to_list(trigger.get('branch')),
                 refs=to_list(trigger.get('ref')),
                 comments=to_list(trigger.get('comment')),
+                check_runs=to_list(trigger.get('check')),
                 labels=to_list(trigger.get('label')),
                 unlabels=to_list(trigger.get('unlabel')),
                 states=to_list(trigger.get('state')),
@@ -52,7 +53,8 @@ def getSchema():
         v.Required('event'):
             scalar_or_list(v.Any('pull_request',
                                  'pull_request_review',
-                                 'push')),
+                                 'push',
+                                 'check_run')),
         'action': scalar_or_list(str),
         'branch': scalar_or_list(str),
         'ref': scalar_or_list(str),
@@ -61,7 +63,8 @@ def getSchema():
         'unlabel': scalar_or_list(str),
         'state': scalar_or_list(str),
         'require-status': scalar_or_list(str),
-        'status': scalar_or_list(str)
+        'status': scalar_or_list(str),
+        'check': scalar_or_list(str),
     }
 
     return github_trigger

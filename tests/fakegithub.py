@@ -64,6 +64,47 @@ class FakeStatus(object):
         }
 
 
+class FakeCheckRun(object):
+    def __init__(self, name, details_url, output, status, conclusion,
+                 completed_at, app):
+        self.name = name
+        self.details_url = details_url
+        self.output = output
+        self.conclusion = conclusion
+        self.completed_at = completed_at
+        self.app = app
+
+        # Github automatically sets the status to "completed" if a conclusion
+        # is provided.
+        if conclusion is not None:
+            self.status = "completed"
+        else:
+            self.status = status
+
+    def as_dict(self):
+        return {
+            "name": self.name,
+            "status": self.status,
+            "output": self.output,
+            "details_url": self.details_url,
+            "conclusion": self.conclusion,
+            "completed_at": self.completed_at,
+            "app": {
+                "slug": self.app,
+            },
+        }
+
+    def update(self, conclusion, completed_at, output, details_url):
+        self.conclusion = conclusion
+        self.completed_at = completed_at
+        self.output = output
+        self.details_url = details_url
+
+        # As we are only calling the update method when a build is completed,
+        # we can always set the status to "completed".
+        self.status = "completed"
+
+
 class FakeGHReview(object):
 
     def __init__(self, data):
@@ -83,6 +124,7 @@ class FakeCommit(object):
     def __init__(self, sha):
         self._statuses = []
         self.sha = sha
+        self._check_runs = []
 
     def set_status(self, state, url, description, context, user):
         status = FakeStatus(
@@ -91,13 +133,28 @@ class FakeCommit(object):
         # the last status provided for a commit.
         self._statuses.insert(0, status)
 
+    def set_check_run(self, name, details_url, output, status, conclusion,
+                      completed_at, app):
+        check_run = FakeCheckRun(
+            name, details_url, output, status, conclusion, completed_at, app)
+        # Always insert a check_run to the front of the list to represent the
+        # last check_run provided for a commit.
+        self._check_runs.insert(0, check_run)
+
     def get_url(self, path, params=None):
         if path == 'statuses':
             statuses = [s.as_dict() for s in self._statuses]
             return FakeResponse(statuses)
+        if path == "check-runs":
+            check_runs = [c.as_dict() for c in self._check_runs]
+            resp = {"total_count": len(check_runs), "check_runs": check_runs}
+            return FakeResponse(resp)
 
     def statuses(self):
         return self._statuses
+
+    def check_runs(self):
+        return self._check_runs
 
     def status(self):
         '''
@@ -121,6 +178,15 @@ class FakeRepository(object):
         self.data = data
         self.name = name
 
+        # Simple dictionary to store permission values per feature (e.g.
+        # checks, Repository contents, Pull requests, Commit statuses, ...).
+        # Could be used to just enable/deable a permission (True, False) or
+        # provide more specific values like "read" or "read&write". The mocked
+        # functionality in the FakeRepository class should then check for this
+        # value and raise an appropriate exception like a production Github
+        # would do in case the permission is not sufficient or missing at all.
+        self._permissions = {}
+
         # fail the next commit requests with 404
         self.fail_not_found = 0
 
@@ -135,6 +201,13 @@ class FakeRepository(object):
             if branch.name == branch_name:
                 branch.protected = protected
                 return
+
+    def _set_permission(self, key, value):
+        # NOTE (felix): Currently, this is only used to mock a repo with
+        # missing checks API permissions. But we could also use it to test
+        # arbitrary permission values like missing write, but only read
+        # permissions for a specific functionality.
+        self._permissions[key] = value
 
     def _build_url(self, *args, **kwargs):
         path_args = ['repos', self.name]
@@ -161,6 +234,26 @@ class FakeRepository(object):
             commit = FakeCommit(sha)
             self._commits[sha] = commit
         commit.set_status(state, url, description, context, user)
+
+    def create_check_run(self, head_sha, name, details_url=None, output=None,
+                         status=None, conclusion=None, completed_at=None,
+                         app="zuul"):
+
+        # Raise the appropriate github3 exception in case we don't have
+        # permission to access the checks API
+        if self._permissions.get("checks") is False:
+            # To create a proper github3 exception, we need to mock a response
+            # object
+            raise github3.exceptions.ForbiddenError(
+                FakeResponse("Resource not accessible by integration", 403)
+            )
+
+        commit = self._commits.get(head_sha, None)
+        if commit is None:
+            commit = FakeCommit(head_sha)
+            self._commits[head_sha] = commit
+        commit.set_check_run(
+            name, details_url, output, status, conclusion, completed_at, app)
 
     def commit(self, sha):
 
@@ -409,6 +502,12 @@ class FakeResponse(object):
         self.status_code = status_code
         self.data = data
         self.links = {}
+
+    @property
+    def content(self):
+        # Building github3 exceptions requires a Response object with the
+        # content attribute set.
+        return self.data
 
     def json(self):
         return self.data
