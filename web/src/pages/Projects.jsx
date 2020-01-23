@@ -49,9 +49,9 @@ class ProjectsPage extends Refreshable {
     const headerFormat = value => <Table.Heading>{value}</Table.Heading>
     const cellFormat = (value) => (
       <Table.Cell>{value}</Table.Cell>)
-    const cellProjectFormat = (value) => (
+    const cellProjectFormat = (value, row) => (
       <Table.Cell>
-        <Link to={this.props.tenant.linkPrefix + '/project/' + value}>
+        <Link to={this.props.tenant.linkPrefix + '/project/' + row.rowData.canonical_name}>
           {value}
         </Link>
       </Table.Cell>)
