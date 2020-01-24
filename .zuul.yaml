@@ -198,7 +198,7 @@
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
             nodeset: ubuntu-xenial
-            timeout: 3600  # 60 minutes
+            timeout: 4800  # 80 minutes
             vars:
                 test_setup_environment:
                     ZUUL_TEST_ROOT: /tmp/zuul-test
@@ -208,7 +208,7 @@
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
-            timeout: 3600  # 60 minutes
+            timeout: 4800  # 80 minutes
             nodeset: ubuntu-bionic
             vars:
                 test_setup_environment:
@@ -254,7 +254,7 @@
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
             nodeset: ubuntu-xenial
-            timeout: 3600  # 60 minutes
+            timeout: 4800  # 80 minutes
             vars:
                 test_setup_environment:
                     ZUUL_TEST_ROOT: /tmp/zuul-test
@@ -264,7 +264,7 @@
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
-            timeout: 3600  # 60 minutes
+            timeout: 4800  # 80 minutes
             nodeset: ubuntu-bionic
             vars:
                 test_setup_environment:
