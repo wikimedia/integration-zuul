@@ -149,7 +149,7 @@ class ZuulRESTClient(object):
 
 class Client(zuul.cmd.ZuulApp):
     app_name = 'zuul'
-    app_description = 'Zuul client.'
+    app_description = 'Zuul CLI client.'
     log = logging.getLogger("zuul.Client")
 
     def createParser(self):
@@ -405,7 +405,8 @@ class Client(zuul.cmd.ZuulApp):
             ssl_ca = get_default(self.config, 'gearman', 'ssl_ca')
             client = zuul.rpcclient.RPCClient(
                 server, port, ssl_key,
-                ssl_cert, ssl_ca)
+                ssl_cert, ssl_ca,
+                client_id=self.app_description)
         elif 'webclient' in conf_sections:
             self.log.debug('web section found in config, using REST client')
             server = get_default(self.config, 'webclient', 'url', None)
