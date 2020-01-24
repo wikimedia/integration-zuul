@@ -12,6 +12,12 @@ sudo service zookeeper stop
 DATADIR=$(sed -n -e 's/^dataDir=//p' /etc/zookeeper/conf/zoo.cfg)
 sudo mount -t tmpfs -o nodev,nosuid,size=500M none $DATADIR
 
+# Prepare a tmpfs for Zuul test root
+if [[ -n "${ZUUL_TEST_ROOT:-}" ]]; then
+    sudo mkdir -p "$ZUUL_TEST_ROOT"
+    sudo mount -t tmpfs -o noatime,nodev,nosuid,size=64M none "$ZUUL_TEST_ROOT"
+fi
+
 # Be sure mysql and zookeeper are started.
 sudo service mysql start
 sudo service postgresql start

@@ -199,12 +199,22 @@
               - playbooks/zuul-migrate/.*
             nodeset: ubuntu-xenial
             timeout: 3600  # 60 minutes
+            vars:
+                test_setup_environment:
+                    ZUUL_TEST_ROOT: /tmp/zuul-test
+                tox_environment:
+                    ZUUL_TEST_ROOT: /tmp/zuul-test
         - tox-py37:
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
             timeout: 3600  # 60 minutes
             nodeset: ubuntu-bionic
+            vars:
+                test_setup_environment:
+                    ZUUL_TEST_ROOT: /tmp/zuul-test
+                tox_environment:
+                    ZUUL_TEST_ROOT: /tmp/zuul-test
         - zuul-build-dashboard
         - zuul-build-dashboard-multi-tenant
         - nodejs-npm-run-lint:
@@ -245,12 +255,22 @@
               - playbooks/zuul-migrate/.*
             nodeset: ubuntu-xenial
             timeout: 3600  # 60 minutes
+            vars:
+                test_setup_environment:
+                    ZUUL_TEST_ROOT: /tmp/zuul-test
+                tox_environment:
+                    ZUUL_TEST_ROOT: /tmp/zuul-test
         - tox-py37:
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
             timeout: 3600  # 60 minutes
             nodeset: ubuntu-bionic
+            vars:
+                test_setup_environment:
+                    ZUUL_TEST_ROOT: /tmp/zuul-test
+                tox_environment:
+                    ZUUL_TEST_ROOT: /tmp/zuul-test
         - zuul-build-dashboard
         - nodejs-npm-run-lint:
             vars:
