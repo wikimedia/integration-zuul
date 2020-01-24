@@ -613,6 +613,18 @@ class TestGithubDriver(ZuulTestCase):
         self.assertEqual(len(D.comments), 1)
         self.assertEqual(D.comments[0], 'Merge failed')
 
+    @simple_layout('layouts/dependent-github.yaml', driver='github')
+    def test_draft_pr(self):
+        # pipeline merges the pull request on success
+        A = self.fake_github.openFakePullRequest('org/project', 'master',
+                                                 'PR title', draft=True)
+        self.fake_github.emitEvent(A.addLabel('merge'))
+        self.waitUntilSettled()
+
+        # A draft pull request must not enter the gate
+        self.assertFalse(A.is_merged)
+        self.assertHistory([])
+
     @simple_layout('layouts/reporting-multiple-github.yaml', driver='github')
     def test_reporting_multiple_github(self):
         project = 'org/project1'
