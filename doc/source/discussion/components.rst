@@ -39,6 +39,7 @@ which is described below.
       Executor -- Statsd
       Web -- Database
       Web -- Gearman
+      Web -- GitHub
       Web -- Zookeeper
       Web -- Executor
       Finger -- Gearman
