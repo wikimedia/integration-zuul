@@ -16,6 +16,7 @@ import * as React from 'react'
 import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
+import * as moment from 'moment'
 
 
 class ChangePanel extends React.Component {
@@ -191,14 +192,19 @@ class ChangePanel extends React.Component {
     // Show animation in preparation phase
     let className
     let progressWidth = progressPercent
+    let title = ''
     if (Number.isNaN(progressPercent)) {
       progressWidth = 100
       progressPercent = 0
       className = 'progress-bar-striped progress-bar-animated'
     }
+    if (remainingTime !== null) {
+      title = 'estimated time remaining ' + moment.duration(remainingTime, 'milliseconds').humanize()
+    }
 
     return (
-      <div className='progress zuul-job-result'>
+      <div className='progress zuul-job-result'
+            title={title}>
         <div className={'progress-bar ' + className}
           role='progressbar'
           aria-valuenow={progressPercent}
