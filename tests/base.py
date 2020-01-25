@@ -2659,8 +2659,11 @@ class RecordingExecutorServer(zuul.executor.server.ExecutorServer):
 
         """
         builds = self.running_builds[:]
-        self.log.debug("Releasing build %s (%s)" % (regex,
-                                                    len(self.running_builds)))
+        if len(builds) == 0:
+            self.log.debug('No running builds to release')
+            return
+
+        self.log.debug("Releasing build %s (%s)" % (regex, len(builds)))
         for build in builds:
             if not regex or re.match(regex, build.name):
                 self.log.debug("Releasing build %s" %
@@ -2670,7 +2673,7 @@ class RecordingExecutorServer(zuul.executor.server.ExecutorServer):
                 self.log.debug("Not releasing build %s" %
                                (build.parameters['zuul']['build']))
         self.log.debug("Done releasing builds %s (%s)" %
-                       (regex, len(self.running_builds)))
+                       (regex, len(builds)))
 
     def executeJob(self, job):
         build = FakeBuild(self, job)
@@ -4599,6 +4602,10 @@ class ZuulTestCase(BaseTestCase):
         completed.
 
         """
+        if not self.history:
+            self.log.debug("Build history: no builds ran")
+            return
+
         self.log.debug("Build history:")
         for build in self.history:
             self.log.debug(build)
