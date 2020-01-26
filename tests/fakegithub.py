@@ -367,7 +367,10 @@ class FakePull(object):
         data = {
             'number': pr.number,
             'title': pr.subject,
-            'url': 'https://%s/%s/pull/%s' % (
+            'url': 'https://%s/api/v3/%s/pulls/%s' % (
+                connection.server, pr.project, pr.number
+            ),
+            'html_url': 'https://%s/%s/pull/%s' % (
                 connection.server, pr.project, pr.number
             ),
             'updated_at': pr.updated_at,

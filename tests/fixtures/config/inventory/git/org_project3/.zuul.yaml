@@ -1,0 +1,10 @@
+- project:
+    check:
+      jobs:
+        - single-inventory
+        - single-inventory-list
+        - executor-only-inventory
+        - group-inventory
+        - hostvars-inventory
+        - ansible-version27-inventory
+        - ansible-version28-inventory
