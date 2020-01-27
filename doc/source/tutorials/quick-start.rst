@@ -40,8 +40,7 @@ Before you start, ensure that some needed packages are installed.
 
    # Fedora:
 
-   sudo yum install docker docker-compose git
-   sudo python3 -m pip install git-review
+   sudo dnf install docker docker-compose git git-review
 
    # OpenSuse:
 
