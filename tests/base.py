@@ -4317,7 +4317,9 @@ class ZuulTestCase(BaseTestCase):
     def waitUntilSettled(self, msg=""):
         self.log.debug("Waiting until settled... (%s)", msg)
         start = time.time()
+        i = 0
         while True:
+            i = i + 1
             if time.time() - start > self.wait_timeout:
                 self.log.error("Timeout waiting for Zuul to settle")
                 self.log.error("Queue status:")
@@ -4333,9 +4335,10 @@ class ZuulTestCase(BaseTestCase):
                 self.log.error("Merge client jobs: %s" %
                                (self.merge_client.jobs,))
                 raise Exception("Timeout waiting for Zuul to settle")
-            # Make sure no new events show up while we're checking
 
+            # Make sure no new events show up while we're checking
             self.executor_server.lock.acquire()
+
             # have all build states propogated to zuul?
             if self.haveAllBuildsReported():
                 # Join ensures that the queue is empty _and_ events have been
@@ -4354,7 +4357,8 @@ class ZuulTestCase(BaseTestCase):
                     # report that we are settled.
                     self.sched.run_handler_lock.release()
                     self.executor_server.lock.release()
-                    self.log.debug("...settled. (%s)", msg)
+                    self.log.debug("...settled after %.3f ms / %s loops (%s)",
+                                   time.time() - start, i, msg)
                     self.logState()
                     return
                 self.sched.run_handler_lock.release()
