@@ -1208,18 +1208,18 @@ class GithubConnection(BaseConnection):
         # important if we got the files later because of the 300 files limit.
         if not change.files:
             change.files = change.pr.get('files')
-        # Github's pull requests files API only returns at max
-        # the first 300 changed files of a PR in alphabetical order.
-        # https://developer.github.com/v3/pulls/#list-pull-requests-files
-        if len(change.files) < change.pr.get('changed_files', 0):
-            log.warning("Got only %s files but PR has %s files.",
-                        len(change.files),
-                        change.pr.get('changed_files', 0))
-            # In this case explicitly set change.files to None to signalize
-            # that we need to ask the mergers later in pipeline processing.
-            # We cannot query the files here using the mergers because this
-            # can slow down the github event queue considerably.
-            change.files = None
+            # Github's pull requests files API only returns at max
+            # the first 300 changed files of a PR in alphabetical order.
+            # https://developer.github.com/v3/pulls/#list-pull-requests-files
+            if len(change.files) < change.pr.get('changed_files', 0):
+                log.warning("Got only %s files but PR has %s files.",
+                            len(change.files),
+                            change.pr.get('changed_files', 0))
+                # In this case explicitly set change.files to None to signalize
+                # that we need to ask the mergers later in pipeline processing.
+                # We cannot query the files here using the mergers because this
+                # can slow down the github event queue considerably.
+                change.files = None
         change.title = change.pr.get('title')
         change.open = change.pr.get('state') == 'open'
 
