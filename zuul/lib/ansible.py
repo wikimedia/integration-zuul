@@ -210,12 +210,12 @@ class AnsibleManager:
                     '--version',
                 ]
 
-                result = subprocess.run(command,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE,
-                                        check=True)
+                ret = subprocess.run(command,
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE,
+                                     check=True)
                 self.log.info('Ansible version %s information: \n%s',
-                              version, result.stdout.decode())
+                              version, ret.stdout.decode())
             except subprocess.CalledProcessError:
                 result = False
                 self.log.exception("Ansible version %s not working" % version)
