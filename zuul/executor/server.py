@@ -869,6 +869,8 @@ class AnsibleJob(object):
                 self.executor_server.finishJob(self.job.unique)
             except Exception:
                 self.log.exception("Error finalizing job thread:")
+            self.log.info("Job execution took: %.3f seconds" % (
+                time.monotonic() - self.time_starting_build))
 
     def _base_job_data(self):
         return {
