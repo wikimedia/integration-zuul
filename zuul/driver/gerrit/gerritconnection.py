@@ -37,6 +37,7 @@ from uuid import uuid4
 from zuul import version as zuul_version
 from zuul.connection import BaseConnection
 from zuul.driver.gerrit.auth import FormAuth
+from zuul.driver.gerrit.gcloudauth import GCloudAuth
 from zuul.driver.gerrit.gerritmodel import GerritChange, GerritTriggerEvent
 from zuul.lib.logutil import get_annotated_logger
 from zuul.model import Ref, Tag, Branch, Project
@@ -474,8 +475,9 @@ class GerritConnection(BaseConnection):
 
         self.session = None
         self.password = self.connection_config.get('password', None)
-        if self.password:
-            self.auth_type = self.connection_config.get('auth_type', None)
+        self.auth_type = self.connection_config.get('auth_type', None)
+        self.anonymous_git = False
+        if self.password or self.auth_type == 'gcloud_service':
             self.verify_ssl = self.connection_config.get('verify_ssl', True)
             if self.verify_ssl not in ['true', 'True', '1', 1, 'TRUE']:
                 self.verify_ssl = False
@@ -487,10 +489,15 @@ class GerritConnection(BaseConnection):
                 authclass = requests.auth.HTTPDigestAuth
             elif self.auth_type == 'form':
                 authclass = FormAuth
+            elif self.auth_type == 'gcloud_service':
+                authclass = GCloudAuth
+                # The executors in google cloud may not have access
+                # to the gerrit account credentials, so just use
+                # anonymous http access for git
+                self.anonymous_git = True
             else:
                 authclass = requests.auth.HTTPBasicAuth
-            self.auth = authclass(
-                self.user, self.password)
+            self.auth = authclass(self.user, self.password)
 
     def setWatchedCheckers(self, checkers_to_watch):
         self.log.debug("Setting watched checkers to %s", checkers_to_watch)
@@ -1291,7 +1298,9 @@ class GerritConnection(BaseConnection):
         return ret
 
     def getGitUrl(self, project: Project) -> str:
-        if self.session:
+        if self.anonymous_git:
+            url = ('%s/%s' % (self.baseurl, project.name))
+        elif self.session:
             baseurl = list(urllib.parse.urlparse(self.baseurl))
             # Make sure we escape '/' symbols, otherwise git's url
             # parser will think the username is a hostname.

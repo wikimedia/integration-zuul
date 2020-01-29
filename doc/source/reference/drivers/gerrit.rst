@@ -122,6 +122,15 @@ The supported options in ``zuul.conf`` connections are:
          Zuul will submit a username and password to a form in order
          to authenticate.
 
+      .. value:: gcloud_service
+
+         Only valid when running in Google Cloud.  This will use the
+         default service account to authenticate to Gerrit.  Note that
+         this will only be used for interacting with the Gerrit API;
+         anonymous HTTP access will be used to access the git
+         repositories, therefore private repos or draft changes will
+         not be available.
+
    .. attr:: verify_ssl
       :default: true
 
