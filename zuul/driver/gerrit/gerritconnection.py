@@ -483,12 +483,12 @@ class GerritConnection(BaseConnection):
                 zuul_version.release_string,
                 requests.utils.default_user_agent())
             self.session = requests.Session()
-            if self.auth_type == 'basic':
-                authclass = requests.auth.HTTPBasicAuth
+            if self.auth_type == 'digest':
+                authclass = requests.auth.HTTPDigestAuth
             elif self.auth_type == 'form':
                 authclass = FormAuth
             else:
-                authclass = requests.auth.HTTPDigestAuth
+                authclass = requests.auth.HTTPBasicAuth
             self.auth = authclass(
                 self.user, self.password)
 

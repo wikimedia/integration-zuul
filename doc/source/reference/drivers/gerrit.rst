@@ -103,18 +103,19 @@ The supported options in ``zuul.conf`` connections are:
       section of the ``Settings`` page in Gerrit.
 
    .. attr:: auth_type
-      :default: digest
+      :default: basic
 
       The HTTP authentication mechanism.
 
-      .. value:: digest
-
-         HTTP Digest authentication; the default for most Gerrit
-         installations.
-
       .. value:: basic
 
-         HTTP Basic authentication.
+         HTTP Basic authentication; the default for most Gerrit
+         installations.
+
+      .. value:: digest
+
+         HTTP Digest authentication; only used in versions of Gerrit
+         prior to 2.15.
 
       .. value:: form
 
