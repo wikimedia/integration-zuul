@@ -8028,6 +8028,38 @@ class TestSchedulerFailFast(ZuulTestCase):
             dict(name='project-test6', result='SUCCESS', changes='1,1'),
         ], ordered=False)
 
+    def test_fail_fast_retry(self):
+        """
+        Tests that a retried build doesn't trigger fail-fast.
+        """
+        self.executor_server.hold_jobs_in_build = True
+
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        # project-merge and project-test5
+        self.assertEqual(len(self.builds), 2)
+
+        # Force a retry of first build
+        self.builds[0].requeue = True
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+
+        self.assertEqual(len(self.builds), 0)
+        self.assertEqual(A.reported, 1)
+        self.assertHistory([
+            dict(name='project-merge', result=None, changes='1,1'),
+            dict(name='project-merge', result='SUCCESS', changes='1,1'),
+            dict(name='project-test1', result='SUCCESS', changes='1,1'),
+            dict(name='project-test2', result='SUCCESS', changes='1,1'),
+            dict(name='project-test3', result='SUCCESS', changes='1,1'),
+            dict(name='project-test4', result='SUCCESS', changes='1,1'),
+            dict(name='project-test5', result='SUCCESS', changes='1,1'),
+            dict(name='project-test6', result='SUCCESS', changes='1,1'),
+        ], ordered=False)
+
 
 class TestPipelineSupersedes(ZuulTestCase):
 
