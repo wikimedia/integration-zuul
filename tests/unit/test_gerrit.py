@@ -376,3 +376,47 @@ class TestChecksApi(ZuulTestCase):
                          'NOT_RELEVANT')
         self.assertEqual(len(A.checks_history), 3)
         self.assertEqual(A.data['status'], 'NEW')
+
+
+class TestPolling(ZuulTestCase):
+    config_file = 'zuul-gerrit-no-stream.conf'
+
+    @simple_layout('layouts/gerrit-checks.yaml')
+    def test_config_update(self):
+        # Test that the config is updated via polling when a change
+        # merges without stream-events enabled.
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: test-job2
+                parent: test-job
+            - project:
+                check:
+                  jobs:
+                    - test-job2
+            """)
+
+        file_dict = {'.zuul.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        A.setMerged()
+        self.waitForPoll('gerrit')
+
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
+        B.setCheck('zuul:check', reset=True)
+        self.waitForPoll('gerrit')
+        self.waitUntilSettled()
+
+        self.assertEqual(B.checks_history[0]['zuul:check']['state'],
+                         'NOT_STARTED')
+        self.assertEqual(B.checks_history[1]['zuul:check']['state'],
+                         'SCHEDULED')
+        self.assertEqual(B.checks_history[2]['zuul:check']['state'],
+                         'RUNNING')
+        self.assertEqual(B.checks_history[3]['zuul:check']['state'],
+                         'SUCCESSFUL')
+        self.assertEqual(len(B.checks_history), 4)
+        self.assertHistory([
+            dict(name='test-job', result='SUCCESS', changes='2,1'),
+            dict(name='test-job2', result='SUCCESS', changes='2,1'),
+        ], ordered=False)
