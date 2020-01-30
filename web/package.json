@@ -12,6 +12,7 @@
     "js-yaml": "^3.13.0",
     "lodash": "^4.17.10",
     "moment": "^2.22.2",
+    "moment-duration-format": "2.3.2",
     "patternfly-react": "^2.13.1",
     "prop-types": "^15.6.2",
     "react": "^16.4.2",
@@ -36,6 +37,7 @@
     "yarn": "^1.16.0"
   },
   "scripts": {
+    "start:opendev": "REACT_APP_ZUUL_API='https://zuul.opendev.org/api/' react-scripts start",
     "start:openstack": "REACT_APP_ZUUL_API='https://zuul.openstack.org/api/' react-scripts start",
     "start:multi": "REACT_APP_ZUUL_API='https://softwarefactory-project.io/zuul/api/' react-scripts start",
     "start": "react-scripts start",

@@ -18,6 +18,7 @@ import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Panel } from 'react-bootstrap'
 import * as moment from 'moment'
+import 'moment-duration-format'
 
 
 class Buildset extends React.Component {
@@ -61,7 +62,8 @@ class Buildset extends React.Component {
         if (column === 'job') {
           row.push(build.job_name)
         } else if (column === 'duration') {
-          row.push(moment.duration(build.duration, 'seconds').humanize())
+          row.push(moment.duration(build.duration, 'seconds')
+                   .format('h [hr] m [min] s [sec]'))
         } else if (column === 'voting') {
           row.push(build.voting ? 'true' : 'false')
         } else if (column === 'result') {

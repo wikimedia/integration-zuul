@@ -9,6 +9,10 @@ a.refresh {
   text-decoration: none;
 }
 
+.time {
+  white-space: nowrap;
+}
+
 /* Notification bell color */
 .fa-bell {
   color: orange;
@@ -179,6 +183,11 @@ pre.version {
 {
     padding-top: 1px;
     padding-bottom: 1px;
+}
+.zuul-console .list-view-pf-additional-info-item {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
 }
 .zuul-console .list-view-pf-expand
 {

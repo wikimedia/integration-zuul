@@ -20,6 +20,9 @@ import { Link } from 'react-router-dom'
 import ArtifactList from './Artifact'
 import BuildOutput from './BuildOutput'
 
+import * as moment from 'moment'
+import 'moment-duration-format'
+
 
 class Summary extends React.Component {
   static propTypes = {
@@ -65,6 +68,10 @@ class Summary extends React.Component {
         } else {
           value = 'false'
         }
+      }
+      if (column === 'duration') {
+          value = moment.duration(value, 'seconds')
+            .format('h [hr] m [min] s [sec]')
       }
       if (value && (column === 'log_url' || column === 'ref_url')) {
         value = <a href={value}>{value}</a>
