@@ -1,0 +1,34 @@
+- admin-rule:
+    name: tenant-admin
+    conditions:
+      - groups: "{tenant.name}"
+- tenant:
+    name: tenant-zero
+    admin-rules:
+      - tenant-admin
+    source:
+      gerrit:
+        config-projects:
+          - common-config
+        untrusted-projects:
+          - org/project
+- tenant:
+    name: tenant-one
+    admin-rules:
+      - tenant-admin
+    source:
+      gerrit:
+        config-projects:
+          - common-config
+        untrusted-projects:
+          - org/project1
+- tenant:
+    name: tenant-two
+    admin-rules:
+      - tenant-admin
+    source:
+      gerrit:
+        config-projects:
+          - common-config
+        untrusted-projects:
+          - org/project2

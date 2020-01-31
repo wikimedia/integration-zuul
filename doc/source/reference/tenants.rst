@@ -460,3 +460,57 @@ Below are some examples of how access rules can be defined:
              }
          },
         }
+
+Access Rule Templating
+----------------------
+
+The special word "{tenant.name}" can be used in conditions' values. It will be automatically
+substituted for the relevant tenant when evaluating authorizations for a given
+set of claims. For example, consider the following rule:
+
+.. code-block:: yaml
+
+   - admin-rule:
+       name: tenant_in_groups
+       conditions:
+         - groups: "{tenant.name}"
+
+If applied to the following tenants:
+
+.. code-block:: yaml
+
+   - tenant:
+       name: tenant-one
+       admin-rules:
+         - tenant_in_groups
+   - tenant:
+       name: tenant-two
+       admin-rules:
+         - tenant_in_groups
+
+Then this set of claims will be allowed to perform protected actions on **tenant-one**:
+
+.. code-block:: javascript
+
+  {
+   'iss': 'some_other_institution',
+   'aud': 'my_zuul_deployment',
+   'exp': 1234567890,
+   'sub': 'carol',
+   'iat': 1234556780,
+   'groups': ['tenant-one', 'some-other-group'],
+  }
+
+And this set of claims will be allowed to perform protected actions on **tenant-one**
+and **tenant-two**:
+
+.. code-block:: javascript
+
+    {
+     'iss': 'some_other_institution',
+     'aud': 'my_zuul_deployment',
+     'exp': 1234567890,
+     'sub': 'carol',
+     'iat': 1234556780,
+     'groups': ['tenant-one', 'tenant-two'],
+    }

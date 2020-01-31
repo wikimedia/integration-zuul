@@ -138,6 +138,32 @@ class TestAuthorizeViaRPC(ZuulTestCase):
         self.assertTrue(json.loads(authorized))
 
 
+class TestAuthorizeWithTemplatingViaRPC(ZuulTestCase):
+    tenant_config_file = 'config/authorization/rules-templating/main.yaml'
+
+    def test_authorize_via_rpc(self):
+        client = zuul.rpcclient.RPCClient('127.0.0.1',
+                                          self.gearman_server.port)
+        self.addCleanup(client.shutdown)
+        tenants = ['tenant-zero', 'tenant-one', 'tenant-two']
+        for t_claim in tenants:
+            claims = {'groups': [t_claim, ]}
+            for tenant in tenants:
+                authorized = client.submitJob('zuul:authorize_user',
+                                              {'tenant': tenant,
+                                               'claims': claims}).data[0]
+                if t_claim == tenant:
+                    self.assertTrue(
+                        json.loads(authorized),
+                        "Failed for t_claim: %s, tenant: %s" % (t_claim,
+                                                                tenant))
+                else:
+                    self.assertTrue(
+                        not json.loads(authorized),
+                        "Failed for t_claim: %s, tenant: %s" % (t_claim,
+                                                                tenant))
+
+
 class TestSchedulerAutoholdHoldExpiration(ZuulTestCase):
     '''
     This class of tests validates the autohold node expiration values

@@ -4839,15 +4839,22 @@ class ClaimRule(AuthZRule):
         self.claim = claim or 'sub'
         self.value = value
 
-    def _match_jsonpath(self, claims):
+    def templated(self, value, tenant=None):
+        template_dict = {}
+        if tenant is not None:
+            template_dict['tenant'] = tenant.getSafeAttributes()
+        return value.format(**template_dict)
+
+    def _match_jsonpath(self, claims, tenant):
         matches = [match.value
                    for match in jsonpath_rw.parse(self.claim).find(claims)]
+        t_value = self.templated(self.value, tenant)
         if len(matches) == 1:
             match = matches[0]
             if isinstance(match, list):
-                return self.value in match
+                return t_value in match
             elif isinstance(match, str):
-                return self.value == match
+                return t_value == match
             else:
                 # unsupported type - don't raise, but this should be notified
                 return False
@@ -4855,15 +4862,16 @@ class ClaimRule(AuthZRule):
             # TODO we should differentiate no match and 2+ matches
             return False
 
-    def _match_dict(self, claims):
+    def _match_dict(self, claims, tenant):
         def _compare(value, claim):
             if isinstance(value, list):
+                t_value = map(self.templated, value, [tenant] * len(value))
                 if isinstance(claim, list):
                     # if the claim is empty, the value must be empty too:
                     if claim == []:
-                        return value == []
+                        return t_value == []
                     else:
-                        return (set(claim) <= set(value))
+                        return (set(claim) <= set(t_value))
                 else:
                     return claim in value
             elif isinstance(value, dict):
@@ -4875,15 +4883,16 @@ class ClaimRule(AuthZRule):
                     return all(_compare(value[x], claim.get(x, {}))
                                for x in value.keys())
             else:
-                return value == claim
+                t_value = self.templated(value, tenant)
+                return t_value == claim
 
         return _compare(self.value, claims.get(self.claim, {}))
 
-    def __call__(self, claims):
+    def __call__(self, claims, tenant=None):
         if isinstance(self.value, dict):
-            return self._match_dict(claims)
+            return self._match_dict(claims, tenant)
         else:
-            return self._match_jsonpath(claims)
+            return self._match_jsonpath(claims, tenant)
 
     def __eq__(self, other):
         if not isinstance(other, ClaimRule):
@@ -4903,8 +4912,8 @@ class OrRule(AuthZRule):
         super(OrRule, self).__init__()
         self.rules = set(subrules)
 
-    def __call__(self, claims):
-        return any(rule(claims) for rule in self.rules)
+    def __call__(self, claims, tenant=None):
+        return any(rule(claims, tenant) for rule in self.rules)
 
     def __eq__(self, other):
         if not isinstance(other, OrRule):
@@ -4924,8 +4933,8 @@ class AndRule(AuthZRule):
         super(AndRule, self).__init__()
         self.rules = set(subrules)
 
-    def __call__(self, claims):
-        return all(rule(claims) for rule in self.rules)
+    def __call__(self, claims, tenant=None):
+        return all(rule(claims, tenant) for rule in self.rules)
 
     def __eq__(self, other):
         if not isinstance(other, AndRule):
@@ -4946,8 +4955,8 @@ class AuthZRuleTree(object):
         # initialize actions as unauthorized
         self.ruletree = None
 
-    def __call__(self, claims):
-        return self.ruletree(claims)
+    def __call__(self, claims, tenant=None):
+        return self.ruletree(claims, tenant)
 
     def __eq__(self, other):
         if not isinstance(other, AuthZRuleTree):
