@@ -174,7 +174,11 @@ class ZuulDaemonApp(ZuulApp, metaclass=abc.ABCMeta):
     def createParser(self):
         parser = super(ZuulDaemonApp, self).createParser()
         parser.add_argument('-d', dest='debug', action='store_true',
-                            help='run in foreground with debug log')
+                            help='run in foreground with debug log. Note '
+                                 'that in future this will be changed to only '
+                                 'request debug logging. If you want to keep '
+                                 'running the process in the foreground '
+                                 'migrate/add the -f switch.')
         parser.add_argument('-f', dest='foreground', action='store_true',
                             help='run in foreground with info log')
         return parser
