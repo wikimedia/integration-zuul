@@ -2368,6 +2368,7 @@ class QueueItem(object):
 
     def _getRequirementsResultFromSQL(self, requirements):
         # This either returns data or raises an exception
+        self.log.debug("Checking DB for requirements")
         requirements_tuple = tuple(sorted(requirements))
         if requirements_tuple not in self._cached_sql_results:
             sql_driver = self.pipeline.manager.sched.connections.drivers['sql']
@@ -2392,6 +2393,7 @@ class QueueItem(object):
         builds = self._cached_sql_results[requirements_tuple]
         data = []
         if not builds:
+            self.log.debug("No artifacts matching requirements found in DB")
             return data
 
         for build in builds:
@@ -2412,6 +2414,7 @@ class QueueItem(object):
                     if a.meta:
                         artifact['metadata'] = json.loads(a.meta)
                     data.append(artifact)
+        self.log.debug("Found artifacts in DB: %s", repr(data))
         return data
 
     def providesRequirements(self, requirements, data, recurse=True):
@@ -2420,6 +2423,8 @@ class QueueItem(object):
         if not requirements:
             return True
         if not self.live:
+            self.log.debug("Checking whether non-live item %s provides %s",
+                           self, requirements)
             # Look for this item in other queues in the pipeline.
             item = None
             found = False
@@ -2452,6 +2457,7 @@ class QueueItem(object):
                                   'change': self.change.number,
                                   'patchset': self.change.patchset,
                                   'job': build.job.name})
+                    self.log.debug("Found live artifacts: %s", repr(artifacts))
                     data += artifacts
         if not self.item_ahead:
             return True
