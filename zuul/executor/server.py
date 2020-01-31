@@ -1916,6 +1916,7 @@ class AnsibleJob(object):
             config.write('stdout_callback = zuul_stream\n')
             config.write('filter_plugins = %s\n'
                          % self.filter_dir)
+            config.write('nocows = True\n')  # save useless stat() calls
             # bump the timeout because busy nodes may take more than
             # 10s to respond
             config.write('timeout = 30\n')
