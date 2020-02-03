@@ -30,3 +30,7 @@ ws4py
 routes
 jsonpath-rw
 urllib3!=1.25.4,!=1.25.5  # https://github.com/urllib3/urllib3/pull/1684
+# TODO(tobiash): cheroot 8.1.0 introduced a regression when handling concurrent
+# requests. Remove the following line when this issue is resolved:
+# https://github.com/cherrypy/cheroot/issues/263
+cheroot<8.1.0
