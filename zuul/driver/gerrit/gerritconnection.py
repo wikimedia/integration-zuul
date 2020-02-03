@@ -17,6 +17,7 @@ import copy
 import datetime
 import itertools
 import json
+import math
 import logging
 import paramiko
 import pprint
@@ -381,10 +382,11 @@ class GerritPoller(threading.Thread):
     def __init__(self, connection):
         threading.Thread.__init__(self)
         self.connection = connection
+        self.last_merged_poll = 0
         self._stopped = False
         self._stop_event = threading.Event()
 
-    def _makeEvent(self, change, uuid, check):
+    def _makePendingCheckEvent(self, change, uuid, check):
         return {'type': 'pending-check',
                 'uuid': uuid,
                 'change': {
@@ -395,7 +397,22 @@ class GerritPoller(threading.Thread):
                     'number': change['patch_set']['patch_set_id'],
                 }}
 
-    def _run(self):
+    def _makeChangeMergedEvent(self, change):
+        """Make a simulated change-merged event
+
+        Mostly for the benefit of scheduler reconfiguration.
+        """
+        rev = change['revisions'][change['current_revision']]
+        return {'type': 'change-merged',
+                'change': {
+                    'project': change['project'],
+                    'number': change['_number'],
+                },
+                'patchSet': {
+                    'number': rev['_number'],
+                }}
+
+    def _poll_checkers(self):
         try:
             for checker in self.connection.watched_checkers:
                 changes = self.connection.get(
@@ -403,11 +420,34 @@ class GerritPoller(threading.Thread):
                     'query=checker:%s+(state:NOT_STARTED)' % checker)
                 for change in changes:
                     for uuid, check in change['pending_checks'].items():
-                        event = self._makeEvent(change, uuid, check)
+                        event = self._makePendingCheckEvent(
+                            change, uuid, check)
                         self.connection.addEvent(event)
         except Exception:
             self.log.exception("Exception on Gerrit poll with %s:",
                                self.connection.connection_name)
+
+    def _poll_merged_changes(self):
+        try:
+            now = datetime.datetime.utcnow()
+            age = self.last_merged_poll
+            if age:
+                # Allow an extra 4 seconds for request time
+                age = int(math.ceil((now - age).total_seconds())) + 4
+            changes = self.connection.simpleQueryHTTP(
+                "status:merged -age:%ss" % (age,))
+            self.last_merged_poll = now
+            for change in changes:
+                event = self._makeChangeMergedEvent(change)
+                self.connection.addEvent(event)
+        except Exception:
+            self.log.exception("Exception on Gerrit poll with %s:",
+                               self.connection.connection_name)
+
+    def _run(self):
+        self._poll_checkers()
+        if not self.connection.enable_stream_events:
+            self._poll_merged_changes()
 
     def run(self):
         last_start = time.time()
