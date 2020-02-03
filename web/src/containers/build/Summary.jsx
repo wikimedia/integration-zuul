@@ -84,9 +84,15 @@ class Summary extends React.Component {
       }
       if (column === 'log_url') {
         label = 'log url'
+        if (build.manifest && build.manifest.index_links) {
+          value = <a href={value + 'index.html'}>{value}</a>
+        } else {
+          value = <a href={value}>{value}</a>
+        }
       }
       if (column === 'ref_url') {
         label = 'ref url'
+        value = <a href={value}>{value}</a>
       }
       if (column === 'event_id') {
         label = 'event id'
