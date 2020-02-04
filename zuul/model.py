@@ -2622,10 +2622,11 @@ class QueueItem(object):
             return
 
         skipped = []
-        # NOTE(pabelanger): Check successful jobs to see if zuul_return
-        # includes zuul.child_jobs.
+        # NOTE(pabelanger): Check successful/paused jobs to see if
+        # zuul_return includes zuul.child_jobs.
         build_result = build.result_data.get('zuul', {})
-        if build.result == 'SUCCESS' and 'child_jobs' in build_result:
+        if ((build.result == 'SUCCESS' or build.paused)
+                and 'child_jobs' in build_result):
             zuul_return = build_result.get('child_jobs', [])
             dependent_jobs = self.job_graph.getDirectDependentJobs(
                 build.job.name)

@@ -3746,6 +3746,17 @@ class TestDataReturn(AnsibleZuulTestCase):
                  result='FAILURE', changes='1,1'),
         ])
 
+    def test_data_return_child_from_paused_job(self):
+        A = self.fake_gerrit.addFakeChange('org/project6', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='data-return', result='SUCCESS', changes='1,1'),
+            dict(name='paused-data-return-child-jobs',
+                 result='SUCCESS', changes='1,1'),
+        ])
+
 
 class TestDiskAccounting(AnsibleZuulTestCase):
     config_file = 'zuul-disk-accounting.conf'

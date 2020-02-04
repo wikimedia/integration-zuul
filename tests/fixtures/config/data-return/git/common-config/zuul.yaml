@@ -44,6 +44,11 @@
       - playbooks/failure.yaml
 
 - job:
+    name: paused-data-return-child-jobs
+    run:
+      - playbooks/paused-data-return-child-jobs.yaml
+
+- job:
     name: data-return-a
     run: playbooks/data-return-a.yaml
 
@@ -145,6 +150,20 @@
         - data-return:
             dependencies:
               - data-return-child-jobs-failure
+
+
+- project:
+    name: org/project6
+    check:
+      jobs:
+        - paused-data-return-child-jobs
+        - data-return:
+            dependencies:
+              - paused-data-return-child-jobs
+        - child:
+            dependencies:
+              - paused-data-return-child-jobs
+
 
 - project:
     name: org/project-soft
