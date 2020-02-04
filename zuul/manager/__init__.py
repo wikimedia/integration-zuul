@@ -1078,10 +1078,10 @@ class PipelineManager(object):
             if not (succeeded and merged):
                 if not item.job_graph or not item.job_graph.jobs:
                     error_reason = "did not have any jobs configured"
-                elif not merged:
-                    error_reason = "failed to merge"
-                else:
+                elif not succeeded:
                     error_reason = "failed tests"
+                else:
+                    error_reason = "failed to merge"
                 log.info("Reported change %s did not merge because it %s,"
                          "status: all-succeeded: %s, merged: %s",
                          item.change, error_reason, succeeded, merged)
