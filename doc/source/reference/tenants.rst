@@ -130,6 +130,18 @@ configuration. Some examples of tenant definitions are:
       The items in the list follow the same format described in
       **untrusted-projects**.
 
+      .. attr:: <project>
+
+         The config-projects have an additional config option that
+         may be specified optionally.
+
+         .. attr:: load-branch
+            :default: master
+
+            Define which branch is loaded from a config project. By
+            default config projects load Zuul configuration only
+            from the master branch.
+
    .. attr:: untrusted-projects
 
       A list of projects to be treated as untrusted in this tenant.

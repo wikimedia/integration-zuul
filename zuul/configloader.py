@@ -1417,6 +1417,7 @@ class TenantParser(object):
         'shadow': to_list(str),
         'exclude-unprotected-branches': bool,
         'extra-config-paths': to_list(str),
+        'load-branch': str,
     }}
 
     project = vs.Any(str, project_dict)
@@ -1627,6 +1628,7 @@ class TenantParser(object):
             project_include = current_include
             shadow_projects = []
             project_exclude_unprotected_branches = None
+            project_load_branch = None
         else:
             project_name = list(conf.keys())[0]
             project = source.getProject(project_name)
@@ -1651,6 +1653,8 @@ class TenantParser(object):
                                             if not x.endswith('/')])
                 extra_config_dirs = tuple([x[:-1] for x in extra_config_paths
                                            if x.endswith('/')])
+            project_load_branch = conf[project_name].get(
+                'load-branch', None)
 
         tenant_project_config = model.TenantProjectConfig(project)
         tenant_project_config.load_classes = frozenset(project_include)
@@ -1659,6 +1663,7 @@ class TenantParser(object):
             project_exclude_unprotected_branches
         tenant_project_config.extra_config_files = extra_config_files
         tenant_project_config.extra_config_dirs = extra_config_dirs
+        tenant_project_config.load_branch = project_load_branch
 
         return tenant_project_config
 
@@ -1799,8 +1804,10 @@ class TenantParser(object):
         untrusted_projects_config = model.UnparsedConfig()
 
         for project in tenant.config_projects:
+            tpc = tenant.project_configs.get(project.canonical_name)
+            branch = tpc.load_branch if tpc.load_branch else 'master'
             branch_cache = abide.getUnparsedBranchCache(
-                project.canonical_name, 'master')
+                project.canonical_name, branch)
             tpc = tenant.project_configs[project.canonical_name]
             unparsed_branch_config = branch_cache.get(tpc)
 
