@@ -499,10 +499,10 @@ class RPCListener(object):
         if not tenant:
             job.sendWorkComplete(json.dumps(None))
             return
-        labels = tenant.allowed_labels
-        if not labels:
-            labels = []
-        job.sendWorkComplete(json.dumps(labels))
+        ret = {}
+        ret['allowed_labels'] = tenant.allowed_labels or []
+        ret['disallowed_labels'] = tenant.disallowed_labels or []
+        job.sendWorkComplete(json.dumps(ret))
 
     def handle_pipeline_list(self, job):
         args = json.loads(job.arguments)

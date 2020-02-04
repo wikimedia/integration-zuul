@@ -81,13 +81,21 @@ class UnknownConnection(Exception):
 
 
 class LabelForbiddenError(Exception):
-    def __init__(self, label, allowed_labels):
+    def __init__(self, label, allowed_labels, disallowed_labels):
         message = textwrap.dedent("""\
         Label named "{label}" is not part of the allowed
         labels ({allowed_labels}) for this tenant.""")
+        # Make a string that looks like "a, b and not c, d" if we have
+        # both allowed and disallowed labels.
+        labels = ", ".join(allowed_labels or [])
+        if allowed_labels and disallowed_labels:
+            labels += ' and '
+        if disallowed_labels:
+            labels += 'not '
+            labels += ", ".join(disallowed_labels)
         message = textwrap.fill(message.format(
             label=label,
-            allowed_labels=", ".join(allowed_labels)))
+            allowed_labels=labels))
         super(LabelForbiddenError, self).__init__(message)
 
 
@@ -500,13 +508,25 @@ class NodeSetParser(object):
         node_names = set()
         group_names = set()
         allowed_labels = self.pcontext.tenant.allowed_labels
+        disallowed_labels = self.pcontext.tenant.disallowed_labels
         for conf_node in as_list(conf['nodes']):
+            allowed = True
             if allowed_labels:
-                if not [True for allowed_label in allowed_labels if
-                        re2.match(allowed_label, conf_node['label'])]:
-                    raise LabelForbiddenError(
-                        label=conf_node['label'],
-                        allowed_labels=allowed_labels)
+                allowed = False
+                for pattern in allowed_labels:
+                    if re2.match(pattern, conf_node['label']):
+                        allowed = True
+                        break
+            if disallowed_labels:
+                for pattern in disallowed_labels:
+                    if re2.match(pattern, conf_node['label']):
+                        allowed = False
+                        break
+            if not allowed:
+                raise LabelForbiddenError(
+                    label=conf_node['label'],
+                    allowed_labels=allowed_labels,
+                    disallowed_labels=disallowed_labels)
             for name in as_list(conf_node['name']):
                 if name in node_names:
                     raise DuplicateNodeError(name, conf_node['name'])
@@ -1456,6 +1476,7 @@ class TenantParser(object):
                   'allowed-triggers': to_list(str),
                   'allowed-reporters': to_list(str),
                   'allowed-labels': to_list(str),
+                  'disallowed-labels': to_list(str),
                   'default-parent': str,
                   'default-ansible-version': vs.Any(str, float),
                   'admin-rules': to_list(str),
@@ -1484,6 +1505,7 @@ class TenantParser(object):
         tenant.allowed_triggers = conf.get('allowed-triggers')
         tenant.allowed_reporters = conf.get('allowed-reporters')
         tenant.allowed_labels = conf.get('allowed-labels')
+        tenant.disallowed_labels = conf.get('disallowed-labels')
         tenant.default_base_job = conf.get('default-parent', 'base')
 
         tenant.unparsed_config = conf

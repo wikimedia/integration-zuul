@@ -3907,6 +3907,26 @@ class TestAllowedLabels(AnsibleZuulTestCase):
             A.messages[0],
             "A should fail because of allowed-labels")
 
+    def test_disallowed_labels(self):
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: test
+                nodeset:
+                  nodes:
+                    - name: controller
+                      label: tenant-one-label
+            """)
+        file_dict = {'zuul.d/test.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange(
+            'tenant-two-config', 'master', 'A', files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertIn(
+            'Label named "tenant-one-label" is not part of the allowed',
+            A.messages[0],
+            "A should fail because of disallowed-labels")
+
 
 class TestPragma(ZuulTestCase):
     tenant_config_file = 'config/pragma/main.yaml'

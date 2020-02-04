@@ -736,15 +736,33 @@ class ZuulWebAPI(object):
     @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
     def labels(self, tenant):
         job = self.rpc.submitJob('zuul:allowed_labels_get', {'tenant': tenant})
-        allowed_labels = json.loads(job.data[0])
-        if allowed_labels is None:
+        data = json.loads(job.data[0])
+        if data is None:
             raise cherrypy.HTTPError(404, 'Tenant %s does not exist.' % tenant)
+        # TODO(jeblair): The first case can be removed after 3.16.0 is
+        # released.
+        if isinstance(data, list):
+            allowed_labels = data
+            disallowed_labels = []
+        else:
+            allowed_labels = data['allowed_labels']
+            disallowed_labels = data['disallowed_labels']
         labels = set()
         for launcher in self.zk.getRegisteredLaunchers():
             for label in launcher.supported_labels:
-                if not allowed_labels or (
-                        [True for allowed_label in allowed_labels if
-                         re2.match(allowed_label, label)]):
+                allowed = True
+                if allowed_labels:
+                    allowed = False
+                    for pattern in allowed_labels:
+                        if re2.match(pattern, label):
+                            allowed = True
+                            break
+                if disallowed_labels:
+                    for pattern in disallowed_labels:
+                        if re2.match(pattern, label):
+                            allowed = False
+                            break
+                if allowed:
                     labels.add(label)
         ret = [{'name': label} for label in sorted(labels)]
         resp = cherrypy.response

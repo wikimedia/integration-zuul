@@ -19,6 +19,8 @@
     name: tenant-two
     max-nodes-per-job: 10
     allowed-triggers: gerrit
+    disallowed-labels:
+      - tenant-one-.*
     source:
       gerrit:
         config-projects:

@@ -955,13 +955,14 @@ class TestWebMultiTenant(BaseTestWeb):
     def test_web_labels_allowed_list(self):
         labels = ["tenant-one-label", "fake", "tenant-two-label"]
         self.fake_nodepool.registerLauncher(labels, "FakeLauncher2")
-        # Tenant-one has label restriction in place
+        # Tenant-one has label restriction in place on tenant-two
         res = self.get_url('api/tenant/tenant-one/labels').json()
         self.assertEqual([{'name': 'fake'}, {'name': 'tenant-one-label'}], res)
-        # Tenant-two does not
+        # Tenant-two has label restriction in place on tenant-one
+        expected = ["label1", "fake", "tenant-two-label"]
         res = self.get_url('api/tenant/tenant-two/labels').json()
         self.assertEqual(
-            list(map(lambda x: {'name': x}, sorted(labels + ["label1"]))), res)
+            list(map(lambda x: {'name': x}, sorted(expected))), res)
 
 
 class TestWebSecrets(BaseTestWeb):
