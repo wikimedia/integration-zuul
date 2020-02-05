@@ -31,6 +31,8 @@ class ActionModule(add_host.ActionModule):
             'ansible_ssh_port',
             'ansible_ssh_user',
             'ansible_ssh_pass',
+            'ansible_fqdn',
+            'ansible_private_key_file',
         ))
         args = set(filter(
             lambda x: x.startswith('ansible_'), self._task.args.keys()))
