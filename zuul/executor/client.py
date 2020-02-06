@@ -165,6 +165,7 @@ class ExecutorClient(object):
                            project=project,
                            tenant=tenant.name,
                            timeout=job.timeout,
+                           event_id=item.event.zuul_event_id,
                            jobtags=sorted(job.tags),
                            _inheritance_path=list(job.inheritance_path))
         if job.artifact_data:

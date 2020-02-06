@@ -78,6 +78,7 @@ class TestInventoryGithub(TestInventoryBase):
         self.assertIn('executor', z_vars)
         self.assertIn('src_root', z_vars['executor'])
         self.assertIn('job', z_vars)
+        self.assertIn('event_id', z_vars)
         self.assertEqual(z_vars['job'], 'single-inventory')
         self.assertEqual(z_vars['message'], 'QQ==')
         self.assertEqual(z_vars['change_url'],

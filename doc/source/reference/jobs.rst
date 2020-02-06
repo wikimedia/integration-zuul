@@ -309,6 +309,11 @@ of item.
 
       The name of the job being run.
 
+   .. var:: event_id
+
+      The UUID of the event that triggered this execution. This is mainly
+      useful for debugging purposes.
+
    .. var:: voting
 
       A boolean indicating whether the job is voting.
