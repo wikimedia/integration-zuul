@@ -293,9 +293,21 @@ configuration. Some examples of tenant definitions are:
    .. attr:: allowed-labels
       :default: []
 
-      The list of labels regexp a tenant can use in job's nodeset. When set,
-      this setting can be used to restrict what labels a tenant can use.
-      Without this setting, the tenant can use any labels.
+      The list of labels (as strings or regular expressions) a tenant
+      can use in a job's nodeset. When set, this setting can be used
+      to restrict what labels a tenant can use.  Without this setting,
+      the tenant can use any labels.
+
+   .. attr:: disallowed-labels
+      :default: []
+
+      The list of labels (as strings or regular expressions) a tenant
+      is forbidden to use in a job's nodeset. When set, this setting
+      can be used to restrict what labels a tenant can use.  Without
+      this setting, the tenant can use any labels permitted by
+      :attr:`tenant.allowed-labels`.  This check is applied after the
+      check for `allowed-labels` and may therefore be used to further
+      restrict the set of permitted labels.
 
    .. attr:: report-build-page
       :default: false
