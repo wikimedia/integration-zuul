@@ -344,24 +344,50 @@ class Repo(object):
                   path, hexsha, self.local_path)
         if repo is None:
             repo = self.createRepoObject(zuul_event_id)
+        self._setRef(path, hexsha, repo)
+
+    @staticmethod
+    def _setRef(path, hexsha, repo):
         binsha = gitdb.util.to_bin_sha(hexsha)
         obj = git.objects.Object.new_from_sha(repo, binsha)
         git.refs.Reference.create(repo, path, obj, force=True)
+        return 'Created reference %s at %s in %s' % (
+            path, hexsha, repo.git_dir)
 
     def setRefs(self, refs, keep_remotes=False, zuul_event_id=None):
         repo = self.createRepoObject(zuul_event_id)
+        log = get_annotated_logger(self.log, zuul_event_id)
+        self._setRefs(repo, refs, keep_remotes=keep_remotes, log=log)
+
+    @staticmethod
+    def setRefsAsync(local_path, refs, keep_remotes=False):
+        repo = git.Repo(local_path)
+        messages = Repo._setRefs(repo, refs, keep_remotes=keep_remotes)
+        return messages
+
+    @staticmethod
+    def _setRefs(repo, refs, keep_remotes=False, log=None):
+        messages = []
         current_refs = {}
         for ref in repo.refs:
             current_refs[ref.path] = ref
         unseen = set(current_refs.keys())
         for path, hexsha in refs.items():
-            self.setRef(path, hexsha, repo, zuul_event_id=zuul_event_id)
+            if log:
+                log.debug("Create reference %s at %s in %s",
+                          path, hexsha, repo.git_dir)
+            message = Repo._setRef(path, hexsha, repo)
+            messages.append(message)
             unseen.discard(path)
             ref = current_refs.get(path)
             if keep_remotes and ref:
                 unseen.discard('refs/remotes/origin/{}'.format(ref.name))
         for path in unseen:
-            self.deleteRef(path, repo, zuul_event_id=zuul_event_id)
+            if log:
+                log.debug("Delete reference %s", path)
+            message = Repo._deleteRef(path, repo)
+            messages.append(message)
+        return messages
 
     def setRemoteRef(self, branch, rev, zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
@@ -379,7 +405,12 @@ class Repo(object):
         if repo is None:
             repo = self.createRepoObject(zuul_event_id)
         log.debug("Delete reference %s", path)
+        Repo._deleteRef(path, repo)
+
+    @staticmethod
+    def _deleteRef(path, repo):
         git.refs.SymbolicReference.delete(repo, path)
+        return "Deleted reference %s" % path
 
     def checkout(self, ref, zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
@@ -681,7 +712,8 @@ class Merger(object):
             project[path] = hexsha
 
     def _restoreRepoState(self, connection_name, project_name, repo,
-                          repo_state, zuul_event_id):
+                          repo_state, zuul_event_id,
+                          process_worker=None):
         log = get_annotated_logger(self.log, zuul_event_id)
         projects = repo_state.get(connection_name, {})
         project = projects.get(project_name, {})
@@ -690,8 +722,16 @@ class Merger(object):
             return
         log.debug("Restore repo state for project %s/%s",
                   connection_name, project_name)
-        repo.setRefs(project, keep_remotes=self.execution_context,
-                     zuul_event_id=zuul_event_id)
+        if process_worker is None:
+            repo.setRefs(project, keep_remotes=self.execution_context,
+                         zuul_event_id=zuul_event_id)
+        else:
+            job = process_worker.submit(
+                Repo.setRefsAsync, repo.local_path, project,
+                keep_remotes=self.execution_context)
+            messages = job.result()
+            for message in messages:
+                log.debug(message)
 
     def _mergeChange(self, item, ref, zuul_event_id):
         log = get_annotated_logger(self.log, zuul_event_id)
@@ -731,7 +771,7 @@ class Merger(object):
         return orig_commit, commit
 
     def _mergeItem(self, item, recent, repo_state, zuul_event_id,
-                   branches=None):
+                   branches=None, process_worker=None):
         log = get_annotated_logger(self.log, zuul_event_id)
         log.debug("Processing ref %s for project %s/%s / %s uuid %s" %
                   (item['ref'], item['connection'],
@@ -753,7 +793,8 @@ class Merger(object):
                 log.exception("Unable to reset repo %s" % repo)
                 return None, None
             self._restoreRepoState(item['connection'], item['project'], repo,
-                                   repo_state, zuul_event_id)
+                                   repo_state, zuul_event_id,
+                                   process_worker=process_worker)
 
             base = repo.getBranchHead(item['branch'])
             # Save the repo state so that later mergers can repeat
@@ -779,7 +820,8 @@ class Merger(object):
         return orig_commit, commit
 
     def mergeChanges(self, items, files=None, dirs=None, repo_state=None,
-                     repo_locks=None, branches=None, zuul_event_id=None):
+                     repo_locks=None, branches=None, zuul_event_id=None,
+                     process_worker=None):
         log = get_annotated_logger(self.log, zuul_event_id)
         # connection+project+branch -> commit
         recent = {}
@@ -800,7 +842,8 @@ class Merger(object):
                 log.debug("Merging for change %s,%s" %
                           (item["number"], item["patchset"]))
                 orig_commit, commit = self._mergeItem(
-                    item, recent, repo_state, zuul_event_id, branches=branches)
+                    item, recent, repo_state, zuul_event_id, branches=branches,
+                    process_worker=process_worker)
                 if not commit:
                     return None
                 if files or dirs:

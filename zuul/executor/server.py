@@ -28,6 +28,8 @@ import tempfile
 import threading
 import time
 import traceback
+from concurrent.futures.process import ProcessPoolExecutor
+
 import git
 from urllib.parse import urlsplit
 
@@ -962,7 +964,8 @@ class AnsibleJob(object):
 
         merge_items = [i for i in args['items'] if i.get('number')]
         if merge_items:
-            item_commit = self.doMergeChanges(merger, merge_items, repo_state)
+            item_commit = self.doMergeChanges(
+                merger, merge_items, repo_state)
             if item_commit is None:
                 # There was a merge conflict and we have already sent
                 # a work complete result, don't run any jobs
@@ -1150,7 +1153,9 @@ class AnsibleJob(object):
 
     def doMergeChanges(self, merger, items, repo_state):
         try:
-            ret = merger.mergeChanges(items, repo_state=repo_state)
+            ret = merger.mergeChanges(
+                items, repo_state=repo_state,
+                process_worker=self.executor_server.process_worker)
         except ValueError:
             # Return ABORTED so that we'll try again. At this point all of
             # the refs we're trying to merge should be valid refs. If we
@@ -2541,6 +2546,9 @@ class ExecutorServer(object):
             worker_class=ExecutorExecuteWorker,
             worker_args=[self])
 
+        # Used to offload expensive operations to different processes
+        self.process_worker = None
+
     def _getMerger(self, root, cache_root, logger=None):
         return zuul.merger.merger.Merger(
             root, self.connections, self.merge_email, self.merge_name,
@@ -2550,6 +2558,15 @@ class ExecutorServer(object):
     def start(self):
         self._running = True
         self._command_running = True
+
+        try:
+            multiprocessing.set_start_method('spawn')
+        except RuntimeError:
+            # Note: During tests this can be called multiple times which
+            # results in a runtime error. This is ok here as we've set this
+            # already correctly.
+            self.log.warning('Multiprocessing context has already been set')
+        self.process_worker = ProcessPoolExecutor()
 
         if self.merger_gearworker is not None:
             self.merger_gearworker.start()
@@ -2638,6 +2655,9 @@ class ExecutorServer(object):
         if self.merger_gearworker is not None:
             self.merger_gearworker.stop()
         self.executor_gearworker.stop()
+
+        if self.process_worker is not None:
+            self.process_worker.shutdown()
 
         if self.statsd:
             base_key = 'zuul.executor.{hostname}'
