@@ -978,7 +978,9 @@ class AnsibleJob(object):
 
         state_items = [i for i in args['items'] if not i.get('number')]
         if state_items:
-            merger.setRepoState(state_items, repo_state)
+            merger.setRepoState(
+                state_items, repo_state,
+                process_worker=self.executor_server.process_worker)
 
         # Early abort if abort requested
         if self.aborted:
@@ -2747,7 +2749,8 @@ class ExecutorServer(object):
                 self.merger.updateRepo(
                     task.connection_name, task.project_name,
                     repo_state=task.repo_state,
-                    zuul_event_id=task.zuul_event_id, build=task.build)
+                    zuul_event_id=task.zuul_event_id, build=task.build,
+                    process_worker=self.process_worker)
                 repo = self.merger.getRepo(
                     task.connection_name, task.project_name)
                 source = self.connections.getSource(task.connection_name)
