@@ -19,6 +19,9 @@ FROM opendevorg/python-builder as builder
 ARG REACT_APP_ZUUL_API
 # Optional flag to enable React Service Worker. (set to true to enable)
 ARG REACT_APP_ENABLE_SERVICE_WORKER
+# Kubectl/Openshift version/sha
+ARG OPENSHIFT_URL=https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit.tar.gz
+ARG OPENSHIFT_SHA=4b0f07428ba854174c58d2e38287e5402964c9a9355f6c359d1242efd0990da3
 
 COPY . /tmp/src
 RUN /tmp/src/tools/install-js-tools.sh
@@ -28,6 +31,15 @@ RUN assemble
 # installations do so we have to call zuul-manage-ansible here.
 RUN /output/install-from-bindep && zuul-manage-ansible
 
+RUN mkdir /tmp/openshift-install \
+  && curl -L $OPENSHIFT_URL -o /tmp/openshift-install/openshift-client.tgz \
+  && cd /tmp/openshift-install/ \
+  && echo $OPENSHIFT_SHA openshift-client.tgz | sha256sum --check \
+  && tar xvfz openshift-client.tgz \
+  && cp */kubectl /usr/local/bin \
+  && cp */oc /usr/local/bin \
+  && cd / \
+  && rm -fr /tmp/openshift-install
 
 FROM opendevorg/python-base as zuul
 
@@ -47,6 +59,7 @@ CMD ["/usr/local/bin/zuul"]
 
 FROM zuul as zuul-executor
 COPY --from=builder /usr/local/lib/zuul/ /usr/local/lib/zuul
+
 CMD ["/usr/local/bin/zuul-executor"]
 
 FROM zuul as zuul-fingergw
