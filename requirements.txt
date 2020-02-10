@@ -1,6 +1,6 @@
 pbr>=1.1.0
-# virtualenv 20.0.0 has no pkg_resources
-virtualenv<20.0.0
+# Newer virtualenv has different behavior and arguments
+virtualenv>=20.0.0
 
 github3.py>=1.1.0
 PyYAML>=3.1.0
