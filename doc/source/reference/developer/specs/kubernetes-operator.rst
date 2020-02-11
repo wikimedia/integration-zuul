@@ -191,7 +191,7 @@ needs should be in ConfigMaps and referenced.
       config: nodepoolYamlConfig
     builder:
       config: nodepoolYamlConfig
-    external_config:
+    externalConfig:
       openstack:
         secretName: cloudsYaml
       kubernetes:
@@ -366,7 +366,7 @@ For example, to expose a GCP authdaemon token, the Zuul CR can be defined as
   kind: Zuul
   spec:
     ...
-    job_volumes:
+    jobVolumes:
       - context: trusted
         access: ro
         path: /authdaemon/token
