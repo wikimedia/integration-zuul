@@ -29,9 +29,8 @@ import time
 import select
 import threading
 
-import re2
-
 import zuul.lib.repl
+from zuul.lib.re2util import filter_allowed_disallowed
 import zuul.model
 from zuul import exceptions
 import zuul.rpcclient
@@ -749,21 +748,9 @@ class ZuulWebAPI(object):
             disallowed_labels = data['disallowed_labels']
         labels = set()
         for launcher in self.zk.getRegisteredLaunchers():
-            for label in launcher.supported_labels:
-                allowed = True
-                if allowed_labels:
-                    allowed = False
-                    for pattern in allowed_labels:
-                        if re2.match(pattern, label):
-                            allowed = True
-                            break
-                if disallowed_labels:
-                    for pattern in disallowed_labels:
-                        if re2.match(pattern, label):
-                            allowed = False
-                            break
-                if allowed:
-                    labels.add(label)
+            labels.update(filter_allowed_disallowed(
+                launcher.supported_labels,
+                allowed_labels, disallowed_labels))
         ret = [{'name': label} for label in sorted(labels)]
         resp = cherrypy.response
         resp.headers['Access-Control-Allow-Origin'] = '*'

@@ -22,7 +22,6 @@ import io
 import re
 import subprocess
 
-import re2
 import voluptuous as vs
 
 from zuul import model
@@ -32,6 +31,7 @@ import zuul.manager.independent
 import zuul.manager.supercedent
 from zuul.lib import encryption
 from zuul.lib.keystorage import KeyStorage
+from zuul.lib.re2util import filter_allowed_disallowed
 
 
 # Several forms accept either a single item or a list, this makes
@@ -509,24 +509,17 @@ class NodeSetParser(object):
         group_names = set()
         allowed_labels = self.pcontext.tenant.allowed_labels
         disallowed_labels = self.pcontext.tenant.disallowed_labels
+
+        requested_labels = [n['label'] for n in as_list(conf['nodes'])]
+        filtered_labels = filter_allowed_disallowed(
+            requested_labels, allowed_labels, disallowed_labels)
+        rejected_labels = set(requested_labels) - set(filtered_labels)
+        for name in rejected_labels:
+            raise LabelForbiddenError(
+                label=name,
+                allowed_labels=allowed_labels,
+                disallowed_labels=disallowed_labels)
         for conf_node in as_list(conf['nodes']):
-            allowed = True
-            if allowed_labels:
-                allowed = False
-                for pattern in allowed_labels:
-                    if re2.match(pattern, conf_node['label']):
-                        allowed = True
-                        break
-            if disallowed_labels:
-                for pattern in disallowed_labels:
-                    if re2.match(pattern, conf_node['label']):
-                        allowed = False
-                        break
-            if not allowed:
-                raise LabelForbiddenError(
-                    label=conf_node['label'],
-                    allowed_labels=allowed_labels,
-                    disallowed_labels=disallowed_labels)
             for name in as_list(conf_node['name']):
                 if name in node_names:
                     raise DuplicateNodeError(name, conf_node['name'])
