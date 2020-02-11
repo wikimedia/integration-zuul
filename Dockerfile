@@ -36,12 +36,8 @@ RUN /output/install-from-bindep && zuul-manage-ansible
 RUN mkdir /tmp/openshift-install \
   && curl -L $OPENSHIFT_URL -o /tmp/openshift-install/openshift-client.tgz \
   && cd /tmp/openshift-install/ \
-  && echo $OPENSHIFT_SHA openshift-client.tgz | sha256sum --check \
-  && tar xvfz openshift-client.tgz \
-  && cp */kubectl /usr/local/bin \
-  && cp */oc /usr/local/bin \
-  && cd / \
-  && rm -fr /tmp/openshift-install
+  && echo $OPENSHIFT_SHA /tmp/openshift-install/openshift-client.tgz | sha256sum --check \
+  && tar xvfz openshift-client.tgz --strip-components=1 -C /tmp/openshift-install
 
 FROM opendevorg/python-base as zuul
 
@@ -61,6 +57,8 @@ CMD ["/usr/local/bin/zuul"]
 
 FROM zuul as zuul-executor
 COPY --from=builder /usr/local/lib/zuul/ /usr/local/lib/zuul
+COPY --from=builder /tmp/openshift-install/kubectl /usr/local/bin/kubectl
+COPY --from=builder /tmp/openshift-install/oc /usr/local/bin/oc
 
 CMD ["/usr/local/bin/zuul-executor"]
 
