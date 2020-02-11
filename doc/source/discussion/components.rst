@@ -479,8 +479,13 @@ The following section of ``zuul.conf`` is used by the merger:
 Operation
 ~~~~~~~~~
 
-To start the merger, run ``zuul-merger``.  To stop it, kill the
-PID which was saved in the pidfile specified in the configuration.
+To start the merger, run ``zuul-merger``.
+
+In order to stop the merger and under normal circumstances it is
+best to pause and wait for all currently running tasks to finish
+before stopping it. To do so run ``zuul-merger pause``.
+
+To stop the merger immediately, run ``zuul-merger stop``.
 
 .. _executor:
 

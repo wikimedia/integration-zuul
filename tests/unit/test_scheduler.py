@@ -7364,6 +7364,9 @@ class TestSemaphore(ZuulTestCase):
         # Pause the executor so it doesn't take any jobs.
         self.executor_server.pause()
 
+        # Start merger as the paused executor won't take merge jobs.
+        self._startMerger()
+
         # Pause nodepool so we can wait on the node requests and fulfill them
         # in a controlled manner.
         self.fake_nodepool.paused = True
