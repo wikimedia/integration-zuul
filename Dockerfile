@@ -25,6 +25,8 @@ ARG OPENSHIFT_SHA=4b0f07428ba854174c58d2e38287e5402964c9a9355f6c359d1242efd0990d
 
 COPY . /tmp/src
 RUN /tmp/src/tools/install-js-tools.sh
+# Explicitly run the Javascript build
+RUN cd /tmp/src/web && yarn install -d && yarn build
 RUN assemble
 
 # The wheel install method doesn't run the setup hooks as the source based
