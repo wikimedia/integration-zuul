@@ -90,7 +90,8 @@ class TestGitDriver(ZuulTestCase):
         # Let's stop the git Watcher to let us merge some changes commits
         # We want to verify that config changes are detected for commits
         # on the range oldrev..newrev
-        self.sched.connections.getSource('git').connection.w_pause = True
+        self.sched.connections.getSource('git').connection.\
+            watcher_thread._pause = True
         # Add a config change
         change = {
             'name': 'org/project',
@@ -112,7 +113,8 @@ class TestGitDriver(ZuulTestCase):
             'common-config', 'Adding f2',
             {'f2': "Content"})
         # Restart the git watcher
-        self.sched.connections.getSource('git').connection.w_pause = False
+        self.sched.connections.getSource('git').connection.\
+            watcher_thread._pause = False
 
         # Wait for the tenant reconfiguration to happen
         self.waitForEvent(count)
@@ -130,7 +132,7 @@ class TestGitDriver(ZuulTestCase):
         # Make sure watcher have read initial refs shas
         delay = 0.1
         max_delay = 1
-        while not self.git_connection.projects_refs:
+        while not self.git_connection.watcher_thread.projects_refs:
             time.sleep(delay)
             max_delay -= delay
             if max_delay <= 0:
