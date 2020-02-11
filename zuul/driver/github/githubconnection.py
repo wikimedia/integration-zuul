@@ -34,7 +34,6 @@ import jwt
 import requests
 import github3
 import github3.exceptions
-from github3.session import AppInstallationTokenAuth
 
 from zuul.connection import BaseConnection
 from zuul.lib.gearworker import ZuulGearWorker
@@ -1017,29 +1016,7 @@ class GithubConnection(BaseConnection):
         # if you're authenticating for a project and you're an integration then
         # you need to use the installation specific token.
         if project and self.app_id:
-            # Call get_installation_key to ensure the token gets refresehd in
-            # case it's expired.
-            token = self._get_installation_key(project)
-
-            # To set the AppInstallationAuthToken on the github session, we
-            # also need the expiry date, but in the correct ISO format.
-            installation_id = self.installation_map.get(project)
-            _, expiry = self.installation_token_cache.get(installation_id)
-            format_expiry = datetime.datetime.strftime(
-                expiry, "%Y-%m-%dT%H:%M:%SZ"
-            )
-
-            # Usually one should use github.login_as_app_installation() to
-            # authenticate as github app. This method will then request the
-            # access token for the installation or refresh it if necessary and
-            # set the correct class on the github.session.auth attribute to be
-            # identified as github app. As we are alreaedy managing the
-            # installation tokens by ourselves, we just have to set the correct
-            # TokenAuth class on the github.session.auth attribute.
-            github.session.auth = AppInstallationTokenAuth(
-                token, format_expiry
-            )
-
+            github.login(token=self._get_installation_key(project))
             github._zuul_project = project
             github._zuul_user_id = self.installation_map.get(project)
 
