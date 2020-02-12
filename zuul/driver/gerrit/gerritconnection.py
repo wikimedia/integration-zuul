@@ -40,6 +40,7 @@ from zuul.connection import BaseConnection
 from zuul.driver.gerrit.auth import FormAuth
 from zuul.driver.gerrit.gcloudauth import GCloudAuth
 from zuul.driver.gerrit.gerritmodel import GerritChange, GerritTriggerEvent
+from zuul.driver.git.gitwatcher import GitWatcher
 from zuul.lib.logutil import get_annotated_logger
 from zuul.model import Ref, Tag, Branch, Project
 
@@ -477,6 +478,8 @@ class GerritConnection(BaseConnection):
     replication_timeout = 300
     replication_retry_interval = 5
     _poller_class = GerritPoller
+    _ref_watcher_class = GitWatcher
+    ref_watcher_poll_interval = 60
 
     def __init__(self, driver, connection_name, connection_config):
         super(GerritConnection, self).__init__(driver, connection_name,
@@ -505,6 +508,7 @@ class GerritConnection(BaseConnection):
             self.enable_stream_events = False
         self.watcher_thread = None
         self.poller_thread = None
+        self.ref_watcher_thread = None
         self.event_queue = queue.Queue()
         self.client = None
         self.watched_checkers = []
@@ -1388,6 +1392,18 @@ class GerritConnection(BaseConnection):
         self.log.info("Remote version is: %s (parsed as %s)" %
                       (version, self.version))
 
+    def refWatcherCallback(self, data):
+        event = {
+            'type': 'ref-updated',
+            'refUpdate': {
+                'project': data['project'],
+                'refName': data['ref'],
+                'oldRev': data['oldrev'],
+                'newRev': data['newrev'],
+            }
+        }
+        self.addEvent(event)
+
     def onLoad(self):
         self.log.debug("Starting Gerrit Connection/Watchers")
         try:
@@ -1398,6 +1414,8 @@ class GerritConnection(BaseConnection):
 
         if self.enable_stream_events:
             self._start_watcher_thread()
+        else:
+            self._start_ref_watcher_thread()
         self._start_poller_thread()
         self._start_event_connector()
 
@@ -1405,6 +1423,7 @@ class GerritConnection(BaseConnection):
         self.log.debug("Stopping Gerrit Connection/Watchers")
         self._stop_watcher_thread()
         self._stop_poller_thread()
+        self._stop_ref_watcher_thread()
         self._stop_event_connector()
 
     def _stop_watcher_thread(self):
@@ -1430,6 +1449,19 @@ class GerritConnection(BaseConnection):
     def _start_poller_thread(self):
         self.poller_thread = self._poller_class(self)
         self.poller_thread.start()
+
+    def _stop_ref_watcher_thread(self):
+        if self.ref_watcher_thread:
+            self.ref_watcher_thread.stop()
+            self.ref_watcher_thread.join()
+
+    def _start_ref_watcher_thread(self):
+        self.ref_watcher_thread = self._ref_watcher_class(
+            self,
+            self.baseurl,
+            self.ref_watcher_poll_interval,
+            self.refWatcherCallback)
+        self.ref_watcher_thread.start()
 
     def _stop_event_connector(self):
         if self.gerrit_event_connector:

@@ -62,6 +62,7 @@ import paramiko
 import tests.fakegithub
 import zuul.driver.gerrit.gerritsource as gerritsource
 import zuul.driver.gerrit.gerritconnection as gerritconnection
+import zuul.driver.git.gitwatcher as gitwatcher
 import zuul.driver.github.githubconnection as githubconnection
 import zuul.driver.pagure.pagureconnection as pagureconnection
 import zuul.driver.github
@@ -866,6 +867,26 @@ class FakeGerritPoller(gerritconnection.GerritPoller):
         return r
 
 
+class FakeGerritRefWatcher(gitwatcher.GitWatcher):
+    """A Fake Gerrit ref watcher.
+
+    This subclasses
+    :py:class:`~zuul.connection.git.GitWatcher`.
+    """
+
+    def __init__(self, *args, **kw):
+        super(FakeGerritRefWatcher, self).__init__(*args, **kw)
+        self.baseurl = self.connection.upstream_root
+        self.poll_delay = 1
+
+    def _run(self, *args, **kw):
+        r = super(FakeGerritRefWatcher, self)._run(*args, **kw)
+        # Set the event so tests can confirm that the watcher has run
+        # after they changed something.
+        self.connection._ref_watcher_event.set()
+        return r
+
+
 class FakeGerritConnection(gerritconnection.GerritConnection):
     """A Fake Gerrit connection for use in tests.
 
@@ -876,9 +897,11 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
 
     log = logging.getLogger("zuul.test.FakeGerritConnection")
     _poller_class = FakeGerritPoller
+    _ref_watcher_class = FakeGerritRefWatcher
 
     def __init__(self, driver, connection_name, connection_config,
-                 changes_db=None, upstream_root=None, poller_event=None):
+                 changes_db=None, upstream_root=None, poller_event=None,
+                 ref_watcher_event=None):
 
         if connection_config.get('password'):
             self.web_server = GerritWebServer(self)
@@ -899,6 +922,7 @@ class FakeGerritConnection(gerritconnection.GerritConnection):
         self.upstream_root = upstream_root
         self.fake_checkers = []
         self._poller_event = poller_event
+        self._ref_watcher_event = ref_watcher_event
 
     def addFakeChecker(self, **kw):
         self.fake_checkers.append(kw)
@@ -3379,11 +3403,14 @@ class ZuulTestCase(BaseTestCase):
 
         def getGerritConnection(driver, name, config):
             db = self.gerrit_changes_dbs.setdefault(config['server'], {})
-            event = self.poller_events.setdefault(name, threading.Event())
+            poll_event = self.poller_events.setdefault(name, threading.Event())
+            ref_event = self.poller_events.setdefault(name + '-ref',
+                                                      threading.Event())
             con = FakeGerritConnection(driver, name, config,
                                        changes_db=db,
                                        upstream_root=self.upstream_root,
-                                       poller_event=event)
+                                       poller_event=poll_event,
+                                       ref_watcher_event=ref_event)
             if con.web_server:
                 self.addCleanup(con.web_server.stop)
 

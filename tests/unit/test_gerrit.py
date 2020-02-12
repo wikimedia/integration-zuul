@@ -420,3 +420,39 @@ class TestPolling(ZuulTestCase):
             dict(name='test-job', result='SUCCESS', changes='2,1'),
             dict(name='test-job2', result='SUCCESS', changes='2,1'),
         ], ordered=False)
+
+    @simple_layout('layouts/gerrit-poll-post.yaml')
+    def test_post(self):
+        # Test that ref-updated events trigger post jobs.
+        self.waitUntilSettled()
+        # Wait for an initial poll to get the original sha.
+        self.waitForPoll('gerrit-ref')
+
+        # Merge a change.
+        self.create_commit('org/project')
+
+        # Wait for the job to run.
+        self.waitForPoll('gerrit-ref')
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='post-job', result='SUCCESS'),
+        ])
+
+    @simple_layout('layouts/gerrit-poll-post.yaml')
+    def test_tag(self):
+        # Test that ref-updated events trigger post jobs.
+        self.waitUntilSettled()
+        # Wait for an initial poll to get the original sha.
+        self.waitForPoll('gerrit-ref')
+
+        # Merge a change.
+        self.fake_gerrit.addFakeTag('org/project', 'master', 'foo')
+
+        # Wait for the job to run.
+        self.waitForPoll('gerrit-ref')
+        self.waitUntilSettled()
+
+        self.assertHistory([
+            dict(name='tag-job', result='SUCCESS'),
+        ])
