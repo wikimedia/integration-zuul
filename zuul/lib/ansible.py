@@ -94,7 +94,7 @@ class ManagedAnsible:
         # We don't use directly the venv module here because its behavior is
         # broken if we're already in a virtual environment.
         cmd = [sys.executable, '-m', 'virtualenv',
-               '-p', python_executable, '--seeder=pip', venv_path]
+               '-p', python_executable, venv_path]
         p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         if p.returncode != 0:

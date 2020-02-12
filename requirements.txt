@@ -1,6 +1,6 @@
 pbr>=1.1.0
-# Newer virtualenv has different behavior and arguments
-virtualenv>=20.0.0
+# Early virtualenv 20 had bad file location assumptions
+virtualenv!=20.0.0,!=20.0.1
 
 github3.py>=1.1.0
 PyYAML>=3.1.0
