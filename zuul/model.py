@@ -1160,8 +1160,11 @@ class Job(ConfigObject):
             failure_url=None,
             success_url=None,
             branch_matcher=None,
+            _branches=(),
             file_matcher=None,
+            _files=(),
             irrelevant_file_matcher=None,  # skip-if
+            _irrelevant_files=(),
             match_on_config_updates=True,
             tags=frozenset(),
             provides=frozenset(),
@@ -1215,10 +1218,6 @@ class Job(ConfigObject):
             description=None,
             variant_description=None,
             protected_origin=None,
-            _branches=(),
-            _implied_branch=None,
-            _files=(),
-            _irrelevant_files=(),
             secrets=(),  # secrets aren't inheritable
             queued=False,
         )
@@ -1243,7 +1242,6 @@ class Job(ConfigObject):
         d['files'] = self._files
         d['irrelevant_files'] = self._irrelevant_files
         d['variant_description'] = self.variant_description
-        d['implied_branch'] = self._implied_branch
         if self.source_context:
             d['source_context'] = self.source_context.toDict()
         else:
@@ -3002,8 +3000,14 @@ class QueueItem(object):
             if old_job is None:
                 log.debug("Found a newly created job")
                 return True  # A newly created job
-            if (job.toDict(self.pipeline.tenant) !=
-                old_job.toDict(self.pipeline.tenant)):
+            old_job_dict = old_job.toDict(self.pipeline.tenant)
+            new_job_dict = job.toDict(self.pipeline.tenant)
+            # Ignore changes to file matchers since they don't affect
+            # the content of the job.
+            for attr in ['files', 'irrelevant_files']:
+                old_job_dict.pop(attr, None)
+                new_job_dict.pop(attr, None)
+            if (new_job_dict != old_job_dict):
                 log.debug("Found an updated job")
                 return True  # This job's configuration has changed
         return False

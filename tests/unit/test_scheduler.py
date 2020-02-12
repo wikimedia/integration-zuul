@@ -6256,6 +6256,33 @@ class TestJobUpdateFileMatcher(ZuulTestCase):
             dict(name='existing-irr', result='SUCCESS', changes='1,1'),
         ], ordered=False)
 
+    def test_job_update_files(self):
+        "Test that changes to file matchers themselves don't run jobs"
+        # Normally we want to ignore file matchers and run jobs if the
+        # job config changes, but if the only thing about the job
+        # config that changes *is* the file matchers, then we don't
+        # want to run it.
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: existing-files
+                files: 'doesnotexist'
+            - job:
+                name: existing-irr
+                irrelevant-files:
+                  - README
+                  - ^zuul.d/.*$
+                  - newthing
+            """)
+
+        file_dict = {'zuul.d/new.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        self.assertHistory([])
+
     def test_new_job(self):
         "Test matchers are overridden when creating a new job"
         in_repo_conf = textwrap.dedent(
