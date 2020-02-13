@@ -62,6 +62,7 @@ from git.exc import NoSuchPathError
 import yaml
 import paramiko
 from zuul.lib.connections import ConnectionRegistry
+from psutil import Popen
 
 import tests.fakegithub
 import zuul.driver.gerrit.gerritsource as gerritsource
@@ -3310,6 +3311,18 @@ class PostgresqlSchemaFixture(fixtures.Fixture):
         cur.execute("drop user %s" % self.name)
 
 
+class FakeCPUTimes:
+    def __init__(self):
+        self.user = 0
+        self.system = 0
+        self.children_user = 0
+        self.children_system = 0
+
+
+def cpu_times(self):
+    return FakeCPUTimes()
+
+
 class BaseTestCase(testtools.TestCase):
     log = logging.getLogger("zuul.test")
     wait_timeout = 90
@@ -3407,6 +3420,10 @@ class BaseTestCase(testtools.TestCase):
                     pass
         self.addCleanup(handler.close)
         self.addCleanup(handler.flush)
+
+        if sys.platform == 'darwin':
+            # Popen.cpu_times() is broken on darwin so patch it with a fake.
+            Popen.cpu_times = cpu_times
 
 
 class SymLink(object):
