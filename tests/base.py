@@ -86,7 +86,6 @@ import zuul.nodepool
 import zuul.rpcclient
 import zuul.zk
 import zuul.configloader
-from zuul.exceptions import MergeFailure
 from zuul.lib.config import get_default
 from zuul.lib.logutil import get_annotated_logger
 
@@ -2250,19 +2249,6 @@ class FakeGithubConnection(githubconnection.GithubConnection):
         self.reports.append((project, pr_number, 'comment'))
         pull_request = self.pull_requests[int(pr_number)]
         pull_request.addComment(message)
-
-    def mergePull(self, project, pr_number, commit_message='', sha=None,
-                  method='merge', zuul_event_id=None):
-        # record that this got reported
-        self.reports.append((project, pr_number, 'merge', method))
-        pull_request = self.pull_requests[int(pr_number)]
-        if self.merge_failure:
-            raise Exception('Pull request was not merged')
-        if self.merge_not_allowed_count > 0:
-            self.merge_not_allowed_count -= 1
-            raise MergeFailure('Merge was not successful due to mergeability'
-                               ' conflict')
-        pull_request.setMerged(commit_message)
 
     def setCommitStatus(self, project, sha, state, url='', description='',
                         context='default', user='zuul', zuul_event_id=None):

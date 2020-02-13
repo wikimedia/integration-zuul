@@ -1744,13 +1744,12 @@ class GithubConnection(BaseConnection):
         try:
             result = pull_request.merge(commit_message=commit_message, sha=sha,
                                         merge_method=method)
-        except github3.exceptions.MethodNotAllowed as e:
-            raise MergeFailure('Merge was not successful due to mergeability'
-                               ' conflict, original error is %s' % e)
+        except Exception as e:
+            raise MergeFailure('Pull request merge failed: %s' % e)
 
-        log.debug("Merged PR %s/%s#%s", owner, proj, pr_number)
         if not result:
-            raise Exception('Pull request was not merged')
+            raise MergeFailure('Pull request was not merged')
+        log.debug("Merged PR %s/%s#%s", owner, proj, pr_number)
 
     def _getCommit(self, repository, sha, retries=5):
         try:

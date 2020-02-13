@@ -618,6 +618,7 @@ class TestGithubDriver(ZuulTestCase):
         self.assertTrue(A.is_merged)
         self.assertThat(A.merge_message,
                         MatchesRegex(r'.*PR title.*Reviewed-by.*', re.DOTALL))
+        self.assertEqual(len(A.comments), 0)
 
         # pipeline merges the pull request on success after failure
         self.fake_github.merge_failure = True
@@ -625,6 +626,9 @@ class TestGithubDriver(ZuulTestCase):
         self.fake_github.emitEvent(B.getCommentAddedEvent('merge me'))
         self.waitUntilSettled()
         self.assertFalse(B.is_merged)
+        self.assertEqual(len(B.comments), 1)
+        self.assertEqual(B.comments[0],
+                         'Pull request merge failed: Unknown merge failure')
         self.fake_github.merge_failure = False
 
         # pipeline merges the pull request on second run of merge
@@ -643,7 +647,10 @@ class TestGithubDriver(ZuulTestCase):
         self.waitUntilSettled()
         self.assertFalse(D.is_merged)
         self.assertEqual(len(D.comments), 1)
-        self.assertEqual(D.comments[0], 'Merge failed')
+        # Validate that the merge failure comment contains the message github
+        # returned
+        self.assertEqual(D.comments[0],
+                         'Pull request merge failed: 403 Merge not allowed')
 
     @simple_layout('layouts/dependent-github.yaml', driver='github')
     def test_draft_pr(self):
@@ -1171,9 +1178,11 @@ class TestGithubDriver(ZuulTestCase):
         # the change should have entered the gate
         self.assertEqual(2, len(self.history))
 
+        # Merge should have failed because cherry-pick is not supported
         self.assertEqual(2, len(A.comments))
         self.assertFalse(A.is_merged)
-        self.assertIn('Merge Failed', A.comments[1])
+        self.assertEquals(A.comments[1],
+                          'Merge mode cherry-pick not supported by Github')
 
     @simple_layout('layouts/gate-github-squash-merge.yaml', driver='github')
     def test_merge_method_squash_merge(self):
