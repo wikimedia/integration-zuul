@@ -90,6 +90,10 @@ _DEFAULT_SERVER_LOGGING_CONFIG = {
             'handlers': ['console'],
             'level': 'INFO',
         },
+        'zuul.GerritConnection.io': {
+            'handlers': ['console'],
+            'level': 'WARN',
+        },
         'sqlalchemy.engine': {
             'handlers': ['console'],
             'level': 'WARN',

@@ -612,7 +612,7 @@ class GerritConnection(BaseConnection):
             verify=self.verify_ssl,
             auth=self.auth, timeout=TIMEOUT,
             headers={'User-Agent': self.user_agent})
-        self.log.debug('Received: %s %s' % (r.status_code, r.text,))
+        self.iolog.debug('Received: %s %s' % (r.status_code, r.text,))
         if r.status_code != 200:
             raise Exception("Received response %s" % (r.status_code,))
         ret = None
@@ -636,7 +636,7 @@ class GerritConnection(BaseConnection):
             auth=self.auth, timeout=TIMEOUT,
             headers={'Content-Type': 'application/json;charset=UTF-8',
                      'User-Agent': self.user_agent})
-        self.log.debug('Received: %s %s' % (r.status_code, r.text,))
+        self.iolog.debug('Received: %s %s' % (r.status_code, r.text,))
         if r.status_code != 200:
             raise Exception("Received response %s" % (r.status_code,))
         ret = None

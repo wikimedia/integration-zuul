@@ -116,7 +116,8 @@ class GitWatcher(threading.Thread):
         try:
             for project in self.connection.projects:
                 refs = self.lsRemote(project)
-                self.log.debug("Read refs %s for project %s" % (refs, project))
+                self.log.debug("Read %s refs for project %s",
+                               len(refs), project)
                 if not self.projects_refs.get(project):
                     # State for this project does not exist yet so add it.
                     # No event will be triggered in this loop as
