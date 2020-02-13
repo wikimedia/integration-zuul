@@ -175,7 +175,7 @@ class GerritTriggerEvent(TriggerEvent):
         return ret
 
     def isPatchsetCreated(self):
-        return 'patchset-created' == self.type
+        return self.type in ('patchset-created', 'pending-check')
 
     def isChangeAbandoned(self):
         return 'change-abandoned' == self.type
