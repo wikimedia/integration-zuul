@@ -354,7 +354,7 @@ class PipelineManager(object):
             item.live = live
             self.reportStats(item)
             item.quiet = quiet
-            if not item.reported_enqueue:
+            if item.live and not item.reported_enqueue:
                 self.reportEnqueue(item)
                 item.reported_enqueue = True
             self.enqueueChangesBehind(change, event, quiet,

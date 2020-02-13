@@ -284,7 +284,9 @@ class TestChecksApi(ZuulTestCase):
 
     @simple_layout('layouts/gerrit-checks.yaml')
     def test_check_pipeline(self):
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.setDependsOn(B, 1)
         A.setCheck('zuul:check', reset=True)
         self.waitForPoll('gerrit')
         self.waitUntilSettled()
@@ -308,9 +310,11 @@ class TestChecksApi(ZuulTestCase):
         self.assertEqual(A.checks_history[3]['zuul:check']['message'],
                          'Change passed all voting jobs')
         self.assertHistory([
-            dict(name='test-job', result='SUCCESS', changes='1,1')])
+            dict(name='test-job', result='SUCCESS', changes='1,1 2,1')])
         self.assertEqual(A.reported, 0, "no messages should be reported")
         self.assertEqual(A.messages, [], "no messages should be reported")
+        # Make sure B was never updated
+        self.assertEqual(len(B.checks_history), 0)
 
     @simple_layout('layouts/gerrit-checks.yaml')
     def test_gate_pipeline(self):

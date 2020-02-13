@@ -296,7 +296,7 @@ class FakeGerritChange(object):
         if reset:
             self.checks[checker] = {'state': 'NOT_STARTED',
                                     'created': str(datetime.datetime.now())}
-        chk = self.checks[checker]
+        chk = self.checks.setdefault(checker, {})
         chk['updated'] = str(datetime.datetime.now())
         for (key, default) in [
                 ('state', None),
