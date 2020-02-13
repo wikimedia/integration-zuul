@@ -381,6 +381,46 @@ class TestChecksApi(ZuulTestCase):
         self.assertEqual(len(A.checks_history), 3)
         self.assertEqual(A.data['status'], 'NEW')
 
+    @simple_layout('layouts/gerrit-checks.yaml')
+    def test_config_error(self):
+        # Test that line comments are reported on config errors
+        in_repo_conf = textwrap.dedent(
+            """
+            - project:
+                check:
+                  jobs:
+                    - bad-job
+            """)
+        file_dict = {'.zuul.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        A.setCheck('zuul:check', reset=True)
+        self.waitForPoll('gerrit')
+        self.waitUntilSettled()
+
+        self.assertEqual(A.checks_history[0]['zuul:check']['state'],
+                         'NOT_STARTED')
+        self.assertEqual(A.checks_history[1]['zuul:check']['state'],
+                         'SCHEDULED')
+        self.assertEqual(A.checks_history[2]['zuul:check']['state'],
+                         'FAILED')
+        self.assertEqual(len(A.checks_history), 3)
+        comments = sorted(A.comments, key=lambda x: x['line'])
+        self.assertEqual(comments[0],
+                         {'file': '.zuul.yaml',
+                          'line': 5,
+                          'message': 'Job bad-job not defined',
+                          'range': {'end_character': 0,
+                                    'end_line': 5,
+                                    'start_character': 2,
+                                    'start_line': 2},
+                          'reviewer': {'email': 'zuul@example.com',
+                                       'name': 'Zuul',
+                                       'username': 'jenkins'}}
+        )
+        self.assertEqual(A.reported, 0, "no messages should be reported")
+        self.assertEqual(A.messages, [], "no messages should be reported")
+
 
 class TestPolling(ZuulTestCase):
     config_file = 'zuul-gerrit-no-stream.conf'

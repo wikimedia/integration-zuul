@@ -1100,7 +1100,8 @@ class GerritConnection(BaseConnection):
             change.id)
         if checks_api:
             self.report_checks(log, item, changeid, checks_api)
-        if (message or data.get('labels') or data.get('comments')):
+        if (message or data.get('labels') or data.get('comments')
+            or data.get('robot_comments')):
             for x in range(1, 4):
                 try:
                     self.post('changes/%s/revisions/%s/review' %
