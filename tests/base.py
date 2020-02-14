@@ -3952,11 +3952,12 @@ class ZuulTestCase(BaseTestCase):
             worker_build = self.executor_server.job_builds.get(
                 server_job.unique.decode('utf8'))
             if worker_build:
-                if worker_build.isWaiting() or worker_build.paused:
+                if build.paused:
                     continue
-                else:
-                    self.log.debug("%s is running" % worker_build)
-                    return False
+                if worker_build.isWaiting():
+                    continue
+                self.log.debug("%s is running" % worker_build)
+                return False
             else:
                 self.log.debug("%s is unassigned" % server_job)
                 return False
