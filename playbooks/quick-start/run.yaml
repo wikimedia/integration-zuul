@@ -5,14 +5,9 @@
   roles:
     - name: install-docker
       use_upstream_docker: false
+      docker_compose_install: true
     - use-buildset-registry
   tasks:
-    - name: Install docker-compose
-      package:
-        name:
-          - docker-compose
-        state: present
-      become: true
     - name: Install git-review
       command: python3 -m pip install git-review
       become: true
