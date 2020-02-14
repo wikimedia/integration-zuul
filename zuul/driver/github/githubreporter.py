@@ -225,6 +225,9 @@ class GithubReporter(BaseReporter):
 
         details_url = item.formatStatusUrl()
 
+        # Check for inline comments that can be reported via checks API
+        file_comments = self.getFileComments(item)
+
         return self.connection.updateCheck(
             project,
             pr_number,
@@ -234,6 +237,7 @@ class GithubReporter(BaseReporter):
             self.context,
             details_url,
             message,
+            file_comments,
             zuul_event_id=item.event,
         )
 

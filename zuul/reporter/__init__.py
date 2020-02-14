@@ -82,6 +82,24 @@ class BaseReporter(object, metaclass=abc.ABCMeta):
                                               end_line=mark.end_line,
                                               end_character=mark.end_column)))
 
+    def _getFileComments(self, item):
+        """Get the file comments from the zuul_return value"""
+        ret = {}
+        for build in item.current_build_set.getBuilds():
+            fc = build.result_data.get("zuul", {}).get("file_comments")
+            if not fc:
+                continue
+            for fn, comments in fc.items():
+                existing_comments = ret.setdefault(fn, [])
+                existing_comments.extend(comments)
+        self.addConfigurationErrorComments(item, ret)
+        return ret
+
+    def getFileComments(self, item):
+        comments = self._getFileComments(item)
+        self.filterComments(item, comments)
+        return comments
+
     def filterComments(self, item, comments):
         """Filter comments for files in change
 

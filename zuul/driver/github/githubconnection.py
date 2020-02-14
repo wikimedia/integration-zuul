@@ -1835,7 +1835,7 @@ class GithubConnection(BaseConnection):
         log.debug("Removed label %s from %s#%s", label, proj, pr_number)
 
     def updateCheck(self, project, pr_number, sha, status, completed, context,
-                    details_url, message, zuul_event_id=None):
+                    details_url, message, file_comments, zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
         github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
         owner, proj = project.split("/")
@@ -1863,6 +1863,12 @@ class GithubConnection(BaseConnection):
             return errors
 
         output = {"title": "Summary", "summary": message}
+
+        if file_comments:
+            # Build the list of annotations to be applied on the check run
+            output["annotations"] = self._buildAnnotationsFromComments(
+                file_comments
+            )
 
         # Currently, the GithubReporter only supports start and end reporting.
         # During the build no further update will be reported.
@@ -1971,6 +1977,75 @@ class GithubConnection(BaseConnection):
                 )
 
         return errors
+
+    def _buildAnnotationsFromComments(self, file_comments):
+        annotations = []
+        for fn, comments in file_comments.items():
+            for comment in comments:
+
+                if "message" not in comment:
+                    # Github doesn't accept anntoations without a message.
+                    # Faking a message doesn't make munch sense to me.
+                    continue
+
+                start_column = None
+                end_column = None
+                start_line = None
+                end_line = None
+
+                if "line" in comment:
+                    start_line = comment.get("line")
+                    end_line = comment.get("line")
+
+                if "range" in comment:
+                    rng = comment["range"]
+                    # Look up the start_ and end_line from the range and use
+                    # the line as fallback
+                    start_line = rng.get("start_line")
+                    end_line = rng.get("end_line")
+
+                    # Github only accepts column parameters if they apply to
+                    # the same line.
+                    if start_line == end_line:
+                        start_column = rng.get("start_character")
+                        end_column = rng.get("end_character")
+
+                # TODO (felix): Make annotation_level configurable via
+                # file_comments in zuul_return. Other reporters like Gerrit
+                # might ignore the field if they don't support it.
+                # Accepted values are "notice", "warning", "failure".
+                # A "failure" annotation won't declare the check run as
+                # failure.
+
+                # A Github check annotation requires at least the following
+                # attributes: "path", "start_line", "end_line", "message" and
+                # "annotation_level"
+                raw_annotation = {
+                    "path": fn,
+                    "annotation_level": "warning",
+                    "message": comment["message"],
+                    "start_line": start_line,
+                    "end_line": end_line,
+                    "start_column": start_column,
+                    "end_column": end_column,
+                }
+
+                # Filter out None values from the annotation. Otherwise
+                # github will complain about column values being None:
+                # "For 'properties/start_column', nil is not an integer."
+                # "For 'properties/end_column', nil is not an integer."
+                annotation = {
+                    k: v for k, v in raw_annotation.items()
+                    if v is not None
+                }
+
+                # Don't provide an annotation without proper start_ and
+                # end_line as this will make the whole check run update fail.
+                if not {"start_line", "end_line"} <= set(annotation):
+                    continue
+
+                annotations.append(annotation)
+        return annotations
 
     def getPushedFileNames(self, event):
         files = set()

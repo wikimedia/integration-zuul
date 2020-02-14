@@ -18,6 +18,7 @@ from testtools.matchers import MatchesRegex, StartsWith
 import urllib
 import socket
 import time
+import textwrap
 from unittest import mock, skip
 
 import git
@@ -26,7 +27,8 @@ import github3.exceptions
 from zuul.driver.github.githubconnection import GithubShaCache
 import zuul.rpcclient
 
-from tests.base import (BaseTestCase, ZuulGithubAppTestCase, ZuulTestCase,
+from tests.base import (AnsibleZuulTestCase, BaseTestCase,
+                        ZuulGithubAppTestCase, ZuulTestCase,
                         simple_layout, random_sha1)
 from tests.base import ZuulWebFixture
 
@@ -1711,3 +1713,98 @@ class TestGithubAppDriver(ZuulGithubAppTestCase):
         self.assertEqual(2, len(A.comments))
         self.assertIn(expected_warning, A.comments[0])
         self.assertIn(expected_warning, A.comments[1])
+
+
+class TestCheckRunAnnotations(ZuulGithubAppTestCase, AnsibleZuulTestCase):
+    """We need Github app authentication and be able to run Ansible jobs"""
+    config_file = 'zuul-github-driver.conf'
+    tenant_config_file = "config/github-file-comments/main.yaml"
+
+    def test_file_comments(self):
+        project = "org/project"
+        github = self.fake_github.getGithubClient(None)
+
+        # The README file must be part of this PR to make the comment function
+        # work. Thus we change it's content to provide some more text.
+        files_dict = {
+            "README": textwrap.dedent(
+                """
+                section one
+                ===========
+
+                here is some text
+                and some more text
+                and a last line of text
+
+                section two
+                ===========
+
+                here is another section
+                with even more text
+                and the end of the section
+                """
+            ),
+        }
+
+        A = self.fake_github.openFakePullRequest(
+            project, "master", "A", files=files_dict
+        )
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        # We should have a pending check for the head sha
+        self.assertIn(
+            A.head_sha, github.repo_from_project(project)._commits.keys())
+        check_runs = self.fake_github.getCommitChecks(project, A.head_sha)
+
+        self.assertEqual(1, len(check_runs))
+        check_run = check_runs[0]
+
+        self.assertEqual("tenant-one/check", check_run["name"])
+        self.assertEqual("completed", check_run["status"])
+        self.assertThat(
+            check_run["output"]["summary"],
+            MatchesRegex(r'.*Build succeeded.*', re.DOTALL)
+        )
+
+        annotations = check_run["output"]["annotations"]
+        self.assertEqual(4, len(annotations))
+
+        self.assertEqual(annotations[0], {
+            "path": "README",
+            "annotation_level": "warning",
+            "message": "Simple line annotation",
+            "start_line": 1,
+            "end_line": 1,
+        })
+
+        # As the columns are not part of the same line, they are ignored in the
+        # annotation. Otherwise Github will complain about the request.
+        self.assertEqual(annotations[1], {
+            "path": "README",
+            "annotation_level": "warning",
+            "message": "simple range annotation",
+            "start_line": 4,
+            "end_line": 6,
+        })
+
+        self.assertEqual(annotations[2], {
+            "path": "README",
+            "annotation_level": "warning",
+            "message": "Columns must be part of the same line",
+            "start_line": 7,
+            "end_line": 7,
+            "start_column": 13,
+            "end_column": 26,
+        })
+
+        # From the invalid/error file comments, only the "line out of file"
+        # should remain. All others are excluded as they would result in
+        # invalid Github requests, making the whole check run update fail.
+        self.assertEqual(annotations[3], {
+            "path": "README",
+            "annotation_level": "warning",
+            "message": "Line is not part of the file",
+            "end_line": 9999,
+            "start_line": 9999
+        })
