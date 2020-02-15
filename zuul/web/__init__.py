@@ -1090,7 +1090,8 @@ class ZuulWeb(object):
         self.static_path = os.path.abspath(static_path or STATIC_DIR)
         # instanciate handlers
         self.rpc = zuul.rpcclient.RPCClient(gear_server, gear_port,
-                                            ssl_key, ssl_cert, ssl_ca)
+                                            ssl_key, ssl_cert, ssl_ca,
+                                            client_id='Zuul Web Server')
         self.zk = zuul.zk.ZooKeeper(enable_cache=True)
         if zk_hosts:
             self.zk.connect(hosts=zk_hosts, read_only=True)

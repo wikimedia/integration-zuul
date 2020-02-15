@@ -158,7 +158,8 @@ class FingerGateway(object):
             self.gear_port,
             self.gear_ssl_key,
             self.gear_ssl_cert,
-            self.gear_ssl_ca)
+            self.gear_ssl_ca,
+            client_id='Zuul Finger Gateway')
 
         self.server = streamer_utils.CustomThreadingTCPServer(
             self.address,
