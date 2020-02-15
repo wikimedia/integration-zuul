@@ -3117,8 +3117,6 @@ class BaseTestCase(testtools.TestCase):
         # Make sure we don't carry old handlers around in process state
         # which slows down test runs
         self.addCleanup(logger.removeHandler, handler)
-        self.addCleanup(handler.close)
-        self.addCleanup(handler.flush)
 
         # NOTE(notmorgan): Extract logging overrides for specific
         # libraries from the OS_LOG_DEFAULTS env and create loggers
@@ -3136,12 +3134,15 @@ class BaseTestCase(testtools.TestCase):
                     logger = logging.getLogger(name)
                     logger.setLevel(level)
                     logger.addHandler(handler)
+                    self.addCleanup(logger.removeHandler, handler)
                     logger.propagate = False
                 except ValueError:
                     # NOTE(notmorgan): Invalid format of the log default,
                     # skip and don't try and apply a logger for the
                     # specified module
                     pass
+        self.addCleanup(handler.close)
+        self.addCleanup(handler.flush)
 
 
 class SymLink(object):
