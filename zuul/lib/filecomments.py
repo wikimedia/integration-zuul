@@ -42,7 +42,7 @@ def extractLines(file_comments):
             if 'line' in comment:
                 lines.add((path, int(comment['line'])))
             if 'range' in comment:
-                rng = comment['rng']
+                rng = comment['range']
                 for key in ['start_line', 'end_line']:
                     if key in rng:
                         lines.add((path, int(rng[key])))
@@ -58,7 +58,7 @@ def updateLines(file_comments, lines):
                 comment['line'] = lines.get((path, comment['line']),
                                             comment['line'])
             if 'range' in comment:
-                rng = comment['rng']
+                rng = comment['range']
                 for key in ['start_line', 'end_line']:
                     if key in rng:
                         rng[key] = lines.get((path, rng[key]), rng[key])
