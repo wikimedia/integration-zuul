@@ -19,6 +19,7 @@ import re
 import time
 
 from requests import HTTPError
+from requests.structures import CaseInsensitiveDict
 
 FAKE_BASE_URL = 'https://example.com/api/v3/'
 
@@ -380,6 +381,7 @@ class FakePull(object):
                 },
                 'ref': pr.branch,
             },
+            'draft': pr.draft,
             'mergeable': True,
             'state': pr.state,
             'head': {
@@ -421,6 +423,7 @@ class FakeGithubSession(object):
 
     def __init__(self, data):
         self._data = data
+        self.headers = CaseInsensitiveDict()
 
     def build_url(self, *args):
         fakepath = '/'.join(args)

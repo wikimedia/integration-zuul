@@ -46,6 +46,7 @@ from zuul.driver.github.githubmodel import PullRequest, GithubTriggerEvent
 
 GITHUB_BASE_URL = 'https://api.github.com'
 PREVIEW_JSON_ACCEPT = 'application/vnd.github.machine-man-preview+json'
+PREVIEW_DRAFT_ACCEPT = 'application/vnd.github.shadow-cat-preview+json'
 
 
 def _sign_request(body, secret):
@@ -869,6 +870,15 @@ class GithubConnection(BaseConnection):
         if app_key:
             self.app_key = app_key
 
+    @staticmethod
+    def _append_accept_header(github, value):
+        old_header = github.session.headers.get('Accept', None)
+        if old_header:
+            new_value = '%s,%s' % (old_header, value)
+        else:
+            new_value = value
+        github.session.headers['Accept'] = new_value
+
     def _get_app_auth_headers(self):
         now = datetime.datetime.now(utc)
         expiry = now + datetime.timedelta(minutes=5)
@@ -1443,9 +1453,24 @@ class GithubConnection(BaseConnection):
         # conflicts which would block merging finally will be detected by
         # the zuul-mergers anyway.
 
+        log = get_annotated_logger(self.log, event)
+
         github = self.getGithubClient(change.project.name, zuul_event_id=event)
+
+        # Append accept header so we get the draft status
+        self._append_accept_header(github, PREVIEW_DRAFT_ACCEPT)
+
         owner, proj = change.project.name.split('/')
         pull = github.pull_request(owner, proj, change.number)
+
+        # If the PR is a draft it cannot be merged.
+        # TODO: This uses the dict instead of the pull object since github3.py
+        # has no support for draft PRs yet. Replace this with pull.draft when
+        # support has been added.
+        # https://github.com/sigmavirus24/github3.py/issues/926
+        if pull.as_dict().get('draft', False):
+            log.debug('Change %s can not merge because it is a draft', change)
+            return False
 
         protection = self._getBranchProtection(
             change.project.name, change.branch, zuul_event_id=event)
