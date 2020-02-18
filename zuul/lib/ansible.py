@@ -58,7 +58,8 @@ class ManagedAnsible:
                       upgrade=upgrade)
 
     def _run_pip(self, requirements, upgrade=False):
-        cmd = [os.path.join(self.venv_path, 'bin', 'pip'), 'install']
+        cmd = [os.path.join(self.venv_path, 'bin', 'pip'), 'install',
+               '--no-cache-dir']
         if upgrade:
             cmd.append('-U')
         cmd.extend(requirements)
@@ -195,7 +196,7 @@ class AnsibleManager:
         # leading to occasional failures during setup of all ansible
         # environments. Thus we limit the number of workers to reduce the risk
         # of hitting this race.
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = {executor.submit(a.ensure_ansible, upgrade): a
                        for a in self._supported_versions.values()}
             for future in concurrent.futures.as_completed(futures):
