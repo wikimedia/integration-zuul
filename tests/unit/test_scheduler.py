@@ -8169,7 +8169,7 @@ class TestSchedulerSmartReconfiguration(ZuulTestCase):
 
         self.newTenantConfig('config/multi-tenant/main-reconfig.yaml')
 
-        self.smartReconfigure(command_socket=command_socket)
+        self.sched_app.smartReconfigure(command_socket=command_socket)
 
         # Wait for smart reconfiguration. Only tenant-two should be
         # reconfigured. Note that waitUntilSettled is not
