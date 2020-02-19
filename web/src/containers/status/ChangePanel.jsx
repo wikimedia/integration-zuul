@@ -16,11 +16,8 @@ import * as React from 'react'
 import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
-
-const SECOND = 1000
-const MINUTE = SECOND * 60
-const HOUR = MINUTE * 60
-const DAY = HOUR * 24
+import * as moment from 'moment'
+import 'moment-duration-format'
 
 
 class ChangePanel extends React.Component {
@@ -52,37 +49,13 @@ class ChangePanel extends React.Component {
     this.setState({ expanded: !expanded })
   }
 
-  time (ms, words) {
-    if (typeof (words) === 'undefined') {
-      words = false
-    }
-    let seconds = (+ms) / 1000
-    let minutes = Math.floor(seconds / 60)
-    let hours = Math.floor(minutes / 60)
-    seconds = Math.floor(seconds % 60)
-    minutes = Math.floor(minutes % 60)
-    let r = ''
-    if (words) {
-      if (hours) {
-        r += hours
-        r += ' hr '
-      }
-      r += minutes + ' min'
-    } else {
-      if (hours < 10) {
-        r += '0'
-      }
-      r += hours + ':'
-      if (minutes < 10) {
-        r += '0'
-      }
-      r += minutes + ':'
-      if (seconds < 10) {
-        r += '0'
-      }
-      r += seconds
-    }
-    return r
+  time (ms) {
+    return moment.duration(ms).format({
+      template: 'h [hr] m [min]',
+      largest: 2,
+      minValue: 1,
+      usePlural: false,
+    })
   }
 
   enqueueTime (ms) {
@@ -91,7 +64,7 @@ class ChangePanel extends React.Component {
     let now = Date.now()
     let delta = now - ms
     let status = 'text-success'
-    let text = this.time(delta, true)
+    let text = this.time(delta)
     if (delta > (4 * hours)) {
       status = 'text-danger'
     } else if (delta > (2 * hours)) {
@@ -175,7 +148,7 @@ class ChangePanel extends React.Component {
     if (change.remaining_time === null) {
       remainingTime = 'unknown'
     } else {
-      remainingTime = this.time(change.remaining_time, true)
+      remainingTime = this.time(change.remaining_time)
     }
     return (
       <React.Fragment>
@@ -204,29 +177,11 @@ class ChangePanel extends React.Component {
       className = 'progress-bar-striped progress-bar-animated'
     }
     if (remaining !== null) {
-      title = 'Estimated time remaining: '
-      if (remaining < MINUTE) {
-        title = title + 'less than a minute'
-      } else {
-        let days = 0
-        let hours = 0
-        let minutes = 0
-
-        days = Math.trunc(remaining/DAY)
-        remaining = Math.trunc(remaining%DAY)
-        hours = Math.trunc(remaining/HOUR)
-        remaining = Math.trunc(remaining%HOUR)
-        minutes = Math.trunc(remaining/MINUTE)
-        if (days > 0) {
-          title = title + days + ' days '
-        }
-        if (hours > 0) {
-          title = title + hours + ' hours '
-        }
-        if (minutes > 0) {
-          title = title + minutes + ' minutes '
-        }
-      }
+      title = 'Estimated time remaining: ' + moment.duration(remaining).format({
+        template: 'd [days] h [hours] m [minutes] s [seconds]',
+        largest: 2,
+        minValue: 30,
+      })
     }
 
     return (

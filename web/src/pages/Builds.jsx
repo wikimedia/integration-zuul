@@ -17,6 +17,8 @@ import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Table } from 'patternfly-react'
+import * as moment from 'moment'
+import 'moment-duration-format'
 
 import { fetchBuilds } from '../api'
 import TableFilters from '../containers/TableFilters'
@@ -77,6 +79,11 @@ class BuildsPage extends TableFilters {
         <a href={rowdata.rowData.ref_url}>{value ? rowdata.rowData.change+','+rowdata.rowData.patchset : rowdata.rowData.newrev ? rowdata.rowData.newrev.substr(0, 7) : rowdata.rowData.branch}</a>
       </Table.Cell>
     )
+    const durationFormat = (value) => (
+      <Table.Cell>
+        {moment.duration(value, 'seconds').format('h [hr] m [min] s [sec]')}
+      </Table.Cell>
+    )
     this.columns = []
     this.filterTypes = []
     const myColumns = [
@@ -101,6 +108,8 @@ class BuildsPage extends TableFilters {
         formatter = linkChangeFormat
       } else if (column === 'result') {
         formatter = linkBuildFormat
+      } else if (column === 'duration') {
+        formatter = durationFormat
       }
       const label = column.charAt(0).toUpperCase() + column.slice(1)
       this.columns.push({
