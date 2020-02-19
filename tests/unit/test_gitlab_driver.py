@@ -46,4 +46,24 @@ class TestGitlabWebhook(ZuulTestCase):
 
     @simple_layout('layouts/basic-gitlab.yaml', driver='gitlab')
     def test_webhook(self):
-        pass
+        A = self.fake_gitlab.openFakeMergeRequest(
+            'org/project', 'master', 'A')
+        self.fake_gitlab.emitEvent(A.getMergeRequestEvent(),
+                                   use_zuulweb=False,
+                                   project='org/project')
+        self.waitUntilSettled()
+
+        self.assertEqual('SUCCESS',
+                         self.getJobFromHistory('project-test1').result)
+
+    @simple_layout('layouts/basic-gitlab.yaml', driver='gitlab')
+    def test_webhook_via_zuulweb(self):
+        A = self.fake_gitlab.openFakeMergeRequest(
+            'org/project', 'master', 'A')
+        self.fake_gitlab.emitEvent(A.getMergeRequestEvent(),
+                                   use_zuulweb=True,
+                                   project='org/project')
+        self.waitUntilSettled()
+
+        self.assertEqual('SUCCESS',
+                         self.getJobFromHistory('project-test1').result)

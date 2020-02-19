@@ -12,22 +12,98 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import re
+
 from zuul.model import Change, TriggerEvent, EventFilter, RefFilter
 
 
-class PullRequest(Change):
+class MergeRequest(Change):
     def __init__(self, project):
-        super(PullRequest, self).__init__(project)
+        super(MergeRequest, self).__init__(project)
+        self.updated_at = None
+
+    def __repr__(self):
+        r = ['<Change 0x%x' % id(self)]
+        if self.project:
+            r.append('project: %s' % self.project)
+        if self.number:
+            r.append('number: %s' % self.number)
+        if self.patchset:
+            r.append('patchset: %s' % self.patchset)
+        if self.updated_at:
+            r.append('updated: %s' % self.updated_at)
+        if self.is_merged:
+            r.append('state: merged')
+        if self.open:
+            r.append('state: open')
+        return ' '.join(r) + '>'
+
+    def isUpdateOf(self, other):
+        if (self.project == other.project and
+            hasattr(other, 'number') and self.number == other.number and
+            hasattr(other, 'updated_at') and
+            self.updated_at > other.updated_at):
+            return True
+        return False
 
 
 class GitlabTriggerEvent(TriggerEvent):
     def __init__(self):
         super(GitlabTriggerEvent, self).__init__()
+        self.trigger_name = 'gitlab'
+        self.title = None
+        self.action = None
+        self.change_number = None
+
+    def _repr(self):
+        r = [super(GitlabTriggerEvent, self)._repr()]
+        if self.action:
+            r.append("action:%s" % self.action)
+        r.append("project:%s" % self.canonical_project_name)
+        if self.change_number:
+            r.append("mr:%s" % self.change_number)
+        return ' '.join(r)
+
+    def isPatchsetCreated(self):
+        if self.type == 'gl_pull_request':
+            return self.action in ['opened', 'changed']
+        return False
 
 
 class GitlabEventFilter(EventFilter):
-    def __init__(self, trigger):
-        super(GitlabEventFilter, self).__init__()
+    def __init__(self, trigger, types=[], actions=[]):
+        super(GitlabEventFilter, self).__init__(self)
+        self._types = types
+        self.types = [re.compile(x) for x in types]
+        self.actions = actions
+
+    def __repr__(self):
+        ret = '<GitlabEventFilter'
+
+        if self._types:
+            ret += ' types: %s' % ', '.join(self._types)
+        if self.actions:
+            ret += ' actions: %s' % ', '.join(self.actions)
+        ret += '>'
+
+        return ret
+
+    def matches(self, event, change):
+        matches_type = False
+        for etype in self.types:
+            if etype.match(event.type):
+                matches_type = True
+        if self.types and not matches_type:
+            return False
+
+        matches_action = False
+        for action in self.actions:
+            if (event.action == action):
+                matches_action = True
+        if self.actions and not matches_action:
+            return False
+
+        return True
 
 
 # The RefFilter should be understood as RequireFilter (it maps to

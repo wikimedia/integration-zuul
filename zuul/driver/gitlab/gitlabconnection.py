@@ -19,10 +19,15 @@ import queue
 import cherrypy
 import voluptuous as v
 import time
+import requests
+from urllib.parse import quote_plus
+from datetime import datetime
 
 from zuul.connection import BaseConnection
 from zuul.web.handler import BaseWebController
 from zuul.lib.gearworker import ZuulGearWorker
+
+from zuul.driver.gitlab.gitlabmodel import GitlabTriggerEvent, MergeRequest
 
 
 class GitlabGearmanWorker(object):
@@ -48,8 +53,7 @@ class GitlabGearmanWorker(object):
         payload = args["payload"]
 
         self.log.info(
-            "Gitlab Webhook Received (event kind: %(object_kind)s ",
-            "event name: %(event_name)s)" % payload)
+            "Gitlab Webhook Received event kind: %(object_kind)s" % payload)
 
         try:
             self.__dispatch_event(payload)
@@ -61,7 +65,8 @@ class GitlabGearmanWorker(object):
         job.sendWorkComplete(json.dumps(output))
 
     def __dispatch_event(self, payload):
-        event = payload['event_name']
+        self.log.info(payload)
+        event = payload['object_kind']
         try:
             self.log.info("Dispatching event %s" % event)
             self.connection.addEvent(payload, event)
@@ -87,11 +92,35 @@ class GitlabEventConnector(threading.Thread):
         self.daemon = True
         self.connection = connection
         self._stopped = False
-        self.event_handler_mapping = {}
+        self.event_handler_mapping = {
+            'merge_request': self._event_merge_request,
+        }
 
     def stop(self):
         self._stopped = True
         self.connection.addEvent(None)
+
+    def _event_merge_request(self, body):
+        event = GitlabTriggerEvent()
+        attrs = body['object_attributes']
+        event.title = attrs['title']
+        event.updated_at = int(datetime.strptime(
+            attrs['updated_at'], '%Y-%m-%d %H:%M:%S %Z').strftime('%s'))
+        event.created_at = int(datetime.strptime(
+            attrs['created_at'], '%Y-%m-%d %H:%M:%S %Z').strftime('%s'))
+        event.project_name = body['project']['path_with_namespace']
+        event.change_number = attrs['iid']
+        event.branch = attrs['target_branch']
+        event.change_url = self.connection.getPullUrl(event.project_name,
+                                                      event.change_number)
+        event.ref = "refs/merge-requests/%s/head" % event.change_number
+        event.patch_number = attrs['last_commit']['id']
+        if event.created_at == event.updated_at:
+            event.action = 'opened'
+        else:
+            event.action = 'changed'
+        event.type = 'gl_merge_request'
+        return event
 
     def _handleEvent(self):
         ts, json_body, event_type = self.connection.getEvent()
@@ -105,6 +134,30 @@ class GitlabEventConnector(threading.Thread):
             self.log.info(message)
             return
 
+        if event_type in self.event_handler_mapping:
+            self.log.debug("Handling event: %s" % event_type)
+
+        try:
+            event = self.event_handler_mapping[event_type](json_body)
+        except Exception:
+            self.log.exception(
+                'Exception when handling event: %s' % event_type)
+            event = None
+
+        if event:
+            event.timestamp = ts
+            if event.change_number:
+                project = self.connection.source.getProject(event.project_name)
+                self.connection._getChange(project,
+                                           event.change_number,
+                                           event.patch_number,
+                                           refresh=True,
+                                           url=event.change_url,
+                                           event=event)
+            event.project_hostname = self.connection.canonical_hostname
+            self.connection.logEvent(event)
+            self.connection.sched.addEvent(event)
+
     def run(self):
         while True:
             if self._stopped:
@@ -117,6 +170,53 @@ class GitlabEventConnector(threading.Thread):
                 self.connection.eventDone()
 
 
+class GitlabAPIClientException(Exception):
+    pass
+
+
+class GitlabAPIClient():
+    log = logging.getLogger("zuul.GitlabAPIClient")
+
+    def __init__(self, baseurl, api_token):
+        self.session = requests.Session()
+        self.baseurl = '%s/api/v4/' % baseurl
+        self.api_token = api_token
+        self.headers = {'Authorization': 'Authorization: Bearer %s' % (
+            self.api_token)}
+
+    def _manage_error(self, data, code, url, verb):
+        if code < 400:
+            return
+        else:
+            raise GitlabAPIClientException(
+                "Unable to %s on %s (code: %s) due to: %s" % (
+                    verb, url, code, data
+                ))
+
+    def get(self, url):
+        self.log.debug("Getting resource %s ..." % url)
+        ret = self.session.get(url, headers=self.headers)
+        self.log.debug("GET returned (code: %s): %s" % (
+            ret.status_code, ret.text))
+        return ret.json(), ret.status_code, ret.url, 'GET'
+
+    # https://docs.gitlab.com/ee/api/merge_requests.html#get-single-mr
+    def get_mr(self, project_name, number):
+        path = "/projects/%s/merge_requests/%s" % (
+            quote_plus(project_name), number)
+        resp = self.get(self.baseurl + path)
+        self._manage_error(*resp)
+        return resp[0]
+
+    # https://docs.gitlab.com/ee/api/branches.html#list-repository-branches
+    def get_project_branches(self, project_name):
+        path = "/projects/%s/repository/branches" % (
+            quote_plus(project_name))
+        resp = self.get(self.baseurl + path)
+        self._manage_error(*resp)
+        return [branch['name'] for branch in resp[0]]
+
+
 class GitlabConnection(BaseConnection):
     driver_name = 'gitlab'
     log = logging.getLogger("zuul.GitlabConnection")
@@ -126,13 +226,23 @@ class GitlabConnection(BaseConnection):
         super(GitlabConnection, self).__init__(
             driver, connection_name, connection_config)
         self.projects = {}
+        self.project_branch_cache = {}
+        self._change_cache = {}
         self.server = self.connection_config.get('server', 'gitlab.com')
+        self.baseurl = self.connection_config.get(
+            'baseurl', 'https://%s' % self.server).rstrip('/')
+        self.cloneurl = self.connection_config.get(
+            'cloneurl', self.baseurl).rstrip('/')
         self.canonical_hostname = self.connection_config.get(
             'canonical_hostname', self.server)
         self.webhook_token = self.connection_config.get(
             'webhook_token', '')
+        self.api_token = self.connection_config.get(
+            'api_token', '')
+        self.gl_client = GitlabAPIClient(self.baseurl, self.api_token)
         self.sched = None
         self.event_queue = queue.Queue()
+        self.source = driver.getSource(self)
 
     def _start_event_connector(self):
         self.gitlab_event_connector = GitlabEventConnector(self)
@@ -168,14 +278,112 @@ class GitlabConnection(BaseConnection):
     def getWebController(self, zuul_web):
         return GitlabWebController(zuul_web, self)
 
-    def getChange(self, event):
-        return None
-
     def getProject(self, name):
         return self.projects.get(name)
 
     def addProject(self, project):
         self.projects[project.name] = project
+
+    def getProjectBranches(self, project, tenant):
+        branches = self.project_branch_cache.get(project.name)
+
+        if branches is not None:
+            return branches
+
+        branches = self.gl_client.get_project_branches(project.name)
+        self.project_branch_cache[project.name] = branches
+
+        self.log.info("Got branches for %s" % project.name)
+        return branches
+
+    def clearBranchCache(self):
+        self.project_branch_cache = {}
+
+    def getGitwebUrl(self, project, sha=None):
+        url = '%s/%s' % (self.baseurl, project)
+        if sha is not None:
+            url += '/tree/%s' % sha
+        return url
+
+    def getPullUrl(self, project, number):
+        return '%s/%s/merge_requests/%s' % (self.baseurl, project, number)
+
+    def getGitUrl(self, project):
+        return '%s/%s.git' % (self.cloneurl, project.name)
+
+    def getChange(self, event, refresh=False):
+        project = self.source.getProject(event.project_name)
+        if event.change_number:
+            self.log.info("Getting change for %s#%s" % (
+                project, event.change_number))
+            change = self._getChange(
+                project, event.change_number, event.patch_number,
+                refresh=refresh, event=event)
+            change.source_event = event
+            change.is_current_patchset = (change.patchset ==
+                                          event.patch_number)
+        else:
+            self.log.info("Getting change for %s ref:%s" % (
+                project, event.ref))
+            raise NotImplementedError
+        return change
+
+    def _getChange(self, project, number, patchset=None,
+                   refresh=False, url=None, event=None):
+        key = (project.name, number, patchset)
+        change = self._change_cache.get(key)
+        if change and not refresh:
+            self.log.debug("Getting change from cache %s" % str(key))
+            return change
+        if not change:
+            change = MergeRequest(project.name)
+            change.project = project
+            change.number = number
+            # patchset is the tips commit of the PR
+            change.patchset = patchset
+            change.url = url
+            change.uris = list(url)
+        self._change_cache[key] = change
+        try:
+            self.log.debug("Getting change mr#%s from project %s" % (
+                number, project.name))
+            self._updateChange(change, event)
+        except Exception:
+            if key in self._change_cache:
+                del self._change_cache[key]
+            raise
+        return change
+
+    def _updateChange(self, change, event):
+        self.log.info("Updating change from Gitlab %s" % change)
+        change.mr = self.getPull(change.project.name, change.number)
+        change.ref = "refs/merge-requests/%s/head" % change.number
+        change.branch = change.mr['target_branch']
+        change.patchset = change.mr['sha']
+        # Files changes are not part of the Merge Request data
+        # See api/merge_requests.html#get-single-mr-changes
+        # this endpoint includes file changes information
+        change.files = None
+        change.title = change.mr['title']
+        change.open = change.mr['state'] == 'opened'
+        change.is_merged = change.mr['merged_at'] is not None
+        # Can be "can_be_merged"
+        change.merge_status = change.mr['merge_status']
+        change.message = change.mr['description']
+        change.labels = change.mr['labels']
+        change.updated_at = int(datetime.strptime(
+            change.mr['updated_at'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%s'))
+        self.log.info("Updated change from Gitlab %s" % change)
+
+        if self.sched:
+            self.sched.onChangeUpdated(change, event)
+
+        return change
+
+    def getPull(self, project_name, number):
+        mr = self.gl_client.get_mr(project_name, number)
+        self.log.info('Got MR %s#%s', project_name, number)
+        return mr
 
 
 class GitlabWebController(BaseWebController):

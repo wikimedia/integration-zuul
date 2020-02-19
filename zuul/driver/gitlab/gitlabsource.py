@@ -50,7 +50,7 @@ class GitlabSource(BaseSource):
         raise NotImplementedError()
 
     def getChange(self, event, refresh=False):
-        raise NotImplementedError()
+        return self.connection.getChange(event, refresh)
 
     def getChangeByURL(self, url):
         raise NotImplementedError()
@@ -59,7 +59,7 @@ class GitlabSource(BaseSource):
         raise NotImplementedError()
 
     def getCachedChanges(self):
-        raise NotImplementedError()
+        return self.connection._change_cache.values()
 
     def getProject(self, name):
         p = self.connection.getProject(name)
@@ -69,7 +69,7 @@ class GitlabSource(BaseSource):
         return p
 
     def getProjectBranches(self, project, tenant):
-        raise NotImplementedError()
+        return self.connection.getProjectBranches(project, tenant)
 
     def getProjectOpenChanges(self, project):
         """Get the open changes for a project."""
@@ -81,7 +81,7 @@ class GitlabSource(BaseSource):
 
     def getGitUrl(self, project):
         """Get the git url for a project."""
-        raise NotImplementedError()
+        return self.connection.getGitUrl(project)
 
     def getGitwebUrl(self, project, sha=None):
         """Get the git-web url for a project."""
