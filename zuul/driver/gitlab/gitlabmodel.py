@@ -71,11 +71,13 @@ class GitlabTriggerEvent(TriggerEvent):
 
 
 class GitlabEventFilter(EventFilter):
-    def __init__(self, trigger, types=[], actions=[]):
+    def __init__(self, trigger, types=[], actions=[], comments=[]):
         super(GitlabEventFilter, self).__init__(self)
         self._types = types
         self.types = [re.compile(x) for x in types]
         self.actions = actions
+        self._comments = comments
+        self.comments = [re.compile(x) for x in comments]
 
     def __repr__(self):
         ret = '<GitlabEventFilter'
@@ -84,6 +86,8 @@ class GitlabEventFilter(EventFilter):
             ret += ' types: %s' % ', '.join(self._types)
         if self.actions:
             ret += ' actions: %s' % ', '.join(self.actions)
+        if self._comments:
+            ret += ' comments: %s' % ', '.join(self._comments)
         ret += '>'
 
         return ret
@@ -101,6 +105,14 @@ class GitlabEventFilter(EventFilter):
             if (event.action == action):
                 matches_action = True
         if self.actions and not matches_action:
+            return False
+
+        matches_comment_re = False
+        for comment_re in self.comments:
+            if (event.comment is not None and
+                comment_re.search(event.comment)):
+                matches_comment_re = True
+        if self.comments and not matches_comment_re:
             return False
 
         return True

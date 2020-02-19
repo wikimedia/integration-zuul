@@ -30,6 +30,7 @@ class GitlabTrigger(BaseTrigger):
                 trigger=self,
                 types=to_list(trigger['event']),
                 actions=to_list(trigger.get('action')),
+                comments=to_list(trigger.get('comment')),
             )
             efilters.append(f)
         return efilters
@@ -43,5 +44,6 @@ def getSchema():
         v.Required('event'):
             scalar_or_list(v.Any('gl_merge_request')),
         'action': scalar_or_list(str),
+        'comment': scalar_or_list(str),
     }
     return gitlab_trigger

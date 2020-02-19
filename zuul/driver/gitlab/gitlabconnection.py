@@ -96,31 +96,53 @@ class GitlabEventConnector(threading.Thread):
         self._stopped = False
         self.event_handler_mapping = {
             'merge_request': self._event_merge_request,
+            'note': self._event_note,
         }
 
     def stop(self):
         self._stopped = True
         self.connection.addEvent(None)
 
-    def _event_merge_request(self, body):
+    def _event_base(self, body):
         event = GitlabTriggerEvent()
         attrs = body['object_attributes']
-        event.title = attrs['title']
         event.updated_at = int(datetime.strptime(
             attrs['updated_at'], '%Y-%m-%d %H:%M:%S %Z').strftime('%s'))
         event.created_at = int(datetime.strptime(
             attrs['created_at'], '%Y-%m-%d %H:%M:%S %Z').strftime('%s'))
         event.project_name = body['project']['path_with_namespace']
+        event.ref = "refs/merge-requests/%s/head" % event.change_number
+        return event
+
+    # https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#merge-request-events
+    def _event_merge_request(self, body):
+        event = self._event_base(body)
+        attrs = body['object_attributes']
+        event.title = attrs['title']
         event.change_number = attrs['iid']
         event.branch = attrs['target_branch']
+        event.patch_number = attrs['last_commit']['id']
         event.change_url = self.connection.getPullUrl(event.project_name,
                                                       event.change_number)
-        event.ref = "refs/merge-requests/%s/head" % event.change_number
-        event.patch_number = attrs['last_commit']['id']
         if event.created_at == event.updated_at:
             event.action = 'opened'
         else:
             event.action = 'changed'
+        event.type = 'gl_merge_request'
+        return event
+
+    # https://docs.gitlab.com/ee/user/project/integrations/webhooks.html#comment-on-merge-request
+    def _event_note(self, body):
+        event = self._event_base(body)
+        event.comment = body['object_attributes']['note']
+        mr = body['merge_request']
+        event.title = mr['title']
+        event.change_number = mr['iid']
+        event.branch = mr['target_branch']
+        event.patch_number = mr['last_commit']['id']
+        event.change_url = self.connection.getPullUrl(event.project_name,
+                                                      event.change_number)
+        event.action = 'comment'
         event.type = 'gl_merge_request'
         return event
 
