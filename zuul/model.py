@@ -2364,8 +2364,9 @@ class QueueItem(object):
             return False
         return self.item_ahead.isHoldingFollowingChanges()
 
-    def _getRequirementsResultFromSQL(self, requirements):
+    def _getRequirementsResultFromSQL(self, job):
         # This either returns data or raises an exception
+        requirements = job.requires
         self.log.debug("Checking DB for requirements")
         requirements_tuple = tuple(sorted(requirements))
         if requirements_tuple not in self._cached_sql_results:
@@ -2399,8 +2400,12 @@ class QueueItem(object):
                 provides = [x.name for x in build.provides]
                 requirement = list(requirements.intersection(set(provides)))
                 raise RequirementsError(
-                    "Requirements %s not met by build %s" % (
-                        requirement, build.uuid))
+                    'Job %s requires artifact(s) %s provided by build %s '
+                    '(triggered by change %s on project %s), but that build '
+                    'failed with result "%s"' % (
+                        job.name, ', '.join(requirement), build.uuid,
+                        build.buildset.change, build.buildset.project,
+                        build.result))
             else:
                 for a in build.artifacts:
                     artifact = {'name': a.name,
@@ -2415,9 +2420,10 @@ class QueueItem(object):
         self.log.debug("Found artifacts in DB: %s", repr(data))
         return data
 
-    def providesRequirements(self, requirements, data, recurse=True):
+    def providesRequirements(self, job, data, recurse=True):
         # Mutates data and returns true/false if requirements
         # satisfied.
+        requirements = job.requires
         if not requirements:
             return True
         if not self.live:
@@ -2431,16 +2437,16 @@ class QueueItem(object):
                     found = True
                     break
             if found:
-                if not item.providesRequirements(requirements, data,
+                if not item.providesRequirements(job, data,
                                                  recurse=False):
                     return False
             else:
                 # Look for this item in the SQL DB.
-                data += self._getRequirementsResultFromSQL(requirements)
+                data += self._getRequirementsResultFromSQL(job)
         if self.hasJobGraph():
-            for job in self.getJobs():
-                if job.provides.intersection(requirements):
-                    build = self.current_build_set.getBuild(job.name)
+            for _job in self.getJobs():
+                if _job.provides.intersection(requirements):
+                    build = self.current_build_set.getBuild(_job.name)
                     if not build:
                         return False
                     if build.result and build.result != 'SUCCESS':
@@ -2461,14 +2467,14 @@ class QueueItem(object):
             return True
         if not recurse:
             return True
-        return self.item_ahead.providesRequirements(requirements, data)
+        return self.item_ahead.providesRequirements(job, data)
 
     def jobRequirementsReady(self, job):
         if not self.item_ahead:
             return True
         try:
             data = []
-            ret = self.item_ahead.providesRequirements(job.requires, data)
+            ret = self.item_ahead.providesRequirements(job, data)
             data.reverse()
             job.updateArtifactData(data)
         except RequirementsError as e:

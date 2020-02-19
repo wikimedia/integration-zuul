@@ -6159,7 +6159,16 @@ class TestProvidesRequires(ZuulDBTestCase):
             dict(name='hold', result='SUCCESS', changes='1,1 2,1'),
         ], ordered=False)
         self.assertIn('image-user : FAILURE', B.messages[0])
-        self.assertEqual(B.messages[0].count("not met by build"), 2)
+        self.assertEqual(
+            B.messages[0].count(
+                'Job image-user requires artifact(s) images'),
+            1,
+            B.messages[0])
+        self.assertEqual(
+            B.messages[0].count(
+                'Job library-user requires artifact(s) libraries'),
+            1,
+            B.messages[0])
 
     @simple_layout('layouts/provides-requires-single-project.yaml')
     def test_provides_requires_check_old_failure_single_project(self):
@@ -6190,7 +6199,10 @@ class TestProvidesRequires(ZuulDBTestCase):
             dict(name='hold', result='SUCCESS', changes='1,1 2,1'),
         ], ordered=False)
         self.assertIn('image-user : FAILURE', B.messages[0])
-        self.assertEqual(B.messages[0].count("not met by build"), 1)
+        self.assertEqual(
+            B.messages[0].count(
+                'Job image-user requires artifact(s) images'),
+            1, B.messages[0])
 
 
 class TestForceMergeMissingTemplate(ZuulTestCase):
