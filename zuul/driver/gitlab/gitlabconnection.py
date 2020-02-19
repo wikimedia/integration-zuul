@@ -19,6 +19,7 @@ import queue
 import cherrypy
 import voluptuous as v
 import time
+import uuid
 import requests
 from urllib.parse import quote_plus
 from datetime import datetime
@@ -26,6 +27,7 @@ from datetime import datetime
 from zuul.connection import BaseConnection
 from zuul.web.handler import BaseWebController
 from zuul.lib.gearworker import ZuulGearWorker
+from zuul.lib.logutil import get_annotated_logger
 
 from zuul.driver.gitlab.gitlabmodel import GitlabTriggerEvent, MergeRequest
 
@@ -145,6 +147,7 @@ class GitlabEventConnector(threading.Thread):
             event = None
 
         if event:
+            event.zuul_event_id = str(uuid.uuid4())
             event.timestamp = ts
             if event.change_number:
                 project = self.connection.source.getProject(event.project_name)
@@ -184,36 +187,37 @@ class GitlabAPIClient():
         self.headers = {'Authorization': 'Authorization: Bearer %s' % (
             self.api_token)}
 
-    def _manage_error(self, data, code, url, verb):
+    def _manage_error(self, data, code, url, verb, zuul_event_id=None):
         if code < 400:
             return
         else:
             raise GitlabAPIClientException(
-                "Unable to %s on %s (code: %s) due to: %s" % (
-                    verb, url, code, data
+                "[e: %s] Unable to %s on %s (code: %s) due to: %s" % (
+                    zuul_event_id, verb, url, code, data
                 ))
 
-    def get(self, url):
-        self.log.debug("Getting resource %s ..." % url)
+    def get(self, url, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        log.debug("Getting resource %s ..." % url)
         ret = self.session.get(url, headers=self.headers)
-        self.log.debug("GET returned (code: %s): %s" % (
+        log.debug("GET returned (code: %s): %s" % (
             ret.status_code, ret.text))
         return ret.json(), ret.status_code, ret.url, 'GET'
 
     # https://docs.gitlab.com/ee/api/merge_requests.html#get-single-mr
-    def get_mr(self, project_name, number):
+    def get_mr(self, project_name, number, zuul_event_id=None):
         path = "/projects/%s/merge_requests/%s" % (
             quote_plus(project_name), number)
-        resp = self.get(self.baseurl + path)
-        self._manage_error(*resp)
+        resp = self.get(self.baseurl + path, zuul_event_id=zuul_event_id)
+        self._manage_error(*resp, zuul_event_id=zuul_event_id)
         return resp[0]
 
     # https://docs.gitlab.com/ee/api/branches.html#list-repository-branches
-    def get_project_branches(self, project_name):
+    def get_project_branches(self, project_name, zuul_event_id=None):
         path = "/projects/%s/repository/branches" % (
             quote_plus(project_name))
-        resp = self.get(self.baseurl + path)
-        self._manage_error(*resp)
+        resp = self.get(self.baseurl + path, zuul_event_id=zuul_event_id)
+        self._manage_error(*resp, zuul_event_id=zuul_event_id)
         return [branch['name'] for branch in resp[0]]
 
 
@@ -330,10 +334,11 @@ class GitlabConnection(BaseConnection):
 
     def _getChange(self, project, number, patchset=None,
                    refresh=False, url=None, event=None):
+        log = get_annotated_logger(self.log, event)
         key = (project.name, number, patchset)
         change = self._change_cache.get(key)
         if change and not refresh:
-            self.log.debug("Getting change from cache %s" % str(key))
+            log.debug("Getting change from cache %s" % str(key))
             return change
         if not change:
             change = MergeRequest(project.name)
@@ -345,7 +350,7 @@ class GitlabConnection(BaseConnection):
             change.uris = list(url)
         self._change_cache[key] = change
         try:
-            self.log.debug("Getting change mr#%s from project %s" % (
+            log.debug("Getting change mr#%s from project %s" % (
                 number, project.name))
             self._updateChange(change, event)
         except Exception:
@@ -355,8 +360,10 @@ class GitlabConnection(BaseConnection):
         return change
 
     def _updateChange(self, change, event):
-        self.log.info("Updating change from Gitlab %s" % change)
-        change.mr = self.getPull(change.project.name, change.number)
+        log = get_annotated_logger(self.log, event)
+        log.info("Updating change from Gitlab %s" % change)
+        change.mr = self.getPull(
+            change.project.name, change.number, event=event)
         change.ref = "refs/merge-requests/%s/head" % change.number
         change.branch = change.mr['target_branch']
         change.patchset = change.mr['sha']
@@ -373,16 +380,17 @@ class GitlabConnection(BaseConnection):
         change.labels = change.mr['labels']
         change.updated_at = int(datetime.strptime(
             change.mr['updated_at'], '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%s'))
-        self.log.info("Updated change from Gitlab %s" % change)
+        log.info("Updated change from Gitlab %s" % change)
 
         if self.sched:
             self.sched.onChangeUpdated(change, event)
 
         return change
 
-    def getPull(self, project_name, number):
-        mr = self.gl_client.get_mr(project_name, number)
-        self.log.info('Got MR %s#%s', project_name, number)
+    def getPull(self, project_name, number, event=None):
+        log = get_annotated_logger(self.log, event)
+        mr = self.gl_client.get_mr(project_name, number, zuul_event_id=event)
+        log.info('Got MR %s#%s', project_name, number)
         return mr
 
 
