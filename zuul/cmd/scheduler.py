@@ -85,7 +85,7 @@ class Scheduler(zuul.cmd.ZuulDaemonApp):
         if child_pid == 0:
             os.close(pipe_write)
             self.setup_logging('gearman_server', 'log_config')
-            import zuul.lib.gearserver
+            import gear
 
             (statsd_host, statsd_port, statsd_prefix) = get_statsd_config(
                 self.config)
@@ -100,18 +100,18 @@ class Scheduler(zuul.cmd.ZuulDaemonApp):
             ssl_key = get_default(self.config, 'gearman_server', 'ssl_key')
             ssl_cert = get_default(self.config, 'gearman_server', 'ssl_cert')
             ssl_ca = get_default(self.config, 'gearman_server', 'ssl_ca')
-            zuul.lib.gearserver.GearServer(port,
-                                           ssl_key=ssl_key,
-                                           ssl_cert=ssl_cert,
-                                           ssl_ca=ssl_ca,
-                                           host=host,
-                                           statsd_host=statsd_host,
-                                           statsd_port=statsd_port,
-                                           statsd_prefix=statsd_prefix,
-                                           keepalive=True,
-                                           tcp_keepidle=300,
-                                           tcp_keepintvl=60,
-                                           tcp_keepcnt=5)
+            gear.Server(port,
+                        ssl_key=ssl_key,
+                        ssl_cert=ssl_cert,
+                        ssl_ca=ssl_ca,
+                        host=host,
+                        statsd_host=statsd_host,
+                        statsd_port=statsd_port,
+                        statsd_prefix=statsd_prefix,
+                        keepalive=True,
+                        tcp_keepidle=300,
+                        tcp_keepintvl=60,
+                        tcp_keepcnt=5)
 
             # Keep running until the parent dies:
             pipe_read = os.fdopen(pipe_read)
