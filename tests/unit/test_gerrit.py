@@ -421,6 +421,45 @@ class TestChecksApi(ZuulTestCase):
         self.assertEqual(A.reported, 0, "no messages should be reported")
         self.assertEqual(A.messages, [], "no messages should be reported")
 
+    @simple_layout('layouts/gerrit-checks.yaml')
+    def test_new_patchset(self):
+        self.executor_server.hold_jobs_in_build = True
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        A.setCheck('zuul:check', reset=True)
+        self.waitForPoll('gerrit')
+        self.waitUntilSettled()
+
+        self.assertEqual(A.checks_history[0]['zuul:check']['state'],
+                         'NOT_STARTED')
+        self.assertEqual(A.checks_history[1]['zuul:check']['state'],
+                         'SCHEDULED')
+        self.assertEqual(A.checks_history[2]['zuul:check']['state'],
+                         'RUNNING')
+        self.assertEqual(len(A.checks_history), 3)
+
+        A.addPatchset()
+        A.setCheck('zuul:check', reset=True)
+        self.waitForPoll('gerrit')
+        self.waitUntilSettled()
+
+        self.executor_server.hold_jobs_in_build = False
+        self.executor_server.release()
+        self.waitUntilSettled()
+        print(A.checks_history)
+        self.assertEqual(A.checks_history[3]['zuul:check']['state'],
+                         'NOT_STARTED')
+        self.assertEqual(A.checks_history[4]['zuul:check']['state'],
+                         'SCHEDULED')
+        self.assertEqual(A.checks_history[5]['zuul:check']['state'],
+                         'RUNNING')
+        self.assertEqual(A.checks_history[6]['zuul:check']['state'],
+                         'SUCCESSFUL')
+        self.assertEqual(len(A.checks_history), 7)
+        self.assertHistory([
+            dict(name='test-job', result='ABORTED', changes='1,1'),
+            dict(name='test-job', result='SUCCESS', changes='1,2'),
+        ], ordered=False)
+
 
 class TestPolling(ZuulTestCase):
     config_file = 'zuul-gerrit-no-stream.conf'
