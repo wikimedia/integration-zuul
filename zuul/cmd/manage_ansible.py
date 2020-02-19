@@ -52,6 +52,9 @@ class ManageAnsible(zuul.cmd.ZuulApp):
                             help='upgrade ansible versions')
         parser.add_argument('-l', dest='list_supported', action='store_true',
                             help='list supported versions')
+        parser.add_argument('--validate', dest='validate',
+                            action='store_true',
+                            help='validate installed versions')
         parser.add_argument('-r', dest='install_root', default=None,
                             help='root path for ansible venv installations')
         return parser
@@ -82,6 +85,10 @@ class ManageAnsible(zuul.cmd.ZuulApp):
                     version = version + ' (default)'
                 versions.append(version)
             print('\n'.join(versions))
+            return
+
+        if self.args.validate:
+            manager.validate()
             return
 
         manager.install(upgrade=self.args.upgrade)
