@@ -31,6 +31,11 @@ class Manifest extends React.Component {
   render() {
     const { tenant, build } = this.props
 
+    const raw_suffix = (obj) => {
+      return (obj.mimetype === 'application/directory' &&
+              build.manifest.index_links) ? 'index.html' : ''
+    }
+
     const nodes = build.manifest.tree.map(
       n => renderTree(
         tenant, build, '/', n,
@@ -40,13 +45,13 @@ class Manifest extends React.Component {
               to={tenant.linkPrefix + '/build/' + build.uuid + '/log' + path + name}>
               {obj.name}
             </Link>
-            &nbsp;&nbsp;(<a href={log_url + path + name}>raw</a>
+            &nbsp;&nbsp;(<a href={log_url + path + name + raw_suffix(obj)}>raw</a>
             &nbsp;<span className="fa fa-external-link"/>)
           </span>),
         (log_url, path, name, obj) => (
           <span>
             {obj.name}
-            &nbsp;&nbsp;(<a href={log_url + path + name}>raw</a>
+            &nbsp;&nbsp;(<a href={log_url + path + name + raw_suffix(obj)}>raw</a>
             &nbsp;<span className="fa fa-external-link"/>)
           </span>
         )))

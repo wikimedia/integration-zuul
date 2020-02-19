@@ -235,7 +235,8 @@ const receiveBuildManifest = (buildId, manifest) => {
   return {
     type: BUILD_MANIFEST_SUCCESS,
     buildId: buildId,
-    manifest: {tree: manifest.tree, index: index},
+    manifest: {tree: manifest.tree, index: index,
+               index_links: manifest.index_links},
     receivedAt: Date.now()
   }
 }
