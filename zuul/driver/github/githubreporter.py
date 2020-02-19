@@ -42,6 +42,7 @@ class GithubReporter(BaseReporter):
         super(GithubReporter, self).__init__(driver, connection, config)
         self._commit_status = self.config.get('status', None)
         self._create_comment = self.config.get('comment', True)
+        self._check = self.config.get('check', False)
         self._merge = self.config.get('merge', False)
         self._labels = self.config.get('label', [])
         if not isinstance(self._labels, list):
@@ -77,12 +78,22 @@ class GithubReporter(BaseReporter):
         # Comments, labels, and merges can only be performed on pull requests.
         # If the change is not a pull request (e.g. a push) skip them.
         if hasattr(item.change, 'number'):
-            if self._create_comment:
-                self.addPullComment(item)
+            errors_received = False
             if self._labels or self._unlabels:
                 self.setLabels(item)
             if self._review:
                 self.addReview(item)
+            if self._check:
+                check_errors = self.updateCheck(item)
+                # TODO (felix): We could use this mechanism to also report back
+                # errors from label and review actions
+                if check_errors:
+                    item.current_build_set.warning_messages.extend(
+                        check_errors
+                    )
+                    errors_received = True
+            if self._create_comment or errors_received:
+                self.addPullComment(item)
             if (self._merge):
                 self.mergePull(item)
                 if not item.change.is_merged:
@@ -194,6 +205,38 @@ class GithubReporter(BaseReporter):
             self.connection.unlabelPull(project, pr_number, label,
                                         zuul_event_id=item.event)
 
+    def updateCheck(self, item):
+        log = get_annotated_logger(self.log, item.event)
+        message = self._formatItemReport(item)
+        project = item.change.project.name
+        pr_number = item.change.number
+        sha = item.change.patchset
+
+        # Check if the buildset is finished or not. In case it's finished, we
+        # must provide additional parameters when updating the check_run via
+        # the Github API later on.
+        completed = item.current_build_set.result is not None
+        status = self._check
+
+        log.debug(
+            "Updating check for change %s, params %s, context %s, message: %s",
+            item.change, self.config, self.context, message
+        )
+
+        details_url = item.formatStatusUrl()
+
+        return self.connection.updateCheck(
+            project,
+            pr_number,
+            sha,
+            status,
+            completed,
+            self.context,
+            details_url,
+            message,
+            zuul_event_id=item.event,
+        )
+
     def setLabels(self, item):
         log = get_annotated_logger(self.log, item.event)
         project = item.change.project.name
@@ -244,9 +287,11 @@ class GithubReporter(BaseReporter):
         this reporter itself is likely to set before submitting.
         """
 
-        # check if we report a status, if not we can return an empty list
+        # check if we report a status or a check, if not we can return an
+        # empty list
         status = self.config.get('status')
-        if not status:
+        check = self.config.get("check")
+        if not any([status, check]):
             return []
 
         # we return a status so return the status we report to github
@@ -262,6 +307,7 @@ def getSchema():
         'label': scalar_or_list(str),
         'unlabel': scalar_or_list(str),
         'review': v.Any('approve', 'request-changes', 'comment'),
-        'review-body': str
+        'review-body': str,
+        'check': v.Any("in_progress", "success", "failure"),
     })
     return github_reporter

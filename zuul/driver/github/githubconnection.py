@@ -552,6 +552,58 @@ class GithubEventProcessor(object):
         event.status = "%s:%s:%s" % _status_as_tuple(self.body)
         return event
 
+    def _event_check_run(self):
+        """Handles check_run requests.
+
+        This maps to the "Re-run" action on a check run and the "Re-run failed
+        checks" on a check suite in Github.
+
+        This event should be handled similar to a PR commnent or a push.
+        """
+        action = self.body.get("action")
+
+        # NOTE (felix): We could also handle "requested" events here, which are
+        # sent by Github whenever a change is pushed. But as we are already
+        # listening to push events, this would result in two trigger events
+        # for the same Github event.
+        if action not in ["rerequested", "completed"]:
+            return
+
+        # The head_sha identifies the commit the check_run is requested for
+        # (similar to Github's status API).
+        check_run = self.body.get("check_run")
+        if not check_run:
+            # This shouldn't happen but in case something went wrong it should
+            # also not cause an exception in the event handling
+            return
+
+        project = self.body.get("repository", {}).get("full_name")
+        head_sha = check_run.get("head_sha")
+
+        # Zuul will only accept Github changes that are part of a PR, thus we
+        # must look up the PR first.
+        pr_body = self.connection.getPullBySha(
+            head_sha, project, self.zuul_event_id)
+        if pr_body is None:
+            self.log.debug(
+                "Could not find appropriate PR for SHA %s. "
+                "Skipping check_run event",
+                head_sha
+            )
+            return
+
+        # Build a trigger event for the check_run request
+        event = self._pull_request_to_event(pr_body)
+        event.type = "check_run"
+        # Simplify rerequested action to requested
+        if action == "rerequested":
+            action = "requested"
+        event.action = action
+
+        check_run = "%s:%s:%s" % _check_as_tuple(self.body["check_run"])
+        event.check_run = check_run
+        return event
+
     def _issue_to_pull_request(self, body):
         number = body.get('issue').get('number')
         project_name = body.get('repository').get('full_name')
@@ -1628,6 +1680,17 @@ class GithubConnection(BaseConnection):
         successful = set([s.context for s in commit.status().statuses
                           if s.state == 'success'])
 
+        if self.app_id:
+            try:
+                # Required contexts can be fulfilled by statuses or check runs.
+                successful.update([cr.name for cr in commit.check_runs()
+                                  if cr.conclusion == 'success'])
+            except github3.exceptions.GitHubException as exc:
+                self.log.error(
+                    "Unable to retrieve check runs for commit %s: %s",
+                    commit.sha, str(exc)
+                )
+
         # Required contexts must be a subset of the successful contexts as
         # we allow additional successful status contexts we don't care about.
         return required_contexts.issubset(successful)
@@ -1723,6 +1786,29 @@ class GithubConnection(BaseConnection):
         log.debug("Set commit status to %s for sha %s on %s",
                   state, sha, project)
 
+    def getCommitChecks(self, project_name, sha, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        if not self.app_id:
+            log.debug(
+                "Not authenticated as Github app. Unable to retrieve commit "
+                "checks for sha %s on %s",
+                sha, project_name
+            )
+            return []
+
+        github = self.getGithubClient(
+            project_name, zuul_event_id=zuul_event_id
+        )
+        url = github.session.build_url(
+            "repos", project_name, "commits", sha, "check-runs")
+        headers = {'Accept': 'application/vnd.github.antiope-preview+json'}
+        params = {"per_page": 100}
+        resp = github.session.get(url, params=params, headers=headers)
+        resp.raise_for_status()
+
+        log.debug("Got commit checks for sha %s on %s", sha, project_name)
+        return resp.json().get("check_runs", [])
+
     def reviewPull(self, project, pr_number, sha, review, body,
                    zuul_event_id=None):
         github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
@@ -1748,6 +1834,144 @@ class GithubConnection(BaseConnection):
         pull_request.remove_label(label)
         log.debug("Removed label %s from %s#%s", label, proj, pr_number)
 
+    def updateCheck(self, project, pr_number, sha, status, completed, context,
+                    details_url, message, zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
+        github = self.getGithubClient(project, zuul_event_id=zuul_event_id)
+        owner, proj = project.split("/")
+        repository = github.repository(owner, proj)
+
+        # Track a list of failed check run operations to report back to Github
+        errors = []
+
+        if not self.app_id:
+            # We don't try to update check runs, if we aren't authenticated as
+            # Github app at all. If we are, we still have to ensure that we
+            # don't crash on missing permissions.
+            log.debug(
+                "Not authenticated as Github app. Unable to create or update "
+                "check run '%s' for sha %s on %s",
+                context, sha, project
+            )
+
+            errors.append(
+                "Unable to create or update check {}. Must be authenticated "
+                "as app integration.".format(
+                    context
+                )
+            )
+            return errors
+
+        output = {"title": "Summary", "summary": message}
+
+        # Currently, the GithubReporter only supports start and end reporting.
+        # During the build no further update will be reported.
+        if completed:
+            # As the buildset itself does not provide a proper end time, we
+            # use the current time instead. Otherwise, we would have to query
+            # all builds contained in the buildset and search for the latest
+            # build.end_time available.
+            completed_at = datetime.datetime.now(utc).isoformat()
+
+            # When reporting the completion of a check_run, we must set the
+            # conclusion, as the status will always be "completed".
+            conclusion = status
+
+            # Unless something went wrong during the start reporting of this
+            # change (e.g. the check_run creation failed), there should already
+            # be a check_run available. If not we will create one.
+            check_runs = []
+            try:
+                check_runs = [
+                    c for c in repository.commit(sha).check_runs()
+                    if c.name == context
+                ]
+            except github3.exceptions.GitHubException as exc:
+                log.error(
+                    "Could not retrieve existing check runs for %s#%s on "
+                    "sha %s: %s",
+                    project, pr_number, sha, str(exc),
+                )
+
+            if not check_runs:
+                log.debug(
+                    "Could not find check run %s for %s#%s on sha %s. "
+                    "Creating a new one",
+                    context, project, pr_number, sha,
+                )
+
+                try:
+                    check_run = repository.create_check_run(
+                        name=context,
+                        head_sha=sha,
+                        conclusion=conclusion,
+                        completed_at=completed_at,
+                        output=output,
+                        details_url=details_url,
+                    )
+                except github3.exceptions.GitHubException as exc:
+                    # TODO (felix): Should we retry the check_run creation?
+                    log.error(
+                        "Failed to create check run %s for %s#%s on sha %s: "
+                        "%s",
+                        context, project, pr_number, sha, str(exc)
+                    )
+                    errors.append(
+                        "Failed to create check run {}: {}".format(
+                            context, str(exc)
+                        )
+                    )
+            else:
+                check_run = check_runs[0]
+                log.debug(
+                    "Updating existing check run %s for %s#%s on sha %s "
+                    "with status %s",
+                    context, project, pr_number, sha, status,
+                )
+
+                try:
+                    check_run.update(
+                        conclusion=conclusion,
+                        completed_at=completed_at,
+                        output=output,
+                        details_url=details_url,
+                    )
+                except github3.exceptions.GitHubException as exc:
+                    log.error(
+                        "Failed to update check run %s for %s#%s on sha %s: "
+                        "%s",
+                        context, project, pr_number, sha, str(exc),
+                    )
+                    errors.append(
+                        "Failed to update check run {}: {}".format(
+                            context, str(exc)
+                        )
+                    )
+
+        else:
+            # Report the start of a check run
+            try:
+                check_run = repository.create_check_run(
+                    name=context,
+                    head_sha=sha,
+                    status=status,
+                    output=output,
+                    details_url=details_url,
+                )
+            except github3.exceptions.GitHubException as exc:
+                # TODO (felix): Should we retry the check run creation?
+                log.error(
+                    "Failed to create check run %s for %s#%s on sha %s: %s",
+                    context, project, pr_number, sha, str(exc),
+                )
+                errors.append(
+                    "Failed to update check run {}: {}".format(
+                        context, str(exc)
+                    )
+                )
+
+        return errors
+
     def getPushedFileNames(self, event):
         files = set()
         for c in event.commits:
@@ -1768,8 +1992,7 @@ class GithubConnection(BaseConnection):
         # by user, so that we can require/trigger by user too.
         seen = []
         statuses = []
-        for status in self.getCommitStatuses(
-                project.name, sha, event):
+        for status in self.getCommitStatuses(project.name, sha, event):
             stuple = _status_as_tuple(status)
             if "%s:%s" % (stuple[0], stuple[1]) not in seen:
                 statuses.append("%s:%s:%s" % stuple)
@@ -1898,3 +2121,18 @@ def _status_as_tuple(status):
     context = status.get('context')
     state = status.get('state')
     return (user, context, state)
+
+
+def _check_as_tuple(check):
+    """Translate a check into a tuple of app, name, conclusion"""
+
+    # A check_run does not contain any "creator" information like a status, but
+    # only the app for/by which it was created.
+    app = check.get("app")
+    if app:
+        slug = app.get("slug")
+    else:
+        slug = "Unknown"
+    name = check.get("name")
+    conclusion = check.get("conclusion")
+    return (slug, name, conclusion)

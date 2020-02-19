@@ -76,6 +76,19 @@
         comment: true
 
 - pipeline:
+    name: trigger_check_run
+    manager: independent
+    trigger:
+      github:
+        - event: check_run
+          action: requested
+          check: zuul:tenant-one/check:.*
+    success:
+      github:
+        comment: true
+        check: success
+
+- pipeline:
     name: trigger
     manager: independent
     trigger:
@@ -350,6 +363,10 @@
     name: project14-current
     run: playbooks/project14-current.yaml
 
+- job:
+    name: project15-check-run
+    run: playbooks/project15-check-run.yaml
+
 - project:
     name: org/project1
     pipeline:
@@ -442,3 +459,9 @@
     reject_current:
       jobs:
         - project14-current
+
+- project:
+    name: org/project15
+    trigger_check_run:
+      jobs:
+        - project15-check-run

@@ -78,6 +78,25 @@
         comment: true
         status: failure
 
+- pipeline:
+    name: checks-api-reporting
+    description: Reporting via Githubs Checks API
+    manager: independent
+    trigger:
+      github:
+        - event: push
+        - event: pull_request
+          action: opened
+    start:
+      github:
+        check: in_progress
+    success:
+      github:
+        check: success
+    failure:
+      github:
+        check: failure
+
 - job:
     name: base
     parent: null
@@ -102,5 +121,11 @@
 - project:
     name: org/project2
     push-reporting:
+      jobs:
+        - project-test1
+
+- project:
+    name: org/project3
+    checks-api-reporting:
       jobs:
         - project-test1

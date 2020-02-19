@@ -135,6 +135,37 @@ class TestGithubRequirements(ZuulTestCase):
         self.assertEqual(len(self.history), 2)
         self.assertEqual(self.history[1].name, 'project2-trigger')
 
+    @simple_layout("layouts/requirements-github.yaml", driver="github")
+    def test_trigger_on_check_run(self):
+        """Test trigger on: check_run"""
+        project = "org/project15"
+        A = self.fake_github.openFakePullRequest(project, "master", "A")
+
+        # A check_run request with a different name should not cause it to be
+        # enqueued.
+        self.fake_github.emitEvent(
+            A.getCheckRunRequestedEvent("tenant-one/different-check")
+        )
+        self.waitUntilSettled()
+        self.assertEqual(len(self.history), 0)
+
+        # A check_run request with the correct name, but for a different app
+        # should not cause it to be enqueued.
+        self.fake_github.emitEvent(
+            A.getCheckRunRequestedEvent("tenant-one/check", app="other-ci")
+        )
+        self.waitUntilSettled()
+        self.assertEqual(len(self.history), 0)
+
+        # A check_run request with the correct name for the correct app should
+        # cause it to be enqueued.
+        self.fake_github.emitEvent(
+            A.getCheckRunRequestedEvent("tenant-one/check"))
+
+        self.waitUntilSettled()
+        self.assertEqual(len(self.history), 1)
+        self.assertEqual(self.history[0].name, "project15-check-run")
+
     @simple_layout('layouts/requirements-github.yaml', driver='github')
     def test_pipeline_require_review_username(self):
         "Test pipeline requirement: review username"

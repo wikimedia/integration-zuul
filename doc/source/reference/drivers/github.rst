@@ -59,6 +59,7 @@ To create a `GitHub application
 * Set permissions:
 
   * Repository administration: Read
+  * Checks: Read & Write
   * Repository contents: Read & Write (write to let zuul merge change)
   * Issues: Read & Write
   * Pull requests: Read & Write
@@ -66,6 +67,7 @@ To create a `GitHub application
 
 * Set events subscription:
 
+  * Check run
   * Commit comment
   * Create
   * Push
@@ -203,6 +205,8 @@ the following options.
 
       .. value:: push
 
+      .. value:: check_run
+
    .. attr:: action
 
       A :value:`pipeline.trigger.<github source>.event.pull_request`
@@ -254,6 +258,18 @@ the following options.
 
          Pull request review removed.
 
+      A :value:`pipeline.trigger.<github source>.event.check_run`
+      event will have associated action(s) to trigger from. The
+      supported actions are:
+
+      .. value:: requested
+
+         A check run is requested.
+
+      .. value:: completed
+
+         A check run completed.
+
    .. attr:: branch
 
       The branch associated with the event. Example: ``master``.  This
@@ -295,6 +311,23 @@ the following options.
       format of ``user:context:status``.  For example,
       ``zuul_github_ci_bot:check_pipeline:success``.
 
+   .. attr: check
+
+      This is only used for ``check_run`` events. It works similar to
+      the ``status`` attribute and accepts a list of strings each of
+      which matches the app requesting or updating the check run, the
+      check run's name and the conclusion in the format of
+      ``app:name::conclusion``.
+      To make Zuul properly interact with Github's checks API, each
+      pipeline that is using the checks API should have at least one
+      trigger that matches the pipeline's name regardless of the result,
+      e.g. ``zuul:cool-pipeline:.*``. This will enable the cool-pipeline
+      to trigger whenever a user requests the ``cool-pipeline`` check
+      run as part of the ``zuul`` check suite.
+      Additionally, one could use ``.*:success`` to trigger a pipeline
+      whenever a successful check run is reported (e.g. useful for
+      gating).
+
    .. attr:: ref
 
       This is only used for ``push`` events. This field is treated as
@@ -329,6 +362,12 @@ itself. Status name, description, and context is taken from the pipeline.
       String value for a link url to set in the github
       status. Defaults to the zuul server status_url, or the empty
       string if that is unset.
+
+   .. attr:: check
+
+      If the reporter should utilize github's checks API to set the commit
+      status, this must be set to ``in_progress``, ``success`` or ``failure``
+      (depending on which status the reporter should report).
 
    .. attr:: comment
       :default: true
