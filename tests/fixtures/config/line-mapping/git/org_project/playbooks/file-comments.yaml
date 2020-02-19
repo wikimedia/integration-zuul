@@ -7,3 +7,10 @@
               README:
                 - line: 15
                   message: interesting comment
+                - line: 15
+                  message: That's a cool section
+                  range:
+                    start_line: 12
+                    start_character: 0
+                    end_line: 15
+                    end_character: 26

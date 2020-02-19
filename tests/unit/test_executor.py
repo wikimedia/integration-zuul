@@ -760,7 +760,7 @@ class TestLineMapping(AnsibleZuulTestCase):
         self.waitUntilSettled()
         self.assertEqual(self.getJobFromHistory('file-comments').result,
                          'SUCCESS')
-        self.assertEqual(len(A.comments), 1)
+        self.assertEqual(len(A.comments), 2)
         comments = sorted(A.comments, key=lambda x: x['line'])
         self.assertEqual(comments[0],
                          {'file': 'README',
@@ -769,6 +769,25 @@ class TestLineMapping(AnsibleZuulTestCase):
                           'reviewer': {'email': 'zuul@example.com',
                                        'name': 'Zuul',
                                        'username': 'jenkins'}}
+        )
+        self.assertEqual(
+            comments[1],
+            {
+                "file": "README",
+                "line": 14,
+                "message": "That's a cool section",
+                "range": {
+                    "end_character": 26,
+                    "end_line": 14,
+                    "start_character": 0,
+                    "start_line": 12
+                },
+                "reviewer": {
+                    "email": "zuul@example.com",
+                    "name": "Zuul",
+                    "username": "jenkins"
+                }
+            }
         )
 
 
