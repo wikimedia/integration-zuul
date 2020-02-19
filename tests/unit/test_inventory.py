@@ -32,6 +32,8 @@ class TestInventoryBase(ZuulTestCase):
         if python_path:
             self.fake_nodepool.python_path = python_path
         self.executor_server.hold_jobs_in_build = True
+        self.gearman_server.hold_jobs_in_queue = True
+
         if self.use_gerrit:
             A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
             self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
@@ -42,16 +44,35 @@ class TestInventoryBase(ZuulTestCase):
 
         self.waitUntilSettled()
 
+    def tearDown(self):
+        self.cancelExecutorJobs()
+        self.waitUntilSettled()
+        super(TestInventoryBase, self).tearDown()
+
     def _get_build_inventory(self, name):
+        self.runJob(name)
+
         build = self.getBuildByName(name)
         inv_path = os.path.join(build.jobdir.root, 'ansible', 'inventory.yaml')
         return yaml.safe_load(open(inv_path, 'r'))
 
     def _get_setup_inventory(self, name):
+        self.runJob(name)
+
         build = self.getBuildByName(name)
         setup_inv_path = os.path.join(build.jobdir.root, 'ansible',
                                       'setup-inventory.yaml')
         return yaml.safe_load(open(setup_inv_path, 'r'))
+
+    def runJob(self, name):
+        self.gearman_server.hold_jobs_in_queue = False
+        self.gearman_server.release('^%s$' % name)
+        self.waitUntilSettled()
+
+    def cancelExecutorJobs(self):
+        builds = [b for b in self.executor_client.builds.values()]
+        for build in builds:
+            self.executor_client.cancelJobInQueue(build)
 
 
 class TestInventoryGithub(TestInventoryBase):
