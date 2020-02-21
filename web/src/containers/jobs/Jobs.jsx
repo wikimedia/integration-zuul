@@ -114,7 +114,7 @@ class JobsList extends React.Component {
     let filtered = false
     if (filter) {
       filtered = true
-      let filters = filter.replace(/ +/, ',').split(',')
+      let filters = filter.replace(/ +/g, ',').split(',')
       for (let job of jobs) {
         filters.forEach(jobFilter => {
          if (jobFilter && (
