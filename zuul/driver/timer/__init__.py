@@ -93,9 +93,15 @@ class TimerDriver(Driver, TriggerInterface):
                             pipeline.name)
                         continue
 
+                    # The 'misfire_grace_time' argument is set to None to
+                    # disable checking if the job missed its run time window.
+                    # This ensures we don't miss a trigger when the job is
+                    # delayed due to e.g. high scheduler load. Those short
+                    # delays are not a problem for our trigger use-case.
                     job = self.apsched.add_job(
                         self._onTrigger, trigger=trigger,
-                        args=(tenant, pipeline.name, timespec,))
+                        args=(tenant, pipeline.name, timespec,),
+                        misfire_grace_time=None)
                     jobs.append(job)
 
     def _onTrigger(self, tenant, pipeline_name, timespec):
