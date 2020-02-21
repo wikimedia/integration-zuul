@@ -18,3 +18,4 @@ for those changes and help us work on them collaboratively.
    logs
    tenant-scoped-admin-web-API
    kubernetes-operator
+   circular-dependencies
