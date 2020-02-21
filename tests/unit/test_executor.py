@@ -819,10 +819,11 @@ class TestExecutorFacts(AnsibleZuulTestCase):
 class TestExecutorStart(ZuulTestCase):
     tenant_config_file = 'config/single-tenant/main.yaml'
 
-    def setup_config(self):
-        super(TestExecutorStart, self).setup_config()
+    def setup_config(self, config_file: str):
+        config = super(TestExecutorStart, self).setup_config(config_file)
         self.junk_dir = os.path.join(self.jobdir_root, 'junk')
         os.makedirs(self.junk_dir)
+        return config
 
     def test_executor_start(self):
         self.assertFalse(os.path.exists(self.junk_dir))

@@ -72,9 +72,10 @@ class TestSchedulerZone(ZuulTestCase):
         super(TestSchedulerZone, self).setUp()
         self.fake_nodepool.attributes = {'executor-zone': 'test-provider.vpn'}
 
-    def setup_config(self):
-        super(TestSchedulerZone, self).setup_config()
-        self.config.set('executor', 'zone', 'test-provider.vpn')
+    def setup_config(self, config_file: str):
+        config = super(TestSchedulerZone, self).setup_config(config_file)
+        config.set('executor', 'zone', 'test-provider.vpn')
+        return config
 
     def test_jobs_executed(self):
         "Test that jobs are executed and a change is merged per zone"

@@ -726,12 +726,11 @@ class TestGerritCRD(ZuulTestCase):
 class TestGerritCRDAltBaseUrl(ZuulTestCase):
     tenant_config_file = 'config/single-tenant/main.yaml'
 
-    def setup_config(self):
-        super().setup_config()
+    def setup_config(self, config_file: str):
+        config = super(TestGerritCRDAltBaseUrl, self).setup_config(config_file)
         self.baseurl = 'https://review.example.com/prefixed_gerrit_ui/'
-        self.config.set(
-            'connection gerrit',
-            'baseurl', self.baseurl)
+        config.set('connection gerrit', 'baseurl', self.baseurl)
+        return config
 
     def test_basic_crd_check(self):
         "Test basic cross-repo dependencies with an alternate gerrit baseurl"

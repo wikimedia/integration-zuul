@@ -29,9 +29,10 @@ class TestGitDriver(ZuulTestCase):
         self.git_connection = self.sched.connections.getSource('git').\
             connection
 
-    def setup_config(self):
-        super(TestGitDriver, self).setup_config()
-        self.config.set('connection git', 'baseurl', self.upstream_root)
+    def setup_config(self, config_file: str):
+        config = super(TestGitDriver, self).setup_config(config_file)
+        config.set('connection git', 'baseurl', self.upstream_root)
+        return config
 
     def test_basic(self):
         tenant = self.sched.abide.tenants.get('tenant-one')
