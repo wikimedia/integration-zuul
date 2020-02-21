@@ -129,12 +129,12 @@ class CallbackModule(default.CallbackModule):
             else:
                 self._display.display(msg)
 
-    def _read_log(self, host, ip, log_id, task_name, hosts):
+    def _read_log(self, host, ip, port, log_id, task_name, hosts):
         self._log("[%s] Starting to log %s for task %s"
                   % (host, log_id, task_name), job=False, executor=True)
         while True:
             try:
-                s = socket.create_connection((ip, LOG_STREAM_PORT), 5)
+                s = socket.create_connection((ip, port), 5)
                 # Disable the socket timeout after we have successfully
                 # connected to accomodate the fact that jobs may not be writing
                 # logs continously. Without this we can easily trip the 5
@@ -144,12 +144,12 @@ class CallbackModule(default.CallbackModule):
                 self._log(
                     "Timeout exception waiting for the logger. "
                     "Please check connectivity to [%s:%s]"
-                    % (ip, LOG_STREAM_PORT), executor=True)
+                    % (ip, port), executor=True)
                 self._log_streamline(
                     "localhost",
                     "Timeout exception waiting for the logger. "
                     "Please check connectivity to [%s:%s]"
-                    % (ip, LOG_STREAM_PORT))
+                    % (ip, port))
                 return
             except Exception:
                 self._log("[%s] Waiting on logger" % host,
@@ -254,6 +254,7 @@ class CallbackModule(default.CallbackModule):
 
             hosts = self._get_task_hosts(task)
             for host, inventory_hostname in hosts:
+                port = LOG_STREAM_PORT
                 if host in ('localhost', '127.0.0.1'):
                     # Don't try to stream from localhost
                     continue
@@ -267,14 +268,21 @@ class CallbackModule(default.CallbackModule):
                     # Don't try to stream from loops
                     continue
                 if play_vars[host].get('ansible_connection') in ('kubectl', ):
-                    # Don't try to stream from kubectl connection
-                    continue
+                    # Stream from the forwarded port on kubectl conns
+                    port = play_vars[host]['zuul']['resources'][
+                        inventory_hostname].get('stream_port')
+                    if port is None:
+                        self._log("[Zuul] Kubectl and socat must be installed "
+                                  "on the Zuul executor for streaming output "
+                                  "from pods")
+                        continue
+                    ip = '127.0.0.1'
 
                 log_id = "%s-%s" % (
                     task._uuid, paths._sanitize_filename(inventory_hostname))
                 streamer = threading.Thread(
                     target=self._read_log, args=(
-                        host, ip, log_id, task_name, hosts))
+                        host, ip, port, log_id, task_name, hosts))
                 streamer.daemon = True
                 streamer.start()
                 self._streamers.append(streamer)

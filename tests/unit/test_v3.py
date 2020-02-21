@@ -5507,6 +5507,10 @@ class TestContainerJobs(AnsibleZuulTestCase):
     tenant_config_file = "config/container-build-resources/main.yaml"
 
     def test_container_jobs(self):
+        self.patch(zuul.executor.server.KubeFwd,
+                   'kubectl_command',
+                   os.path.join(FIXTURE_DIR, 'fake_kubectl.sh'))
+
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
