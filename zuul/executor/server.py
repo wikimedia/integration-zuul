@@ -60,6 +60,13 @@ DEFAULT_FINGER_PORT = 7900
 DEFAULT_STREAM_PORT = 19885
 BLACKLISTED_ANSIBLE_CONNECTION_TYPES = [
     'network_cli', 'kubectl', 'project', 'namespace']
+BLACKLISTED_VARS = dict(
+    ansible_ssh_executable='ssh',
+    ansible_ssh_common_args='-o PermitLocalCommand=no',
+    ansible_sftp_extra_args='-o PermitLocalCommand=no',
+    ansible_scp_extra_args='-o PermitLocalCommand=no',
+    ansible_ssh_extra_args='-o PermitLocalCommand=no',
+)
 
 
 class StopException(Exception):
@@ -351,6 +358,7 @@ class JobDir(object):
         #     logging.json
         #     inventory.yaml
         #     extra_vars.yaml
+        #     vars_blacklist.yaml
         #   .ansible (mounted in bwrap read-write)
         #     fact-cache/localhost
         #     cp
@@ -397,6 +405,10 @@ class JobDir(object):
         os.makedirs(self.local_tmp)
         self.ansible_root = os.path.join(self.root, 'ansible')
         os.makedirs(self.ansible_root)
+        self.ansible_vars_blacklist = os.path.join(
+            self.ansible_root, 'vars_blacklist.yaml')
+        with open(self.ansible_vars_blacklist, 'w') as blacklist:
+            blacklist.write(json.dumps(BLACKLISTED_VARS))
         self.trusted_root = os.path.join(self.root, 'trusted')
         os.makedirs(self.trusted_root)
         self.untrusted_root = os.path.join(self.root, 'untrusted')
@@ -2347,6 +2359,8 @@ class AnsibleJob(object):
 
         if self.executor_variables_file is not None:
             cmd.extend(['-e@%s' % self.executor_variables_file])
+
+        cmd.extend(['-e', '@' + self.jobdir.ansible_vars_blacklist])
 
         self.emitPlaybookBanner(playbook, 'START', phase)
 
