@@ -260,6 +260,16 @@ class SshAgent(object):
             self.log.debug('Sent SIGTERM to SSH Agent, {}'.format(self.env))
             self.env = {}
 
+    def __del__(self):
+        try:
+            self.stop()
+        except Exception:
+            self.log.exception('Exception in SshAgent destructor')
+        try:
+            super().__del__(self)
+        except AttributeError:
+            pass
+
     def add(self, key_path):
         env = os.environ.copy()
         env.update(self.env)
