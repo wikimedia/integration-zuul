@@ -13,6 +13,7 @@
 import fixtures
 import logging
 import subprocess
+import sys
 import tempfile
 import testtools
 import time
@@ -21,6 +22,7 @@ import os
 from zuul.driver import bubblewrap
 from zuul.executor.server import SshAgent
 from tests.base import iterate_timeout
+from unittest import skipIf
 
 
 class TestBubblewrap(testtools.TestCase):
@@ -53,6 +55,7 @@ class TestBubblewrap(testtools.TestCase):
         # Make sure the _r's are closed
         self.assertEqual([], po.fds)
 
+    @skipIf(sys.platform == 'darwin', 'Not supported on MacOS')
     def test_bubblewrap_leak(self):
         bwrap = bubblewrap.BubblewrapDriver()
         context = bwrap.getExecutionContext()
