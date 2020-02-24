@@ -274,7 +274,7 @@ class TestGerritToGithubCRD(ZuulTestCase):
         self.assertEqual(changes, '1,%s 1,1' %
                          (B.head_sha,))
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(len(tenant.layout.pipelines['check'].queues), 0)
 
     def test_crd_check_duplicate(self):
@@ -288,7 +288,7 @@ class TestGerritToGithubCRD(ZuulTestCase):
         # A Depends-On: B
         A.data['commitMessage'] = '%s\n\nDepends-On: %s\n' % (
             A.subject, B.url)
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         # Add two dependent changes...
@@ -350,7 +350,7 @@ class TestGerritToGithubCRD(ZuulTestCase):
 
         # Make sure the items still share a change queue, and the
         # first one is not live.
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(len(tenant.layout.pipelines['check'].queues), 1)
         queue = tenant.layout.pipelines['check'].queues[0]
         first_item = queue.queue[0]
@@ -725,7 +725,7 @@ class TestGithubToGerritCRD(ZuulTestCase):
         self.assertEqual(changes, '1,1 1,%s' %
                          (A.head_sha,))
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(len(tenant.layout.pipelines['check'].queues), 0)
 
     def test_crd_check_duplicate(self):
@@ -738,7 +738,7 @@ class TestGithubToGerritCRD(ZuulTestCase):
 
         # A Depends-On: B
         A.editBody('Depends-On: %s\n' % (B.data['url'],))
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         # Add two dependent changes...
@@ -799,7 +799,7 @@ class TestGithubToGerritCRD(ZuulTestCase):
 
         # Make sure the items still share a change queue, and the
         # first one is not live.
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(len(tenant.layout.pipelines['check'].queues), 1)
         queue = tenant.layout.pipelines['check'].queues[0]
         first_item = queue.queue[0]

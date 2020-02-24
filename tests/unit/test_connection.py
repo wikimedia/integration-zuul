@@ -122,7 +122,7 @@ class TestSQLConnection(ZuulDBTestCase):
 
         def check_results(connection_name):
             # Grab the sa tables
-            tenant = self.sched.abide.tenants.get('tenant-one')
+            tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
             reporter = _get_reporter_from_connection_name(
                 tenant.layout.pipelines['check'].success_actions,
                 connection_name
@@ -241,7 +241,7 @@ class TestSQLConnection(ZuulDBTestCase):
 
         def check_results(connection_name_1, connection_name_2):
             # Grab the sa tables for resultsdb
-            tenant = self.sched.abide.tenants.get('tenant-one')
+            tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
             reporter1 = _get_reporter_from_connection_name(
                 tenant.layout.pipelines['check'].success_actions,
                 connection_name_1

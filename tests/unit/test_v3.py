@@ -1139,7 +1139,7 @@ class TestInRepoConfig(ZuulTestCase):
                                            files=file_dict)
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEquals(
             len(tenant.layout.loading_errors), 0,
             "No error should have been accumulated")
@@ -1233,7 +1233,7 @@ class TestInRepoConfig(ZuulTestCase):
     def test_dynamic_config_new_patchset(self):
         self.executor_server.hold_jobs_in_build = True
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         in_repo_conf = textwrap.dedent(
@@ -2186,7 +2186,7 @@ class TestInRepoConfig(ZuulTestCase):
         self.fake_gerrit.addEvent(B.getChangeMergedEvent())
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         # Ensure the latest change is reflected in the config; if it
         # isn't this will raise an exception.
         tenant.layout.getJob('project-test2')
@@ -2536,7 +2536,7 @@ class TestInRepoJoin(ZuulTestCase):
         # dependent pipeline for the first time
         self.executor_server.hold_jobs_in_build = True
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         gate_pipeline = tenant.layout.pipelines['gate']
         self.assertEqual(gate_pipeline.queues, [])
 
@@ -3083,7 +3083,7 @@ class TestBrokenTrustedConfig(ZuulTestCase):
 
     def test_broken_config_on_startup(self):
         # verify get the errors at tenant level.
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         loading_errors = tenant.layout.loading_errors
         self.assertEquals(
             len(tenant.layout.loading_errors), 1,
@@ -3140,7 +3140,7 @@ class TestBrokenConfig(ZuulTestCase):
 
     def test_broken_config_on_startup(self):
         # verify get the errors at tenant level.
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         loading_errors = tenant.layout.loading_errors
         self.assertEquals(
             len(tenant.layout.loading_errors), 2,
@@ -3156,7 +3156,7 @@ class TestBrokenConfig(ZuulTestCase):
     def test_broken_config_on_startup_template(self):
         # Verify that a missing project-template doesn't break gate
         # pipeline construction.
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEquals(
             len(tenant.layout.loading_errors), 1,
             "An error should have been stored")
@@ -3167,7 +3167,7 @@ class TestBrokenConfig(ZuulTestCase):
     @simple_layout('layouts/broken-double-gate.yaml')
     def test_broken_config_on_startup_double_gate(self):
         # Verify that duplicated pipeline definitions raise config errors
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEquals(
             len(tenant.layout.loading_errors), 1,
             "An error should have been stored")
@@ -3177,7 +3177,7 @@ class TestBrokenConfig(ZuulTestCase):
 
     def test_dynamic_ignore(self):
         # Verify dynamic config behaviors inside a tenant broken config
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         # There is a configuration error
         self.assertEquals(
             len(tenant.layout.loading_errors), 2,
@@ -3209,7 +3209,7 @@ class TestBrokenConfig(ZuulTestCase):
 
     def test_dynamic_fail_unbroken(self):
         # Verify dynamic config behaviors inside a tenant broken config
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         # There is a configuration error
         self.assertEquals(
             len(tenant.layout.loading_errors), 2,
@@ -3243,7 +3243,7 @@ class TestBrokenConfig(ZuulTestCase):
 
     def test_dynamic_fail_broken(self):
         # Verify dynamic config behaviors inside a tenant broken config
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         # There is a configuration error
         self.assertEquals(
             len(tenant.layout.loading_errors), 2,
@@ -3277,7 +3277,7 @@ class TestBrokenConfig(ZuulTestCase):
 
     def test_dynamic_fix_broken(self):
         # Verify dynamic config behaviors inside a tenant broken config
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         # There is a configuration error
         self.assertEquals(
             len(tenant.layout.loading_errors), 2,
@@ -3309,7 +3309,7 @@ class TestBrokenConfig(ZuulTestCase):
 
     def test_dynamic_fail_cross_repo(self):
         # Verify dynamic config behaviors inside a tenant broken config
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         # There is a configuration error
         self.assertEquals(
             len(tenant.layout.loading_errors), 2,
@@ -3735,7 +3735,7 @@ class TestDataReturn(AnsibleZuulTestCase):
         self.waitUntilSettled()
 
         # Make sure skipped jobs are not reported as failing
-        tenant = self.sched.abide.tenants.get("tenant-one")
+        tenant = self.scheds.first.sched.abide.tenants.get("tenant-one")
         status = tenant.layout.pipelines["check"].formatStatusJSON()
         self.assertEqual(
             status["change_queues"][0]["heads"][0][0]["failing_reasons"], [])
@@ -4042,7 +4042,7 @@ class TestPragma(ZuulTestCase):
 
         # This is an untrusted repo with 2 branches, so it should have
         # an implied branch matcher for the job.
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         jobs = tenant.layout.getJobs('test-job')
         self.assertEqual(len(jobs), 1)
         for job in tenant.layout.getJobs('test-job'):
@@ -4070,7 +4070,7 @@ class TestPragma(ZuulTestCase):
         # This is an untrusted repo with 2 branches, so it would
         # normally have an implied branch matcher, but our pragma
         # overrides it.
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         jobs = tenant.layout.getJobs('test-job')
         self.assertEqual(len(jobs), 1)
         for job in tenant.layout.getJobs('test-job'):

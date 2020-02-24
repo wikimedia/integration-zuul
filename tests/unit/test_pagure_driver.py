@@ -214,10 +214,12 @@ class TestPagureDriver(ZuulTestCase):
         newrev = repo.commit('refs/heads/stable-1.0').hexsha
         event = self.fake_pagure.getGitBranchEvent(
             'org/project', 'stable-1.0', 'creation', newrev)
-        old = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        old = self.scheds.first.sched.tenant_last_reconfigured\
+            .get('tenant-one', 0)
         self.fake_pagure.emitEvent(event)
         self.waitUntilSettled()
-        new = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        new = self.scheds.first.sched.tenant_last_reconfigured\
+            .get('tenant-one', 0)
         # New timestamp should be greater than the old timestamp
         self.assertLess(old, new)
         self.assertEqual(1, len(self.history))
@@ -245,7 +247,8 @@ class TestPagureDriver(ZuulTestCase):
     def test_ref_updated_and_tenant_reconfigure(self):
 
         self.waitUntilSettled()
-        old = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        old = self.scheds.first.sched.tenant_last_reconfigured\
+            .get('tenant-one', 0)
 
         zuul_yaml = [
             {'job': {
@@ -271,7 +274,8 @@ class TestPagureDriver(ZuulTestCase):
         self.fake_pagure.emitEvent(event)
         self.waitUntilSettled()
 
-        new = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        new = self.scheds.first.sched.tenant_last_reconfigured\
+            .get('tenant-one', 0)
         # New timestamp should be greater than the old timestamp
         self.assertLess(old, new)
 
@@ -325,7 +329,7 @@ class TestPagureDriver(ZuulTestCase):
 
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
         self.assertEqual(check_pipeline.getAllItems(), [])
         self.assertEqual(self.countJobResults(self.history, 'ABORTED'), 2)
@@ -587,7 +591,7 @@ class TestPagureDriver(ZuulTestCase):
                                                    B.commit_stop))
 
         # There should be no more changes in the queue
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(len(tenant.layout.pipelines['check'].queues), 0)
 
     @simple_layout('layouts/crd-pagure.yaml', driver='pagure')

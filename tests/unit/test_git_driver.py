@@ -26,8 +26,8 @@ class TestGitDriver(ZuulTestCase):
 
     def setUp(self):
         super(TestGitDriver, self).setUp()
-        self.git_connection = self.sched.connections.getSource('git').\
-            connection
+        self.git_connection = self.scheds.first.sched.connections\
+            .getSource('git').connection
 
     def setup_config(self, config_file: str):
         config = super(TestGitDriver, self).setup_config(config_file)
@@ -35,7 +35,7 @@ class TestGitDriver(ZuulTestCase):
         return config
 
     def test_basic(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         # Check that we have the git source for common-config and the
         # gerrit source for the project.
         self.assertEqual('git', tenant.config_projects[0].source.name)
@@ -91,8 +91,8 @@ class TestGitDriver(ZuulTestCase):
         # Let's stop the git Watcher to let us merge some changes commits
         # We want to verify that config changes are detected for commits
         # on the range oldrev..newrev
-        self.sched.connections.getSource('git').connection.\
-            watcher_thread._pause = True
+        self.scheds.first.sched.connections.getSource('git').connection\
+            .watcher_thread._pause = True
         # Add a config change
         change = {
             'name': 'org/project',
@@ -114,8 +114,8 @@ class TestGitDriver(ZuulTestCase):
             'common-config', 'Adding f2',
             {'f2': "Content"})
         # Restart the git watcher
-        self.sched.connections.getSource('git').connection.\
-            watcher_thread._pause = False
+        self.scheds.first.sched.connections.getSource('git').connection\
+            .watcher_thread._pause = False
 
         # Wait for the tenant reconfiguration to happen
         self.waitForEvent(count)

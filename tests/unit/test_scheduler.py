@@ -26,6 +26,7 @@ from kazoo.exceptions import NoNodeError
 
 import git
 import testtools
+from zuul.scheduler import Scheduler
 
 import zuul.change_matcher
 from zuul.driver.gerrit import gerritreporter
@@ -797,7 +798,7 @@ class TestScheduler(ZuulTestCase):
         # project-test1 and project-test2 for C
         self.assertEqual(len(self.builds), 5)
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         items = tenant.layout.pipelines['gate'].getAllItems()
         builds = items[0].current_build_set.getBuilds()
         self.assertEqual(self.countJobResults(builds, 'SUCCESS'), 1)
@@ -908,7 +909,8 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         time.sleep(2)
 
-        data = json.loads(self.sched.formatStatusJSON('tenant-one'))
+        data = json.loads(self.scheds.first.sched
+                          .formatStatusJSON('tenant-one'))
         found_job = None
         for pipeline in data['pipelines']:
             if pipeline['name'] != 'gate':
@@ -1224,7 +1226,7 @@ class TestScheduler(ZuulTestCase):
         "Test whether a change is ready to merge"
         # TODO: move to test_gerrit (this is a unit test!)
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         (trusted, project) = tenant.getProject('org/project')
         source = project.source
 
@@ -2137,10 +2139,10 @@ class TestScheduler(ZuulTestCase):
 
     @simple_layout('layouts/autohold.yaml')
     def test_autohold_request_expiration(self):
-        orig_exp = self.sched.EXPIRED_HOLD_REQUEST_TTL
+        orig_exp = Scheduler.EXPIRED_HOLD_REQUEST_TTL
 
         def reset_exp():
-            self.sched.EXPIRED_HOLD_REQUEST_TTL = orig_exp
+            self.scheds.first.sched.EXPIRED_HOLD_REQUEST_TTL = orig_exp
 
         self.addCleanup(reset_exp)
 
@@ -2171,7 +2173,7 @@ class TestScheduler(ZuulTestCase):
         # Temporarily shorten hold time so that the hold request can be
         # auto-deleted (which is done on another test failure). And wait
         # long enough for nodes to expire and request to delete.
-        self.sched.EXPIRED_HOLD_REQUEST_TTL = 1
+        self.scheds.first.sched.EXPIRED_HOLD_REQUEST_TTL = 1
         time.sleep(3)
 
         B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
@@ -2317,7 +2319,7 @@ class TestScheduler(ZuulTestCase):
         "Test that the merger works with large changes after a repack"
         # https://bugs.executepad.net/zuul/+bug/1078946
         # This test assumes the repo is already cloned; make sure it is
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         trusted, project = tenant.getProject('org/project')
         url = self.fake_gerrit.getGitUrl(project)
         self.executor_server.merger._addProject('review.example.com',
@@ -2399,7 +2401,7 @@ class TestScheduler(ZuulTestCase):
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         # Add two git-dependent changes
@@ -2520,7 +2522,7 @@ class TestScheduler(ZuulTestCase):
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         # Add two git-dependent changes
@@ -2746,7 +2748,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
 
         self.assertEqual(len(self.gearman_server.getQueue()), 0)
-        self.assertTrue(self.sched._areAllBuildsComplete())
+        self.assertTrue(self.scheds.first.sched._areAllBuildsComplete())
         self.assertEqual(len(self.history), 0)
         self.assertEqual(A.data['status'], 'MERGED')
         self.assertEqual(A.reported, 2)
@@ -2763,7 +2765,7 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(A.reported, False)
 
         # Check queue is empty afterwards
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
         items = check_pipeline.getAllItems()
         self.assertEqual(len(items), 0)
@@ -2859,7 +2861,7 @@ class TestScheduler(ZuulTestCase):
 
     def test_statsd(self):
         "Test each of the statsd methods used in the scheduler"
-        statsd = self.sched.statsd
+        statsd = self.scheds.first.sched.statsd
         statsd.incr('test-incr')
         statsd.timing('test-timing', 3)
         statsd.gauge('test-gauge', 12)
@@ -2878,7 +2880,7 @@ class TestScheduler(ZuulTestCase):
         self.assertReportedStat('hostname-gauge.1_2_3_4.1_2', '12', 'g')
 
     def test_statsd_conflict(self):
-        statsd = self.sched.statsd
+        statsd = self.scheds.first.sched.statsd
         statsd.gauge('test-gauge', 12)
         # since test-gauge is already a value, we can't make
         # subvalues.  Test the assert works.
@@ -2907,7 +2909,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         # asserting that project-merge is removed from queue
         self.assertEqual(len(self.gearman_server.getQueue()), 0)
-        self.assertTrue(self.sched._areAllBuildsComplete())
+        self.assertTrue(self.scheds.first.sched._areAllBuildsComplete())
 
         self.assertEqual(len(self.history), 1)
         self.assertEqual(self.history[0].name, 'gate-noop')
@@ -3149,7 +3151,7 @@ class TestScheduler(ZuulTestCase):
 
     def test_queue_names(self):
         "Test shared change queue names"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         (trusted, project1) = tenant.getProject('org/project1')
         (trusted, project2) = tenant.getProject('org/project2')
         q1 = tenant.layout.pipelines['gate'].getQueue(project1)
@@ -3160,7 +3162,7 @@ class TestScheduler(ZuulTestCase):
     @simple_layout("layouts/template-queue.yaml")
     def test_template_queue(self):
         "Test a shared queue can be constructed from a project-template"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         (trusted, project1) = tenant.getProject('org/project1')
         (trusted, project2) = tenant.getProject('org/project2')
         q1 = tenant.layout.pipelines['gate'].getQueue(project1)
@@ -3171,7 +3173,7 @@ class TestScheduler(ZuulTestCase):
     @simple_layout("layouts/regex-template-queue.yaml")
     def test_regex_template_queue(self):
         "Test a shared queue can be constructed from a regex project-template"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         (trusted, project1) = tenant.getProject('org/project1')
         (trusted, project2) = tenant.getProject('org/project2')
         q1 = tenant.layout.pipelines['gate'].getQueue(project1)
@@ -3182,7 +3184,7 @@ class TestScheduler(ZuulTestCase):
     @simple_layout("layouts/regex-queue.yaml")
     def test_regex_queue(self):
         "Test a shared queue can be constructed from a regex project"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         (trusted, project1) = tenant.getProject('org/project1')
         (trusted, project2) = tenant.getProject('org/project2')
         q1 = tenant.layout.pipelines['gate'].getQueue(project1)
@@ -3221,24 +3223,28 @@ class TestScheduler(ZuulTestCase):
     def test_reconfigure_merge(self):
         """Test that two reconfigure events are merged"""
 
-        tenant = self.sched.abide.tenants['tenant-one']
+        tenant = self.scheds.first.sched.abide.tenants['tenant-one']
         (trusted, project) = tenant.getProject('org/project')
 
-        self.sched.run_handler_lock.acquire()
-        self.assertEqual(self.sched.management_event_queue.qsize(), 0)
+        self.scheds.first.sched.run_handler_lock.acquire()
+        self.assertEqual(
+            self.scheds.first.sched.management_event_queue.qsize(), 0)
 
-        self.sched.reconfigureTenant(tenant, project, None)
-        self.assertEqual(self.sched.management_event_queue.qsize(), 1)
+        self.scheds.first.sched.reconfigureTenant(tenant, project, None)
+        self.assertEqual(
+            self.scheds.first.sched.management_event_queue.qsize(), 1)
 
-        self.sched.reconfigureTenant(tenant, project, None)
+        self.scheds.first.sched.reconfigureTenant(tenant, project, None)
         # The second event should have been combined with the first
         # so we should still only have one entry.
-        self.assertEqual(self.sched.management_event_queue.qsize(), 1)
+        self.assertEqual(
+            self.scheds.first.sched.management_event_queue.qsize(), 1)
 
-        self.sched.run_handler_lock.release()
+        self.scheds.first.sched.run_handler_lock.release()
         self.waitUntilSettled()
 
-        self.assertEqual(self.sched.management_event_queue.qsize(), 0)
+        self.assertEqual(
+            self.scheds.first.sched.management_event_queue.qsize(), 0)
 
     def test_live_reconfiguration(self):
         "Test that live reconfiguration works"
@@ -3267,7 +3273,8 @@ class TestScheduler(ZuulTestCase):
         "Test that live reconfiguration via command socket works"
 
         # record previous tenant reconfiguration time, which may not be set
-        old = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        old = self.scheds.first.sched.tenant_last_reconfigured\
+            .get('tenant-one', 0)
         self.waitUntilSettled()
 
         command_socket = self.config.get('scheduler', 'command_socket')
@@ -3282,7 +3289,8 @@ class TestScheduler(ZuulTestCase):
         while True:
             if time.time() - start > 15:
                 raise Exception("Timeout waiting for full reconfiguration")
-            new = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+            new = self.scheds.first.sched.tenant_last_reconfigured\
+                .get('tenant-one', 0)
             if old < new:
                 break
             else:
@@ -3297,7 +3305,7 @@ class TestScheduler(ZuulTestCase):
         self.fake_gerrit.addEvent(A.addApproval('Approved', 1))
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         pipeline = tenant.layout.pipelines['gate']
         change = pipeline.getAllItems()[0].change
         # Set this to an invalid value to cause an exception during
@@ -3665,7 +3673,7 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(B.reported, 0)
         self.assertEqual(C.reported, 0)
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(len(tenant.layout.pipelines['check'].queues), 0)
         self.assertIn('Build succeeded', A.messages[0])
 
@@ -3769,7 +3777,8 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
 
         def get_job():
-            data = json.loads(self.sched.formatStatusJSON('tenant-one'))
+            data = json.loads(self.scheds.first.sched
+                              .formatStatusJSON('tenant-one'))
             for pipeline in data['pipelines']:
                 for queue in pipeline['change_queues']:
                     for head in queue['heads']:
@@ -3781,7 +3790,7 @@ class TestScheduler(ZuulTestCase):
         job = get_job()
         self.assertTrue(job['queued'])
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(self.config))
         self.waitUntilSettled()
 
         job = get_job()
@@ -3944,7 +3953,8 @@ class TestScheduler(ZuulTestCase):
 
         # Ensure that the status json has the ref so we can render it in the
         # web ui.
-        data = json.loads(self.sched.formatStatusJSON('tenant-one'))
+        data = json.loads(self.scheds.first.sched
+                          .formatStatusJSON('tenant-one'))
         pipeline = [x for x in data['pipelines'] if x['name'] == 'periodic'][0]
         first = pipeline['change_queues'][0]['heads'][0][0]
         second = pipeline['change_queues'][1]['heads'][0][0]
@@ -4058,7 +4068,7 @@ class TestScheduler(ZuulTestCase):
         # should succeed.
         report_mock.side_effect = Exception('Gerrit failed to report')
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check = tenant.layout.pipelines['check']
 
         check.success_actions = sorted(check.success_actions,
@@ -4388,7 +4398,7 @@ class TestScheduler(ZuulTestCase):
 
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         gate_pipeline = tenant.layout.pipelines['gate']
         self.assertEqual(gate_pipeline.getAllItems(), [])
         self.assertEqual(self.countJobResults(self.history, 'ABORTED'), 1)
@@ -4426,7 +4436,7 @@ class TestScheduler(ZuulTestCase):
             ref=None)
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
         self.assertEqual(len(check_pipeline.getAllItems()), 2)
         self.assertEqual(self.countJobResults(self.history, 'ABORTED'), 1)
@@ -4627,7 +4637,7 @@ class TestScheduler(ZuulTestCase):
 
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         items = tenant.layout.pipelines['gate'].getAllItems()
         enqueue_times = {}
         for item in items:
@@ -4825,7 +4835,7 @@ class TestScheduler(ZuulTestCase):
         self.executor_server.release('project-.*')
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         # A failed so window is reduced by 1 to 1.
         self.assertEqual(queue.window, 1)
@@ -4913,7 +4923,7 @@ class TestScheduler(ZuulTestCase):
         self.executor_server.release('project-.*')
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         # A failed so window is reduced by 1 to 1.
         self.assertEqual(queue.window, 1)
@@ -5035,7 +5045,7 @@ class TestScheduler(ZuulTestCase):
         # D's remaining job
         self.assertEqual(self.builds[2].name, 'project-test2')
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 1)
 
@@ -5066,7 +5076,7 @@ class TestScheduler(ZuulTestCase):
         self.fake_gerrit.addEvent(B.addApproval('Approved', 1))
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 20)
         self.assertTrue(len(self.builds), 4)
@@ -5076,7 +5086,7 @@ class TestScheduler(ZuulTestCase):
         self.commitConfigUpdate('org/common-config',
                                 'layouts/reconfigure-window2.yaml')
         self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         # Even though we have configured a smaller window, the value
         # on the existing shared queue should be used.
@@ -5084,7 +5094,7 @@ class TestScheduler(ZuulTestCase):
         self.assertTrue(len(self.builds), 4)
 
         self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 20)
         self.assertTrue(len(self.builds), 4)
@@ -5114,7 +5124,7 @@ class TestScheduler(ZuulTestCase):
         self.fake_gerrit.addEvent(B.addApproval('Approved', 1))
         self.waitUntilSettled()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 2)
         self.assertEqual(len(self.builds), 4)
@@ -5124,7 +5134,7 @@ class TestScheduler(ZuulTestCase):
                                 'layouts/reconfigure-window-fixed2.yaml')
         self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         # Because we have configured a static window, it should
         # be allowed to shrink on reconfiguration.
@@ -5134,7 +5144,7 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(len(self.builds), 4)
 
         self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 1)
         self.waitUntilSettled()
@@ -5173,7 +5183,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         self.log.debug("B complete")
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 2)
         self.assertEqual(len(self.builds), 2)
@@ -5185,7 +5195,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         self.log.debug("Reconfiguration complete")
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         # Because we have configured a static window, it should
         # be allowed to shrink on reconfiguration.
@@ -5209,7 +5219,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         self.log.debug("Executor unpause complete")
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 1)
 
@@ -5342,7 +5352,7 @@ For CI problems and help debugging, contact ci@example.org"""
     def test_merge_failure_reporters(self):
         """Check that the config is set up correctly"""
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(
             "Merge Failed.\n\nThis change or one of its cross-repo "
             "dependencies was unable to be automatically merged with the "
@@ -5527,7 +5537,7 @@ For CI problems and help debugging, contact ci@example.org"""
     def test_disable_at(self):
         "Test a pipeline will only report to the disabled trigger when failing"
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(3, tenant.layout.pipelines['check'].disable_at)
         self.assertEqual(
             0, tenant.layout.pipelines['check']._consecutive_failures)
@@ -5625,7 +5635,7 @@ For CI problems and help debugging, contact ci@example.org"""
         # comes out of disabled
         self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         self.assertEqual(3, tenant.layout.pipelines['check'].disable_at)
         self.assertEqual(
@@ -5772,11 +5782,11 @@ For CI problems and help debugging, contact ci@example.org"""
         # We're waiting on the nodepool request to complete.  Stop the
         # scheduler from processing further events, then fulfill the
         # nodepool request.
-        self.sched.run_handler_lock.acquire()
+        self.scheds.first.sched.run_handler_lock.acquire()
 
         # Fulfill the nodepool request.
         self.fake_nodepool.unpause()
-        requests = list(self.sched.nodepool.requests.values())
+        requests = list(self.scheds.first.sched.nodepool.requests.values())
         self.assertEqual(1, len(requests))
         request = requests[0]
         for x in iterate_timeout(30, 'fulfill request'):
@@ -5791,7 +5801,7 @@ For CI problems and help debugging, contact ci@example.org"""
 
         # Allow the scheduler to continue and process the (now
         # out-of-date) notification that nodes are ready.
-        self.sched.run_handler_lock.release()
+        self.scheds.first.sched.run_handler_lock.release()
 
         # It should resubmit the request, once it's fulfilled, we can
         # wait for it to run jobs and settle.
@@ -5980,7 +5990,7 @@ For CI problems and help debugging, contact ci@example.org"""
         # Fulfill only the first request
         self.fake_nodepool.fulfillRequest(reqs[0])
         for x in iterate_timeout(30, 'fulfill request'):
-            if len(self.sched.nodepool.requests) < 4:
+            if len(self.scheds.first.sched.nodepool.requests) < 4:
                 break
         self.waitUntilSettled()
 
@@ -6091,13 +6101,13 @@ For CI problems and help debugging, contact ci@example.org"""
         self.fake_gerrit.addEvent(A.getRefUpdatedEvent())
         self.waitUntilSettled()
         # Reconfigure while we still have an outstanding merge job
-        self.sched.reconfigureTenant(self.sched.abide.tenants['tenant-one'],
-                                     None, None)
+        self.scheds.first.sched.reconfigureTenant(
+            self.scheds.first.sched.abide.tenants['tenant-one'], None, None)
         self.waitUntilSettled()
         # Verify the merge job is still running and that the item is
         # in the pipeline
-        self.assertEqual(len(self.sched.merger.jobs), 1)
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        self.assertEqual(len(self.scheds.first.sched.merger.jobs), 1)
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         pipeline = tenant.layout.pipelines['post']
         self.assertEqual(len(pipeline.getAllItems()), 1)
         self.gearman_server.hold_merge_jobs_in_queue = False
@@ -7052,7 +7062,7 @@ class TestSemaphore(ZuulTestCase):
 
     def test_semaphore_one(self):
         "Test semaphores with max=1 (mutex)"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         self.executor_server.hold_jobs_in_build = True
 
@@ -7133,7 +7143,7 @@ class TestSemaphore(ZuulTestCase):
 
     def test_semaphore_two(self):
         "Test semaphores with max>1"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         self.executor_server.hold_jobs_in_build = True
         A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
@@ -7213,7 +7223,7 @@ class TestSemaphore(ZuulTestCase):
 
     def test_semaphore_node_failure(self):
         "Test semaphore and node failure"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         # Pause nodepool so we can fail the node request later
         self.fake_nodepool.pause()
@@ -7245,7 +7255,7 @@ class TestSemaphore(ZuulTestCase):
 
     def test_semaphore_resources_first(self):
         "Test semaphores with max=1 (mutex) and get resources first"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         self.executor_server.hold_jobs_in_build = True
 
@@ -7292,7 +7302,7 @@ class TestSemaphore(ZuulTestCase):
 
     def test_semaphore_resources_first_node_failure(self):
         "Test semaphore and node failure"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         # Pause nodepool so we can fail the node request later
         self.fake_nodepool.pause()
@@ -7324,7 +7334,7 @@ class TestSemaphore(ZuulTestCase):
 
     def test_semaphore_zk_error(self):
         "Test semaphore release with zk error"
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         A = self.fake_gerrit.addFakeChange('org/project2', 'master', 'A')
         self.assertFalse('test-semaphore' in
@@ -7354,7 +7364,7 @@ class TestSemaphore(ZuulTestCase):
     def test_semaphore_abandon(self):
         "Test abandon with job semaphores"
         self.executor_server.hold_jobs_in_build = True
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
@@ -7390,7 +7400,7 @@ class TestSemaphore(ZuulTestCase):
         # and aquiring the semaphore.
         self.fake_nodepool.paused = True
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
@@ -7432,7 +7442,7 @@ class TestSemaphore(ZuulTestCase):
         # in a controlled manner.
         self.fake_nodepool.paused = True
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
@@ -7470,7 +7480,7 @@ class TestSemaphore(ZuulTestCase):
     def test_semaphore_new_patchset(self):
         "Test new patchset with job semaphores"
         self.executor_server.hold_jobs_in_build = True
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
@@ -7510,7 +7520,7 @@ class TestSemaphore(ZuulTestCase):
     def test_semaphore_reconfigure(self):
         "Test reconfigure with job semaphores"
         self.executor_server.hold_jobs_in_build = True
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         self.assertFalse('test-semaphore' in
                          tenant.semaphore_handler.semaphores)
@@ -7524,7 +7534,7 @@ class TestSemaphore(ZuulTestCase):
         # reconfigure without layout change
         self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         # semaphore still must be held
         self.assertTrue('test-semaphore' in
@@ -7535,7 +7545,7 @@ class TestSemaphore(ZuulTestCase):
             'config/semaphore/zuul-reconfiguration.yaml')
         self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         self.executor_server.release('project-test1')
         self.waitUntilSettled()
@@ -7550,7 +7560,7 @@ class TestSemaphore(ZuulTestCase):
     def test_semaphore_reconfigure_job_removal(self):
         "Test job removal during reconfiguration with semaphores"
         self.executor_server.hold_jobs_in_build = True
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         self.assertFalse('test-semaphore' in
@@ -7573,7 +7583,7 @@ class TestSemaphore(ZuulTestCase):
         self.waitUntilSettled()
 
         # The check pipeline should be empty
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
         items = check_pipeline.getAllItems()
         self.assertEqual(len(items), 0)
@@ -7597,7 +7607,7 @@ class TestSemaphore(ZuulTestCase):
         # reconfiguration.
         self.fake_nodepool.pause()
 
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
         self.assertFalse('test-semaphore' in
@@ -7624,7 +7634,7 @@ class TestSemaphore(ZuulTestCase):
         self.waitUntilSettled()
 
         # The check pipeline should be empty
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         check_pipeline = tenant.layout.pipelines['check']
         items = check_pipeline.getAllItems()
         self.assertEqual(len(items), 0)
@@ -7645,8 +7655,8 @@ class TestSemaphoreMultiTenant(ZuulTestCase):
         "Test semaphores in multiple tenants"
 
         self.waitUntilSettled()
-        tenant_one = self.sched.abide.tenants.get('tenant-one')
-        tenant_two = self.sched.abide.tenants.get('tenant-two')
+        tenant_one = self.scheds.first.sched.abide.tenants.get('tenant-one')
+        tenant_two = self.scheds.first.sched.abide.tenants.get('tenant-two')
 
         self.executor_server.hold_jobs_in_build = True
         A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
@@ -7837,7 +7847,7 @@ class TestSemaphoreInRepo(ZuulTestCase):
         # after the change lands.
 
         self.waitUntilSettled()
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
 
         in_repo_conf = textwrap.dedent(
             """
@@ -7920,7 +7930,7 @@ class TestSemaphoreInRepo(ZuulTestCase):
         self.waitUntilSettled()
 
         # now that change A was merged, the new semaphore max must be effective
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(tenant.layout.semaphores.get('test-semaphore').max, 2)
 
         # two builds must be in queue, two semaphores acquired
@@ -8259,8 +8269,10 @@ class TestSchedulerSmartReconfiguration(ZuulTestCase):
         self.fake_gerrit.addEvent(C.getPatchsetCreatedEvent(1))
 
         # record previous tenant reconfiguration time, which may not be set
-        old_one = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
-        old_two = self.sched.tenant_last_reconfigured.get('tenant-two', 0)
+        old_one = self.scheds.first.sched.tenant_last_reconfigured\
+            .get('tenant-one', 0)
+        old_two = self.scheds.first.sched.tenant_last_reconfigured\
+            .get('tenant-two', 0)
         self.waitUntilSettled()
 
         self.newTenantConfig('config/multi-tenant/main-reconfig.yaml')
@@ -8276,7 +8288,8 @@ class TestSchedulerSmartReconfiguration(ZuulTestCase):
         while True:
             if time.time() - start > 15:
                 raise Exception("Timeout waiting for smart reconfiguration")
-            new_two = self.sched.tenant_last_reconfigured.get('tenant-two', 0)
+            new_two = self.scheds.first.sched.tenant_last_reconfigured\
+                .get('tenant-two', 0)
             if old_two < new_two:
                 break
             else:
@@ -8284,7 +8297,8 @@ class TestSchedulerSmartReconfiguration(ZuulTestCase):
 
         # Ensure that tenant-one has not been reconfigured
         self.waitUntilSettled()
-        new_one = self.sched.tenant_last_reconfigured.get('tenant-one', 0)
+        new_one = self.scheds.first.sched.tenant_last_reconfigured\
+            .get('tenant-one', 0)
         self.assertEqual(old_one, new_one)
 
         self.executor_server.hold_jobs_in_build = False
@@ -8300,11 +8314,12 @@ class TestSchedulerSmartReconfiguration(ZuulTestCase):
 
         # Verify known tenants
         expected_tenants = {'tenant-one', 'tenant-two', 'tenant-four'}
-        self.assertEqual(expected_tenants, self.sched.abide.tenants.keys())
+        self.assertEqual(expected_tenants,
+                         self.scheds.first.sched.abide.tenants.keys())
 
-        self.assertIsNotNone(
-            self.sched.tenant_last_reconfigured.get('tenant-four'),
-            'Tenant tenant-four should exist now.')
+        self.assertIsNotNone(self.scheds.first.sched.tenant_last_reconfigured
+                             .get('tenant-four'),
+                             'Tenant tenant-four should exist now.')
 
         # Test that the new tenant-four actually works
         D = self.fake_gerrit.addFakeChange('org/project4', 'master', 'D')

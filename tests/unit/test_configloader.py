@@ -38,7 +38,7 @@ class TestTenantSimple(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/simple.yaml'
 
     def test_tenant_simple(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(['common-config'],
                          [x.name for x in tenant.config_projects])
         self.assertEqual(['org/project1', 'org/project2'],
@@ -70,7 +70,7 @@ class TestTenantSimple(TenantParserTestCase):
                         project2_config[1].pipelines['check'].job_list.jobs)
 
     def test_variant_description(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         job = tenant.layout.jobs.get("project2-job")
         self.assertEqual(job[0].variant_description, "")
         self.assertEqual(job[1].variant_description, "stable")
@@ -80,7 +80,7 @@ class TestTenantOverride(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/override.yaml'
 
     def test_tenant_override(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(['common-config'],
                          [x.name for x in tenant.config_projects])
         self.assertEqual(['org/project1', 'org/project2', 'org/project4'],
@@ -116,7 +116,7 @@ class TestTenantGroups(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/groups.yaml'
 
     def test_tenant_groups(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(['common-config'],
                          [x.name for x in tenant.config_projects])
         self.assertEqual(['org/project1', 'org/project2'],
@@ -153,7 +153,7 @@ class TestTenantGroups2(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/groups2.yaml'
 
     def test_tenant_groups2(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(['common-config'],
                          [x.name for x in tenant.config_projects])
         self.assertEqual(['org/project1', 'org/project2', 'org/project3'],
@@ -190,7 +190,7 @@ class TestTenantGroups3(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/groups3.yaml'
 
     def test_tenant_groups3(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(False, tenant.exclude_unprotected_branches)
         self.assertEqual(['common-config'],
                          [x.name for x in tenant.config_projects])
@@ -226,7 +226,7 @@ class TestTenantGroups4(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/groups4.yaml'
 
     def test_tenant_groups(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(['common-config'],
                          [x.name for x in tenant.config_projects])
         self.assertEqual(['org/project1', 'org/project2'],
@@ -255,7 +255,7 @@ class TestTenantGroups4(TenantParserTestCase):
         A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         new_layout = tenant.layout
 
         self.assertEqual(old_layout, new_layout)
@@ -265,7 +265,7 @@ class TestTenantGroups5(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/groups5.yaml'
 
     def test_tenant_single_projet_exclude(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(['common-config'],
                          [x.name for x in tenant.config_projects])
         self.assertEqual(['org/project1'],
@@ -296,7 +296,7 @@ class TestTenantUnprotectedBranches(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/unprotected-branches.yaml'
 
     def test_tenant_unprotected_branches(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertEqual(True, tenant.exclude_unprotected_branches)
 
         self.assertEqual(['common-config'],
@@ -325,7 +325,7 @@ class TestTenantExcludeAll(TenantParserTestCase):
         """
         # The config in org/project5 depends on config in org/project1 so
         # validate that there are no config errors in that tenant.
-        tenant_two = self.sched.abide.tenants.get('tenant-two')
+        tenant_two = self.scheds.first.sched.abide.tenants.get('tenant-two')
         self.assertEquals(
             len(tenant_two.layout.loading_errors), 0,
             "No error should have been accumulated")
@@ -335,7 +335,7 @@ class TestTenantConfigBranches(ZuulTestCase):
     tenant_config_file = 'config/tenant-parser/simple.yaml'
 
     def _validate_job(self, job, branch):
-        tenant_one = self.sched.abide.tenants.get('tenant-one')
+        tenant_one = self.scheds.first.sched.abide.tenants.get('tenant-one')
         jobs = tenant_one.layout.getJobs(job)
         self.assertEquals(len(jobs), 1)
         self.assertIn(jobs[0].source_context.branch, branch)
@@ -353,14 +353,14 @@ class TestTenantConfigBranches(ZuulTestCase):
         self.create_branch('common-config', 'stable')
         self.create_branch('common-config', 'feat_x')
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # Job must be defined in master
         self._validate_job(common_job, 'master')
 
         # Reconfigure with load-branch stable for common-config
         self.newTenantConfig('config/tenant-parser/branch.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # Now job must be defined on stable branch
         self._validate_job(common_job, 'stable')
@@ -370,7 +370,7 @@ class TestSplitConfig(ZuulTestCase):
     tenant_config_file = 'config/split-config/main.yaml'
 
     def test_split_config(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertIn('project-test1', tenant.layout.jobs)
         self.assertIn('project-test2', tenant.layout.jobs)
         test1 = tenant.layout.getJob('project-test1')
@@ -445,7 +445,7 @@ class TestConfigConflict(ZuulTestCase):
     tenant_config_file = 'config/conflict-config/main.yaml'
 
     def test_conflict_config(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         jobs = sorted(tenant.layout.jobs.keys())
         self.assertEqual(
             ['base', 'noop', 'trusted-zuul.yaml-job',
@@ -457,9 +457,11 @@ class TestAuthorizationRuleParser(ZuulTestCase):
     tenant_config_file = 'config/tenant-parser/authorizations.yaml'
 
     def test_rules_are_loaded(self):
-        rules = self.sched.abide.admin_rules
-        self.assertTrue('auth-rule-one' in rules, self.sched.abide)
-        self.assertTrue('auth-rule-two' in rules, self.sched.abide)
+        rules = self.scheds.first.sched.abide.admin_rules
+        self.assertTrue('auth-rule-one' in rules,
+                        self.scheds.first.sched.abide)
+        self.assertTrue('auth-rule-two' in rules,
+                        self.scheds.first.sched.abide)
         claims_1 = {'sub': 'venkman'}
         claims_2 = {'sub': 'gozer',
                     'iss': 'another_dimension'}
@@ -591,39 +593,32 @@ class TestAuthorizationRuleParserWithTemplating(ZuulTestCase):
     tenant_config_file = 'config/tenant-parser/authorizations-templating.yaml'
 
     def test_rules_are_loaded(self):
-        rules = self.sched.abide.admin_rules
-        self.assertTrue('tenant-admin' in rules, self.sched.abide)
-        self.assertTrue('tenant-admin-complex' in rules, self.sched.abide)
+        rules = self.scheds.first.sched.abide.admin_rules
+        self.assertTrue('tenant-admin' in rules, self.scheds.first.sched.abide)
+        self.assertTrue('tenant-admin-complex' in rules,
+                        self.scheds.first.sched.abide)
 
     def test_tenant_substitution(self):
         claims_1 = {'group': 'tenant-one-admin'}
         claims_2 = {'group': 'tenant-two-admin'}
-        rules = self.sched.abide.admin_rules
-        tenant_one = self.sched.abide.tenants.get('tenant-one')
-        tenant_two = self.sched.abide.tenants.get('tenant-two')
-        self.assertTrue(rules['tenant-admin'](claims_1,
-                                              tenant_one))
-        self.assertTrue(rules['tenant-admin'](claims_2,
-                                              tenant_two))
-        self.assertTrue(not rules['tenant-admin'](claims_1,
-                                                  tenant_two))
-        self.assertTrue(not rules['tenant-admin'](claims_2,
-                                                  tenant_one))
+        rules = self.scheds.first.sched.abide.admin_rules
+        tenant_one = self.scheds.first.sched.abide.tenants.get('tenant-one')
+        tenant_two = self.scheds.first.sched.abide.tenants.get('tenant-two')
+        self.assertTrue(rules['tenant-admin'](claims_1, tenant_one))
+        self.assertTrue(rules['tenant-admin'](claims_2, tenant_two))
+        self.assertTrue(not rules['tenant-admin'](claims_1, tenant_two))
+        self.assertTrue(not rules['tenant-admin'](claims_2, tenant_one))
 
     def test_tenant_substitution_in_list(self):
         claims_1 = {'group': ['tenant-one-admin', 'some-other-tenant']}
         claims_2 = {'group': ['tenant-two-admin', 'some-other-tenant']}
-        rules = self.sched.abide.admin_rules
-        tenant_one = self.sched.abide.tenants.get('tenant-one')
-        tenant_two = self.sched.abide.tenants.get('tenant-two')
-        self.assertTrue(rules['tenant-admin'](claims_1,
-                                              tenant_one))
-        self.assertTrue(rules['tenant-admin'](claims_2,
-                                              tenant_two))
-        self.assertTrue(not rules['tenant-admin'](claims_1,
-                                                  tenant_two))
-        self.assertTrue(not rules['tenant-admin'](claims_2,
-                                                  tenant_one))
+        rules = self.scheds.first.sched.abide.admin_rules
+        tenant_one = self.scheds.first.sched.abide.tenants.get('tenant-one')
+        tenant_two = self.scheds.first.sched.abide.tenants.get('tenant-two')
+        self.assertTrue(rules['tenant-admin'](claims_1, tenant_one))
+        self.assertTrue(rules['tenant-admin'](claims_2, tenant_two))
+        self.assertTrue(not rules['tenant-admin'](claims_1, tenant_two))
+        self.assertTrue(not rules['tenant-admin'](claims_2, tenant_one))
 
     def test_tenant_substitution_in_dict(self):
         claims_2 = {
@@ -633,21 +628,19 @@ class TestAuthorizationRuleParserWithTemplating(ZuulTestCase):
                 }
             }
         }
-        rules = self.sched.abide.admin_rules
-        tenant_one = self.sched.abide.tenants.get('tenant-one')
-        tenant_two = self.sched.abide.tenants.get('tenant-two')
-        self.assertTrue(
-            not rules['tenant-admin-complex'](claims_2,
-                                              tenant_one))
-        self.assertTrue(
-            rules['tenant-admin-complex'](claims_2, tenant_two))
+        rules = self.scheds.first.sched.abide.admin_rules
+        tenant_one = self.scheds.first.sched.abide.tenants.get('tenant-one')
+        tenant_two = self.scheds.first.sched.abide.tenants.get('tenant-two')
+        self.assertTrue(not rules['tenant-admin-complex'](claims_2,
+                                                          tenant_one))
+        self.assertTrue(rules['tenant-admin-complex'](claims_2, tenant_two))
 
 
 class TestTenantExtra(TenantParserTestCase):
     tenant_config_file = 'config/tenant-parser/extra.yaml'
 
     def test_tenant_extra(self):
-        tenant = self.sched.abide.tenants.get('tenant-one')
+        tenant = self.scheds.first.sched.abide.tenants.get('tenant-one')
         self.assertTrue('project2-extra-file' in tenant.layout.jobs)
         self.assertTrue('project2-extra-dir' in tenant.layout.jobs)
 
