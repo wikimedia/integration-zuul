@@ -301,8 +301,7 @@ class Scheduler(threading.Thread):
             'repl': self.start_repl,
             'norepl': self.stop_repl,
         }
-        self._pause = False
-        self._exit = False
+        self._hibernate = False
         self._stopped = False
         self._zuul_app = None
         self.executor = None
@@ -698,8 +697,7 @@ class Scheduler(threading.Thread):
 
     def exit(self):
         self.log.debug("Prepare to exit")
-        self._pause = True
-        self._exit = True
+        self._hibernate = True
         self.wake_event.set()
         self.log.debug("Waiting for exit")
 
@@ -729,7 +727,8 @@ class Scheduler(threading.Thread):
                             "current mode is %o" % (key_dir, mode))
         return key_dir
 
-    def _save_queue(self):
+    def _save_queue(self) -> None:
+        # TODO JK: Remove when queues in ZK
         pickle_file = self._get_queue_pickle_file()
         events = []
         while not self.trigger_event_queue.empty():
@@ -739,7 +738,8 @@ class Scheduler(threading.Thread):
             self.log.debug("Saving queue")
             pickle.dump(events, open(pickle_file, 'wb'))
 
-    def _load_queue(self):
+    def _load_queue(self) -> None:
+        # TODO JK: Remove when queues in ZK
         pickle_file = self._get_queue_pickle_file()
         if os.path.exists(pickle_file):
             self.log.debug("Loading queue")
@@ -750,13 +750,19 @@ class Scheduler(threading.Thread):
         else:
             self.log.debug("No queue file found")
 
-    def _delete_queue(self):
+    def _delete_queue(self) -> None:
+        # TODO JK: Remove when queues in ZK
         pickle_file = self._get_queue_pickle_file()
         if os.path.exists(pickle_file):
             self.log.debug("Deleting saved queue")
             os.unlink(pickle_file)
 
-    def resume(self):
+    def wakeUp(self) -> None:
+        """
+        Wakes up scheduler by loading pickled queue.
+
+        TODO JK: Remove when queues in ZK
+        """
         try:
             self._load_queue()
         except Exception:
@@ -768,8 +774,9 @@ class Scheduler(threading.Thread):
         self.log.debug("Resuming queue processing")
         self.wake_event.set()
 
-    def _doPauseEvent(self):
-        if self._exit:
+    def _doHibernate(self) -> None:
+        # TODO JK: Remove when queues in ZK
+        if self._hibernate:
             self.log.debug("Exiting")
             self._save_queue()
             os._exit(0)
@@ -1215,13 +1222,13 @@ class Scheduler(threading.Thread):
                        not self._stopped):
                     self.process_result_queue()
 
-                if not self._pause:
+                if not self._hibernate:
                     while (not self.trigger_event_queue.empty() and
                            not self._stopped):
                         self.process_event_queue()
 
-                if self._pause and self._areAllBuildsComplete():
-                    self._doPauseEvent()
+                if self._hibernate and self._areAllBuildsComplete():
+                    self._doHibernate()
 
                 for tenant in self.abide.tenants.values():
                     for pipeline in tenant.layout.pipelines.values():
@@ -1625,12 +1632,10 @@ class Scheduler(threading.Thread):
         data['zuul_version'] = self.zuul_version
         websocket_url = get_default(self.config, 'web', 'websocket_url', None)
 
-        if self._pause:
-            ret = 'Queue only mode: preparing to '
-            if self._exit:
-                ret += 'exit'
-            ret += ', queue length: %s' % self.trigger_event_queue.qsize()
-            data['message'] = ret
+        if self._hibernate:
+            data['message'] = 'Queue only mode: preparing to hibernate,' \
+                              ' queue length: %s'\
+                              % self.trigger_event_queue.qsize()
 
         data['trigger_event_queue'] = {}
         data['trigger_event_queue']['length'] = \

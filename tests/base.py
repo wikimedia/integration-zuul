@@ -3451,7 +3451,7 @@ class SchedulerTestApp:
         self.sched.start()
         executor_client.gearman.waitForServer()
         self.sched.reconfigure(self.config)
-        self.sched.resume()
+        self.sched.wakeUp()
 
     def fullReconfigure(self):
         try:
