@@ -97,6 +97,21 @@
       github:
         check: failure
 
+- pipeline:
+    name: gate
+    manager: dependent
+    trigger:
+      github:
+        - event: pull_request
+          action: comment
+          comment: merge me
+    success:
+      github:
+        status: success
+        merge: true
+    failure:
+      github: {}
+
 - job:
     name: base
     parent: null
@@ -127,5 +142,8 @@
 - project:
     name: org/project3
     checks-api-reporting:
+      jobs:
+        - project-test1
+    gate:
       jobs:
         - project-test1
