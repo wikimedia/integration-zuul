@@ -982,9 +982,9 @@ class TestGithubDriver(ZuulTestCase):
     @simple_layout('layouts/gate-github.yaml', driver='github')
     def test_status_checks(self):
         github = self.fake_github.getGithubClient()
-        github._data.required_contexts[('org/project', 'master')] = [
-            'tenant-one/check',
-            'tenant-one/gate']
+        repo = github.repo_from_project('org/project')
+        repo._set_branch_protection(
+            'master', contexts=['tenant-one/check', 'tenant-one/gate'])
 
         A = self.fake_github.openFakePullRequest('org/project', 'master', 'A')
         self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
@@ -1153,9 +1153,9 @@ class TestGithubDriver(ZuulTestCase):
         merge fails because cherry-pick is not supported by github.
         """
         github = self.fake_github.getGithubClient()
-        github._data.required_contexts[('org/project', 'master')] = [
-            'tenant-one/check',
-            'tenant-one/gate']
+        repo = github.repo_from_project('org/project')
+        repo._set_branch_protection(
+            'master', contexts=['tenant-one/check', 'tenant-one/gate'])
 
         A = self.fake_github.openFakePullRequest('org/project', 'master', 'A')
         self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
@@ -1182,9 +1182,9 @@ class TestGithubDriver(ZuulTestCase):
         merge fails because cherry-pick is not supported by github.
         """
         github = self.fake_github.getGithubClient()
-        github._data.required_contexts[('org/project', 'master')] = [
-            'tenant-one/check',
-            'tenant-one/gate']
+        repo = github.repo_from_project('org/project')
+        repo._set_branch_protection(
+            'master', contexts=['tenant-one/check', 'tenant-one/gate'])
 
         A = self.fake_github.openFakePullRequest('org/project', 'master', 'A')
         self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
