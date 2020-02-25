@@ -3732,6 +3732,40 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(A.data['status'], 'MERGED')
         self.assertEqual(A.reported, 2)
 
+    @simple_layout('layouts/single-job-with-nodeset.yaml')
+    def test_live_reconfiguration_queued_node_requests(self):
+        # Test that a job with a queued node request still has the
+        # correct state after reconfiguration.
+        self.fake_nodepool.pause()
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        def get_job():
+            data = json.loads(self.sched.formatStatusJSON('tenant-one'))
+            for pipeline in data['pipelines']:
+                for queue in pipeline['change_queues']:
+                    for head in queue['heads']:
+                        for item in head:
+                            for job in item['jobs']:
+                                if job['name'] == 'check-job':
+                                    return job
+
+        job = get_job()
+        self.assertTrue(job['queued'])
+
+        self.sched.reconfigure(self.config)
+        self.waitUntilSettled()
+
+        job = get_job()
+        self.assertTrue(job['queued'])
+
+        self.fake_nodepool.unpause()
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='check-job', result='SUCCESS', changes='1,1'),
+        ])
+
     @simple_layout('layouts/repo-deleted.yaml')
     def test_repo_deleted(self):
         self.init_repo("org/delete-project")

@@ -2592,6 +2592,11 @@ class QueueItem(object):
                     req = build_set.getJobNodeRequest(job.name)
                     if req is None:
                         jobs_not_requested.add(job)
+                    else:
+                        # This may have been reset due to a reconfig;
+                        # since we know there is a queued request for
+                        # it, set it here.
+                        job.queued = True
 
         # Attempt to request nodes for jobs in the order jobs appear
         # in configuration.
