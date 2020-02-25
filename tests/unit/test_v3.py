@@ -2435,7 +2435,8 @@ class TestNonLiveMerges(ZuulTestCase):
 
         # We expect one merge call per live change, plus one call for
         # each non-live change with a config update (which is all of them).
-        self.assertEqual(len(self.merge_client.history['merger:merge']), 6)
+        self.assertEqual(
+            len(self.scheds.first.sched.merger.history['merger:merge']), 6)
 
     def test_non_live_merges(self):
         """
@@ -2458,7 +2459,8 @@ class TestNonLiveMerges(ZuulTestCase):
         self.waitUntilSettled()
 
         # We expect one merge call per live change.
-        self.assertEqual(len(self.merge_client.history['merger:merge']), 3)
+        self.assertEqual(
+            len(self.scheds.first.sched.merger.history['merger:merge']), 3)
 
 
 class TestJobContamination(AnsibleZuulTestCase):

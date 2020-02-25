@@ -3715,7 +3715,6 @@ class ZuulTestCase(BaseTestCase):
             self.event_queues.append(
                 self.fake_github.github_event_connector._event_forward_queue)
 
-        self.merge_client = sched_app.sched.merger
         self.merge_server = None
         self.nodepool = sched_app.sched.nodepool
         self.zk = sched_app.sched.zk
@@ -4113,7 +4112,7 @@ class ZuulTestCase(BaseTestCase):
         self.executor_server.hold_jobs_in_build = False
         self.executor_server.release()
         self.scheds.execute(lambda app: app.sched.executor.stop())
-        self.merge_client.stop()
+        self.scheds.execute(lambda app: app.sched.merger.stop())
         if self.merge_server:
             self.merge_server.stop()
             self.merge_server.join()
@@ -4331,24 +4330,26 @@ class ZuulTestCase(BaseTestCase):
             return False
         return True
 
-    def areAllMergeJobsWaiting(self):
-        for client_job in list(self.merge_client.jobs):
-            if not client_job.handle:
-                self.log.debug("%s has no handle" % client_job)
+    def __areAllMergeJobsWaiting(self, matcher) -> bool:
+        for app in self.scheds.filter(matcher):
+            merge_client = app.sched.merger
+            for client_job in list(merge_client.jobs):
+                if not client_job.handle:
+                    self.log.debug("%s has no handle" % client_job)
+                    return False
+                server_job = self.gearman_server.jobs.get(client_job.handle)
+                if not server_job:
+                    self.log.debug("%s is not known to the gearman server" %
+                                   client_job)
+                    return False
+                if not hasattr(server_job, 'waiting'):
+                    self.log.debug("%s is being enqueued" % server_job)
+                    return False
+                if server_job.waiting:
+                    self.log.debug("%s is waiting" % server_job)
+                    continue
+                self.log.debug("%s is not waiting" % server_job)
                 return False
-            server_job = self.gearman_server.jobs.get(client_job.handle)
-            if not server_job:
-                self.log.debug("%s is not known to the gearman server" %
-                               client_job)
-                return False
-            if not hasattr(server_job, 'waiting'):
-                self.log.debug("%s is being enqueued" % server_job)
-                return False
-            if server_job.waiting:
-                self.log.debug("%s is waiting" % server_job)
-                continue
-            self.log.debug("%s is not waiting" % server_job)
-            return False
         return True
 
     def eventQueuesEmpty(self):
@@ -4375,8 +4376,9 @@ class ZuulTestCase(BaseTestCase):
                                (self.__haveAllBuildsReported(matcher),))
                 self.log.error("All requests completed: %s" %
                                (self.areAllNodeRequestsComplete(),))
-                self.log.error("Merge client jobs: %s" %
-                               (self.merge_client.jobs,))
+                for app in self.scheds.filter(matcher):
+                    self.log.error("[Sched: %s] Merge client jobs: %s" %
+                                   (app.sched, app.sched.merger.jobs,))
                 raise Exception("Timeout waiting for Zuul to settle")
             # Make sure no new events show up while we're checking
 
@@ -4388,7 +4390,7 @@ class ZuulTestCase(BaseTestCase):
                 self.eventQueuesJoin()
                 self.scheds.execute(
                     lambda app: app.sched.run_handler_lock.acquire())
-                if (self.areAllMergeJobsWaiting() and
+                if (self.__areAllMergeJobsWaiting(matcher) and
                     self.__haveAllBuildsReported(matcher) and
                     self.__areAllBuildsWaiting(matcher) and
                     self.areAllNodeRequestsComplete() and
