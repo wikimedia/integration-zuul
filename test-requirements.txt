@@ -5,3 +5,4 @@ testtools>=0.9.32
 PyMySQL
 psycopg2-binary
 beautifulsoup4
+graphene

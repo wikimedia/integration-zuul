@@ -23,6 +23,7 @@ import threading
 import time
 import re
 import json
+from collections import OrderedDict
 
 import cherrypy
 import cachecontrol
@@ -34,9 +35,11 @@ import jwt
 import requests
 import github3
 import github3.exceptions
+import github3.pulls
 from github3.session import AppInstallationTokenAuth
 
 from zuul.connection import BaseConnection
+from zuul.driver.github.graphql import GraphQLClient
 from zuul.lib.gearworker import ZuulGearWorker
 from zuul.web.handler import BaseWebController
 from zuul.lib.logutil import get_annotated_logger
@@ -47,6 +50,7 @@ from zuul.driver.github.githubmodel import PullRequest, GithubTriggerEvent
 GITHUB_BASE_URL = 'https://api.github.com'
 PREVIEW_JSON_ACCEPT = 'application/vnd.github.machine-man-preview+json'
 PREVIEW_DRAFT_ACCEPT = 'application/vnd.github.shadow-cat-preview+json'
+PREVIEW_CHECKS_ACCEPT = 'application/vnd.github.antiope-preview+json'
 
 
 def _sign_request(body, secret):
@@ -78,10 +82,18 @@ class GithubRequestLogger:
         self.log = get_annotated_logger(log, zuul_event_id)
 
     def log_request(self, response, *args, **kwargs):
-        self.log.debug('%s %s result: %s, size: %s, duration: %s',
-                       response.request.method, response.url,
-                       response.status_code, len(response.content),
-                       int(response.elapsed.microseconds / 1000))
+        fields = OrderedDict()
+        fields['result'] = response.status_code
+        fields['size'] = len(response.content)
+        fields['duration'] = int(response.elapsed.microseconds / 1000)
+        if response.url.endswith('/graphql'):
+            body = json.loads(response.request.body)
+            for key, value in body.get('variables', {}).items():
+                fields[key] = value
+        info = ', '.join(['%s: %s' % (key, value)
+                          for key, value in fields.items()])
+        self.log.debug('%s %s %s',
+                       response.request.method, response.url, info)
 
 
 class GithubRateLimitHandler:
@@ -774,8 +786,10 @@ class GithubConnection(BaseConnection):
             self._log_rate_limit = False
 
         if self.server == 'github.com':
+            self.api_base_url = GITHUB_BASE_URL
             self.base_url = GITHUB_BASE_URL
         else:
+            self.api_base_url = 'https://%s/api' % self.server
             self.base_url = 'https://%s/api/v3' % self.server
 
         # ssl verification must default to true
@@ -820,6 +834,8 @@ class GithubConnection(BaseConnection):
         self.depends_on_re = re.compile(
             r"^Depends-On: https://%s/.+/.+/pull/[0-9]+$" % self.server,
             re.MULTILINE | re.IGNORECASE)
+
+        self.graphql_client = GraphQLClient('%s/graphql' % self.api_base_url)
 
     def toDict(self):
         d = super().toDict()
@@ -1509,31 +1525,24 @@ class GithubConnection(BaseConnection):
 
         github = self.getGithubClient(change.project.name, zuul_event_id=event)
 
-        # Append accept header so we get the draft status
+        # Append accept headers so we get the draft status and checks api
         self._append_accept_header(github, PREVIEW_DRAFT_ACCEPT)
+        self._append_accept_header(github, PREVIEW_CHECKS_ACCEPT)
 
-        owner, proj = change.project.name.split('/')
-        pull = github.pull_request(owner, proj, change.number)
+        # For performance reasons fetch all needed data for canMerge upfront
+        # using a single graphql call.
+        canmerge_data = self.graphql_client.fetch_canmerge(github, change)
 
         # If the PR is a draft it cannot be merged.
-        # TODO: This uses the dict instead of the pull object since github3.py
-        # has no support for draft PRs yet. Replace this with pull.draft when
-        # support has been added.
-        # https://github.com/sigmavirus24/github3.py/issues/926
-        if pull.as_dict().get('draft', False):
+        if canmerge_data.get('isDraft', False):
             log.debug('Change %s can not merge because it is a draft', change)
             return False
 
-        protection = self._getBranchProtection(
-            change.project.name, change.branch, zuul_event_id=event)
-
-        if not self._hasRequiredStatusChecks(allow_needs, protection, pull):
+        if not self._hasRequiredStatusChecks(allow_needs, canmerge_data):
             return False
 
-        required_reviews = protection.get(
-            'required_pull_request_reviews')
-        if required_reviews:
-            if required_reviews.get('require_code_owner_reviews'):
+        if canmerge_data.get('requiresApprovingReviews'):
+            if canmerge_data.get('requiresCodeOwnerReviews'):
                 # we need to process the reviews using code owners
                 # TODO(tobiash): not implemented yet
                 pass
@@ -1647,14 +1656,9 @@ class GithubConnection(BaseConnection):
 
         return resp.json()
 
-    def _hasRequiredStatusChecks(self, allow_needs, protection, pull):
-        if not protection:
-            # There are no protection settings -> ok by definition
-            return True
-
-        required_contexts = protection.get(
-            'required_status_checks', {}).get('contexts')
-
+    @staticmethod
+    def _hasRequiredStatusChecks(allow_needs, canmerge_data):
+        required_contexts = canmerge_data['requiredStatusCheckContexts']
         if not required_contexts:
             # There are no required contexts -> ok by definition
             return True
@@ -1663,33 +1667,9 @@ class GithubConnection(BaseConnection):
         required_contexts = set(
             [x for x in required_contexts if x not in allow_needs])
 
-        # NOTE(tobiash): We cannot just take the last commit in the list
-        # because it is not sorted that the head is the last one in every case.
-        # E.g. when doing a re-merge from the target the PR head can be
-        # somewhere in the middle of the commit list. Thus we need to search
-        # the whole commit list for the PR head commit which has the statuses
-        # attached.
-        commits = list(pull.commits())
-        commit = None
-        for c in commits:
-            if c.sha == pull.head.sha:
-                commit = c
-                break
-
         # Get successful statuses
-        successful = set([s.context for s in commit.status().statuses
-                          if s.state == 'success'])
-
-        if self.app_id:
-            try:
-                # Required contexts can be fulfilled by statuses or check runs.
-                successful.update([cr.name for cr in commit.check_runs()
-                                  if cr.conclusion == 'success'])
-            except github3.exceptions.GitHubException as exc:
-                self.log.error(
-                    "Unable to retrieve check runs for commit %s: %s",
-                    commit.sha, str(exc)
-                )
+        successful = set([s[0] for s in canmerge_data['status'].items()
+                          if s[1] == 'SUCCESS'])
 
         # Required contexts must be a subset of the successful contexts as
         # we allow additional successful status contexts we don't care about.
@@ -1799,11 +1779,11 @@ class GithubConnection(BaseConnection):
         github = self.getGithubClient(
             project_name, zuul_event_id=zuul_event_id
         )
+        self._append_accept_header(github, PREVIEW_CHECKS_ACCEPT)
         url = github.session.build_url(
             "repos", project_name, "commits", sha, "check-runs")
-        headers = {'Accept': 'application/vnd.github.antiope-preview+json'}
         params = {"per_page": 100}
-        resp = github.session.get(url, params=params, headers=headers)
+        resp = github.session.get(url, params=params)
         resp.raise_for_status()
 
         log.debug("Got commit checks for sha %s on %s", sha, project_name)
