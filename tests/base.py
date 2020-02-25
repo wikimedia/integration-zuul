@@ -3716,7 +3716,6 @@ class ZuulTestCase(BaseTestCase):
                 self.fake_github.github_event_connector._event_forward_queue)
 
         self.merge_server = None
-        self.nodepool = sched_app.sched.nodepool
         self.zk = sched_app.sched.zk
 
         # Cleanups are run in reverse order
@@ -4323,11 +4322,12 @@ class ZuulTestCase(BaseTestCase):
                     return False
         return True
 
-    def areAllNodeRequestsComplete(self):
+    def __areAllNodeRequestsComplete(self, matcher) -> bool:
         if self.fake_nodepool.paused:
             return True
-        if self.nodepool.requests:
-            return False
+        for app in self.scheds.filter(matcher):
+            if app.sched.nodepool.requests:
+                return False
         return True
 
     def __areAllMergeJobsWaiting(self, matcher) -> bool:
@@ -4375,7 +4375,7 @@ class ZuulTestCase(BaseTestCase):
                 self.log.error("All builds reported: %s" %
                                (self.__haveAllBuildsReported(matcher),))
                 self.log.error("All requests completed: %s" %
-                               (self.areAllNodeRequestsComplete(),))
+                               (self.__areAllNodeRequestsComplete(matcher),))
                 for app in self.scheds.filter(matcher):
                     self.log.error("[Sched: %s] Merge client jobs: %s" %
                                    (app.sched, app.sched.merger.jobs,))
@@ -4393,7 +4393,7 @@ class ZuulTestCase(BaseTestCase):
                 if (self.__areAllMergeJobsWaiting(matcher) and
                     self.__haveAllBuildsReported(matcher) and
                     self.__areAllBuildsWaiting(matcher) and
-                    self.areAllNodeRequestsComplete() and
+                    self.__areAllNodeRequestsComplete(matcher) and
                     all(self.eventQueuesEmpty())):
                     # The queue empty check is placed at the end to
                     # ensure that if a component adds an event between

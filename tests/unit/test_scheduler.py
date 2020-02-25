@@ -7341,14 +7341,14 @@ class TestSemaphore(ZuulTestCase):
                          tenant.semaphore_handler.semaphores)
 
         # Simulate a single zk error in useNodeSet
-        orig_useNodeSet = self.nodepool.useNodeSet
+        orig_useNodeSet = self.scheds.first.sched.nodepool.useNodeSet
 
         def broken_use_nodeset(nodeset, build_set=None, event=None):
             # restore original useNodeSet
-            self.nodepool.useNodeSet = orig_useNodeSet
+            self.scheds.first.sched.nodepool.useNodeSet = orig_useNodeSet
             raise NoNodeError()
 
-        self.nodepool.useNodeSet = broken_use_nodeset
+        self.scheds.first.sched.nodepool.useNodeSet = broken_use_nodeset
 
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
@@ -7451,13 +7451,13 @@ class TestSemaphore(ZuulTestCase):
 
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
-        self.assertEqual(len(self.nodepool.requests), 2)
+        self.assertEqual(len(self.scheds.first.sched.nodepool.requests), 2)
 
         # Now unpause nodepool to fulfill the node requests. We cannot use
         # waitUntilSettled here because the executor is paused.
         self.fake_nodepool.paused = False
         for _ in iterate_timeout(30, 'fulfill node requests'):
-            if len(self.nodepool.requests) == 0:
+            if len(self.scheds.first.sched.nodepool.requests) == 0:
                 break
 
         self.assertTrue('test-semaphore' in
