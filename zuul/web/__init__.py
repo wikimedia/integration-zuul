@@ -824,6 +824,7 @@ class ZuulWebAPI(object):
             'voting': build.voting,
             'log_url': build.log_url,
             'node_name': build.node_name,
+            'error_detail': build.error_detail,
             'artifacts': [],
             'provides': [],
         }

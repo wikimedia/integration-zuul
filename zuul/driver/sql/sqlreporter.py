@@ -93,6 +93,7 @@ class SQLReporter(BaseReporter):
                     voting=build.job.voting,
                     log_url=log_url,
                     node_name=build.node_name,
+                    error_detail=build.error_detail,
                 )
 
                 for provides in job.provides:

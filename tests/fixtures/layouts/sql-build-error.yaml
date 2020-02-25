@@ -1,0 +1,24 @@
+- pipeline:
+    name: check
+    manager: independent
+    trigger:
+      gerrit:
+        - event: patchset-created
+    success:
+      resultsdb_mysql: null
+      gerrit:
+        Verified: 1
+    failure:
+      resultsdb_mysql: null
+      gerrit:
+        Verified: -1
+
+- job:
+    name: base
+    parent: null
+    run: playbooks/base.yaml
+
+- project:
+    name: org/project
+    check:
+      jobs: []
