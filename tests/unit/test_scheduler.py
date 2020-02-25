@@ -5275,17 +5275,17 @@ class TestScheduler(ZuulTestCase):
         self.fake_gerrit.addEvent(A.addApproval('Approved', 1))
         self.waitUntilSettled()
 
-        self.assertEqual(len(self.executor_client.builds), 1)
+        self.assertEqual(len(self.scheds.first.sched.executor.builds), 1)
 
         self.log.debug('Current builds:')
-        self.log.debug(self.executor_client.builds)
+        self.log.debug(self.scheds.first.sched.executor.builds)
 
         start = time.time()
         while True:
             if time.time() - start > 10:
                 raise Exception("Timeout waiting for gearman server to report "
                                 + "back to the client")
-            build = list(self.executor_client.builds.values())[0]
+            build = list(self.scheds.first.sched.executor.builds.values())[0]
             if build.worker.name == self.executor_server.hostname:
                 break
             else:
@@ -5470,7 +5470,7 @@ For CI problems and help debugging, contact ci@example.org"""
             if time.time() - start > 10:
                 raise Exception("Timeout waiting for gearman server to report "
                                 + "back to the client")
-            build = list(self.executor_client.builds.values())[0]
+            build = list(self.scheds.first.sched.executor.builds.values())[0]
             if build.worker.name == self.executor_server.hostname:
                 break
             else:
