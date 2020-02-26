@@ -1190,8 +1190,16 @@ class AnsibleJob(object):
         orig_commit = ret[4]
         for key, commit in recent.items():
             (connection, project, branch) = key
-            repo = merger.getRepo(connection, project)
-            repo.setRef('refs/heads/' + branch, commit)
+            # Compare the commit with the repo state. If it's included in the
+            # repo state and it's the same we've set this ref already earlier
+            # and don't have to set it again.
+            repo_state_project = repo_state.get(
+                connection, {}).get(project, {})
+            repo_state_commit = repo_state_project.get(
+                'refs/heads/%s' % branch)
+            if repo_state_commit != commit:
+                repo = merger.getRepo(connection, project)
+                repo.setRef('refs/heads/' + branch, commit)
         return orig_commit
 
     def resolveBranch(self, project_canonical_name, ref, zuul_branch,
