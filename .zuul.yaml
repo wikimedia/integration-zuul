@@ -102,7 +102,9 @@
     description: Run the commands in the Zuul quick-start documentation.
     run: playbooks/quick-start/run.yaml
     post-run: playbooks/quick-start/post.yaml
-    requires: docker-image
+    requires:
+      - zuul-container-image
+      - nodepool-container-image
     required-projects:
       - zuul/zuul
 
@@ -129,6 +131,10 @@
     description: Build Docker images.
     allowed-projects: zuul/zuul
     timeout: 2700  # 45 minutes
+    requires:
+      - python-builder-container-image
+      - python-base-container-image
+    provides: zuul-container-image
     vars: &zuul_image_vars
       docker_images:
         - context: .
@@ -155,6 +161,10 @@
     parent: opendev-upload-docker-image
     description: Build Docker images and upload to Docker Hub.
     allowed-projects: zuul/zuul
+    requires:
+      - python-builder-container-image
+      - python-base-container-image
+    provides: zuul-container-image
     secrets:
       name: docker_credentials
       secret: zuul-dockerhub
