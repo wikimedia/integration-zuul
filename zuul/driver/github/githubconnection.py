@@ -1551,9 +1551,10 @@ class GithubConnection(BaseConnection):
         cached_pr_numbers = self._sha_pr_cache.get(project_name, sha)
         if len(cached_pr_numbers) > 1:
             raise Exception('Multiple pulls found with head sha %s' % sha)
+        project = self.getProject(project_name)
         if len(cached_pr_numbers) == 1:
             for pr in cached_pr_numbers:
-                pr_body, pr_obj = self.getPull(project_name, pr, event)
+                pr_body = self._getChange(project, pr, sha, event=event).pr
                 return pr_body
 
         github = self.getGithubClient(project_name, zuul_event_id=event)
@@ -1566,8 +1567,8 @@ class GithubConnection(BaseConnection):
         if len(issues) == 0:
             return None
 
-        pr_body, pr_obj = self.getPull(
-            project_name, issues.pop().issue.number, event)
+        pr_body = self._getChange(
+            project, issues.pop().issue.number, sha, event=event).pr
         self._sha_pr_cache.update(project_name, pr_body)
         return pr_body
 
