@@ -136,7 +136,8 @@ class FakeCommit(object):
     def set_check_run(self, name, details_url, output, status, conclusion,
                       completed_at, app):
         check_run = FakeCheckRun(
-            name, details_url, output, status, conclusion, completed_at, app)
+            name, details_url, output, status, conclusion, completed_at, app
+        )
         # Always insert a check_run to the front of the list to represent the
         # last check_run provided for a commit.
         self._check_runs.insert(0, check_run)

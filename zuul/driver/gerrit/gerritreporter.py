@@ -35,18 +35,6 @@ class GerritReporter(BaseReporter):
         self._checks_api = action.pop('checks-api', None)
         self._labels = action
 
-    def _getFileComments(self, item):
-        ret = {}
-        for build in item.current_build_set.getBuilds():
-            fc = build.result_data.get('zuul', {}).get('file_comments')
-            if not fc:
-                continue
-            for fn, comments in fc.items():
-                existing_comments = ret.setdefault(fn, [])
-                existing_comments += comments
-        self.addConfigurationErrorComments(item, ret)
-        return ret
-
     def report(self, item):
         """Send a message to gerrit."""
         log = get_annotated_logger(self.log, item.event)
@@ -65,8 +53,7 @@ class GerritReporter(BaseReporter):
                 self.connection.canonical_hostname:
             return
 
-        comments = self._getFileComments(item)
-        self.filterComments(item, comments)
+        comments = self.getFileComments(item)
         if self._create_comment:
             message = self._formatItemReport(item)
         else:
