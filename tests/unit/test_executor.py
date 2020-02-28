@@ -281,7 +281,7 @@ class TestExecutorRepos(ZuulTestCase):
         # Start timer trigger - also org/project
         self.commitConfigUpdate('common-config',
                                 'layouts/repo-checkout-timer-override.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # The pipeline triggers every second, so we should have seen
         # several by now.
@@ -292,7 +292,7 @@ class TestExecutorRepos(ZuulTestCase):
         # below don't race against more jobs being queued.
         self.commitConfigUpdate('common-config',
                                 'layouts/repo-checkout-no-timer-override.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         # If APScheduler is in mid-event when we remove the job, we
         # can end up with one more event firing, so give it an extra
@@ -320,7 +320,7 @@ class TestExecutorRepos(ZuulTestCase):
         # Start timer trigger - also org/project
         self.commitConfigUpdate('common-config',
                                 'layouts/repo-checkout-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         p1 = 'review.example.com/org/project1'
         projects = [p1]
@@ -339,7 +339,7 @@ class TestExecutorRepos(ZuulTestCase):
         # below don't race against more jobs being queued.
         self.commitConfigUpdate('common-config',
                                 'layouts/repo-checkout-no-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         # If APScheduler is in mid-event when we remove the job, we
         # can end up with one more event firing, so give it an extra

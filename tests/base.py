@@ -30,6 +30,7 @@ import queue
 import random
 import re
 from logging import Logger
+from typing import Callable, Optional, Any, Iterable
 
 import requests
 import select
@@ -90,8 +91,7 @@ import zuul.configloader
 from zuul.lib.config import get_default
 from zuul.lib.logutil import get_annotated_logger
 
-FIXTURE_DIR = os.path.join(os.path.dirname(__file__),
-                           'fixtures')
+FIXTURE_DIR = os.path.join(os.path.dirname(__file__), 'fixtures')
 
 KEEP_TEMPDIRS = bool(os.environ.get('KEEP_TEMPDIRS', False))
 
@@ -3436,20 +3436,20 @@ class SchedulerTestApp:
 
         self.sched.registerConnections(connections)
 
-        self.executor_client = zuul.executor.client.ExecutorClient(
+        executor_client = zuul.executor.client.ExecutorClient(
             self.config, self.sched)
-        self.merge_client = RecordingMergeClient(self.config, self.sched)
-        self.nodepool = zuul.nodepool.Nodepool(self.sched)
-        self.zk = zuul.zk.ZooKeeper(enable_cache=True)
-        self.zk.connect(self.zk_config, timeout=60.0)
+        merge_client = RecordingMergeClient(self.config, self.sched)
+        nodepool = zuul.nodepool.Nodepool(self.sched)
+        zk = zuul.zk.ZooKeeper(enable_cache=True)
+        zk.connect(self.zk_config, timeout=30.0)
 
-        self.sched.setExecutor(self.executor_client)
-        self.sched.setMerger(self.merge_client)
-        self.sched.setNodepool(self.nodepool)
-        self.sched.setZooKeeper(self.zk)
+        self.sched.setExecutor(executor_client)
+        self.sched.setMerger(merge_client)
+        self.sched.setNodepool(nodepool)
+        self.sched.setZooKeeper(zk)
 
         self.sched.start()
-        self.executor_client.gearman.waitForServer()
+        executor_client.gearman.waitForServer()
         self.sched.reconfigure(self.config)
         self.sched.resume()
 
@@ -3470,6 +3470,46 @@ class SchedulerTestApp:
                 self.sched.reconfigure(self.config, smart=True)
         except Exception:
             self.log.exception("Reconfiguration failed:")
+
+
+class SchedulerTestManager:
+    def __init__(self):
+        self.instances = []
+
+    def create(self, log: Logger, config: ConfigParser, zk_config: str,
+               connections: ConnectionRegistry) -> SchedulerTestApp:
+        app = SchedulerTestApp(log, config, zk_config, connections)
+        self.instances.append(app)
+        return app
+
+    def __len__(self) -> int:
+        return len(self.instances)
+
+    def __getitem__(self, item: int) -> SchedulerTestApp:
+        return self.instances[item]
+
+    def __setitem__(self, key: int, value: SchedulerTestApp):
+        raise Exception("Not implemented, use create method!")
+
+    def __delitem__(self, key, value):
+        raise Exception("Not implemented!")
+
+    def __iter__(self):
+        return iter(self.instances)
+
+    def filter(self, matcher=None) -> Iterable[SchedulerTestApp]:
+        fcn = None  # type: Optional[Callable[[int, SchedulerTestApp], bool]]
+        if type(matcher) == list:
+            def fcn(_: int, app: SchedulerTestApp) -> bool:
+                return app in matcher
+        elif type(matcher).__name__ == 'function':
+            fcn = matcher
+        return [e[1] for e in enumerate(self.instances)
+                if fcn is None or fcn(e[0], e[1])]
+
+    def execute(self, function: Callable[[Any], None], matcher=None) -> None:
+        for instance in self.filter(matcher):
+            function(instance)
 
 
 class ZuulTestCase(BaseTestCase):
@@ -3660,21 +3700,21 @@ class ZuulTestCase(BaseTestCase):
         self.history = self.executor_server.build_history
         self.builds = self.executor_server.running_builds
 
-        self.sched_app = SchedulerTestApp(self.log, self.config,
-                                          self.zk_config,
-                                          self.connections)
-        self.sched = self.sched_app.sched
-        self.event_queues = self.sched_app.event_queues + self.event_queues
+        self.scheds = SchedulerTestManager()
+        sched_app = self.scheds.create(
+            self.log, self.config, self.zk_config, self.connections)
+        self.sched = sched_app.sched
+        self.event_queues = sched_app.event_queues + self.event_queues
 
         if hasattr(self, 'fake_github'):
             self.event_queues.append(
                 self.fake_github.github_event_connector._event_forward_queue)
 
-        self.executor_client = self.sched_app.executor_client
-        self.merge_client = self.sched_app.merge_client
+        self.executor_client = sched_app.sched.executor
+        self.merge_client = sched_app.sched.merger
         self.merge_server = None
-        self.nodepool = self.sched_app.nodepool
-        self.zk = self.sched_app.zk
+        self.nodepool = sched_app.sched.nodepool
+        self.zk = sched_app.sched.zk
 
         # Cleanups are run in reverse order
         self.addCleanup(self.assertCleanShutdown)
@@ -4075,8 +4115,8 @@ class ZuulTestCase(BaseTestCase):
             self.merge_server.join()
         self.executor_server.stop()
         self.executor_server.join()
-        self.sched.stop()
-        self.sched.join()
+        self.scheds.execute(lambda app: app.sched.stop())
+        self.scheds.execute(lambda app: app.sched.join())
         self.statsd.stop()
         self.statsd.join()
         self.rpcclient.shutdown()
@@ -4279,7 +4319,7 @@ class ZuulTestCase(BaseTestCase):
     def areAllNodeRequestsComplete(self):
         if self.fake_nodepool.paused:
             return True
-        if self.sched.nodepool.requests:
+        if self.nodepool.requests:
             return False
         return True
 
@@ -4338,7 +4378,8 @@ class ZuulTestCase(BaseTestCase):
                 # Join ensures that the queue is empty _and_ events have been
                 # processed
                 self.eventQueuesJoin()
-                self.sched.run_handler_lock.acquire()
+                self.scheds.execute(
+                    lambda app: app.sched.run_handler_lock.acquire())
                 if (self.areAllMergeJobsWaiting() and
                     self.haveAllBuildsReported() and
                     self.areAllBuildsWaiting() and
@@ -4349,14 +4390,16 @@ class ZuulTestCase(BaseTestCase):
                     # when locked the run handler and checked that the
                     # components were stable, we don't erroneously
                     # report that we are settled.
-                    self.sched.run_handler_lock.release()
+                    self.scheds.execute(
+                        lambda app: app.sched.run_handler_lock.release())
                     self.executor_server.lock.release()
                     self.log.debug("...settled. (%s)", msg)
                     self.logState()
                     return
-                self.sched.run_handler_lock.release()
+                self.scheds.execute(
+                    lambda app: app.sched.run_handler_lock.release())
             self.executor_server.lock.release()
-            self.sched.wake_event.wait(0.1)
+            self.scheds.execute(lambda app: app.sched.wake_event.wait(0.1))
 
     def waitForPoll(self, poller, timeout=30):
         self.log.debug("Wait for poll on %s", poller)

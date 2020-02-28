@@ -222,7 +222,7 @@ class TestZuulTriggerProjectChangeMerged(ZuulTestCase):
         # check to make sure that we don't end up with a stale trigger
         # cache that has references to projects from the old
         # configuration.
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         D.addApproval('Code-Review', 2)
         self.fake_gerrit.addEvent(D.addApproval('Approved', 1))

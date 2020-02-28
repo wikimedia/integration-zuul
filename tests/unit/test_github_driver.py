@@ -147,7 +147,7 @@ class TestGithubDriver(ZuulTestCase):
         self.waitUntilSettled()
 
         # Trigger reconfig to enforce a reenqueue of the item
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         # Now we can release all jobs
@@ -324,7 +324,7 @@ class TestGithubDriver(ZuulTestCase):
         self.executor_server.hold_jobs_in_build = True
         self.commitConfigUpdate('org/common-config',
                                 'layouts/timer-github.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         time.sleep(2)
         self.waitUntilSettled()
         self.assertEqual(len(self.builds), 1)
@@ -333,7 +333,7 @@ class TestGithubDriver(ZuulTestCase):
         # below don't race against more jobs being queued.
         self.commitConfigUpdate('org/common-config',
                                 'layouts/basic-github.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         # If APScheduler is in mid-event when we remove the job, we
         # can end up with one more event firing, so give it an extra
@@ -1240,7 +1240,7 @@ class TestGithubUnprotectedBranches(ZuulTestCase):
         github = self.fake_github.getGithubClient()
         repo = github.repo_from_project('org/project2')
         repo._set_branch_protection('master', True)
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         tenant = self.sched.abide.tenants.get('tenant-one')
@@ -1270,7 +1270,7 @@ class TestGithubUnprotectedBranches(ZuulTestCase):
         self.create_branch('org/project3', 'stable')
         repo._set_branch_protection('stable', True)
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         A = self.fake_github.openFakePullRequest('org/project3', 'stable', 'A')
@@ -1305,7 +1305,7 @@ class TestGithubUnprotectedBranches(ZuulTestCase):
         repo = github.repo_from_project('org/project1')
         self.create_branch('org/project1', 'feat-x')
         repo._set_branch_protection('master', True)
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         A = self.fake_github.openFakePullRequest('org/project1', 'master', 'A')
@@ -1376,7 +1376,7 @@ class TestGithubUnprotectedBranches(ZuulTestCase):
         # deleted.
         repo._create_branch('feat-x')
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         # record previous tenant reconfiguration time, which may not be set
@@ -1411,7 +1411,7 @@ class TestGithubUnprotectedBranches(ZuulTestCase):
         repo._create_branch('release')
         repo._create_branch('feature')
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         repo._set_branch_protection('release', True)

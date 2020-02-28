@@ -2190,7 +2190,7 @@ class TestScheduler(ZuulTestCase):
         self.wait_timeout = 120
         "test that dependent changes behind dequeued changes work"
         # This complicated test is a reproduction of a real life bug
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         self.executor_server.hold_jobs_in_build = True
         A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A')
@@ -2603,7 +2603,7 @@ class TestScheduler(ZuulTestCase):
         self.executor_server.hold_jobs_in_build = True
         # Start timer trigger - also org/project
         self.commitConfigUpdate('common-config', 'layouts/idle.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         # The pipeline triggers every second, so we should have seen
         # several by now.
         time.sleep(5)
@@ -2612,7 +2612,7 @@ class TestScheduler(ZuulTestCase):
         # below don't race against more jobs being queued.
         # Must be in same repo, so overwrite config with another one
         self.commitConfigUpdate('common-config', 'layouts/no-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         # If APScheduler is in mid-event when we remove the job, we
         # can end up with one more event firing, so give it an extra
@@ -2900,7 +2900,7 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(len(self.gearman_server.getQueue()), 1)
 
         self.commitConfigUpdate('common-config', 'layouts/no-jobs.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.gearman_server.release('gate-noop')
@@ -3248,7 +3248,7 @@ class TestScheduler(ZuulTestCase):
         self.fake_gerrit.addEvent(A.addApproval('Approved', 1))
         self.waitUntilSettled()
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3304,7 +3304,7 @@ class TestScheduler(ZuulTestCase):
         # reconfiguration.
         change.branch = None
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3353,7 +3353,7 @@ class TestScheduler(ZuulTestCase):
         # Add the "project-test3" job.
         self.commitConfigUpdate('common-config',
                                 'layouts/live-reconfiguration-add-job.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3414,7 +3414,7 @@ class TestScheduler(ZuulTestCase):
         # Add the "project-test3" job.
         self.commitConfigUpdate('common-config',
                                 'layouts/live-reconfiguration-add-job.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3467,7 +3467,7 @@ class TestScheduler(ZuulTestCase):
         # Remove the test1 job.
         self.commitConfigUpdate('common-config',
                                 'layouts/live-reconfiguration-failed-job.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3517,7 +3517,7 @@ class TestScheduler(ZuulTestCase):
         self.commitConfigUpdate(
             'common-config',
             'layouts/live-reconfiguration-shared-queue.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3559,7 +3559,7 @@ class TestScheduler(ZuulTestCase):
         self.commitConfigUpdate(
             'common-config',
             'layouts/live-reconfiguration-shared-queue-removed.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3592,7 +3592,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
 
         # Reconfigure (with only one change in the pipeline).
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         # Add the child change.
@@ -3602,7 +3602,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
 
         # Reconfigure (with both in the pipeline).
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3641,7 +3641,7 @@ class TestScheduler(ZuulTestCase):
         self.commitConfigUpdate(
             'common-config',
             'layouts/live-reconfiguration-del-project.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         # Builds for C aborted, builds for A succeed,
@@ -3711,7 +3711,7 @@ class TestScheduler(ZuulTestCase):
             dict(name='job2', result='ABORTED', changes='1,1 2,1'),
         ], ordered=False)
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.executor_server.hold_jobs_in_build = False
@@ -3742,7 +3742,7 @@ class TestScheduler(ZuulTestCase):
         self.commitConfigUpdate(
             'common-config',
             'layouts/delayed-repo-init.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         A = self.fake_gerrit.addFakeChange('org/new-project', 'master', 'A')
@@ -3872,7 +3872,7 @@ class TestScheduler(ZuulTestCase):
         self.create_branch('org/project', 'stable')
         self.executor_server.hold_jobs_in_build = True
         self.commitConfigUpdate('common-config', 'layouts/timer-template.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # The pipeline triggers every second, so we should have seen
         # several by now.
@@ -3897,7 +3897,7 @@ class TestScheduler(ZuulTestCase):
         # Stop queuing timer triggered jobs so that the assertions
         # below don't race against more jobs being queued.
         self.commitConfigUpdate('common-config', 'layouts/no-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         # If APScheduler is in mid-event when we remove the job, we
         # can end up with one more event firing, so give it an extra
@@ -3922,7 +3922,7 @@ class TestScheduler(ZuulTestCase):
         self.create_branch('org/project', 'stable')
         self.executor_server.hold_jobs_in_build = True
         self.commitConfigUpdate('common-config', config_file)
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # The pipeline triggers every second, so we should have seen
         # several by now.
@@ -3957,7 +3957,7 @@ class TestScheduler(ZuulTestCase):
         # Stop queuing timer triggered jobs so that the assertions
         # below don't race against more jobs being queued.
         self.commitConfigUpdate('common-config', 'layouts/no-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         # If APScheduler is in mid-event when we remove the job, we
         # can end up with one more event firing, so give it an extra
@@ -3996,7 +3996,7 @@ class TestScheduler(ZuulTestCase):
             # Start timer trigger
             self.commitConfigUpdate('common-config',
                                     'layouts/idle.yaml')
-            self.sched.reconfigure(self.config)
+            self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
             self.waitUntilSettled()
 
             # The pipeline triggers every second, so we should have seen
@@ -4007,7 +4007,7 @@ class TestScheduler(ZuulTestCase):
             # below don't race against more jobs being queued.
             self.commitConfigUpdate('common-config',
                                     'layouts/no-timer.yaml')
-            self.sched.reconfigure(self.config)
+            self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
             self.waitUntilSettled()
             # If APScheduler is in mid-event when we remove the job,
             # we can end up with one more event firing, so give it an
@@ -4101,7 +4101,7 @@ class TestScheduler(ZuulTestCase):
         # the hold flag before the first job.
         self.executor_server.hold_jobs_in_build = True
         self.commitConfigUpdate('common-config', 'layouts/timer-smtp.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # The pipeline triggers every second, so we should have seen
         # several by now.
@@ -4134,7 +4134,7 @@ class TestScheduler(ZuulTestCase):
         # Stop queuing timer triggered jobs and let any that may have
         # queued through so that end of test assertions pass.
         self.commitConfigUpdate('common-config', 'layouts/no-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         # If APScheduler is in mid-event when we remove the job, we
         # can end up with one more event firing, so give it an extra
@@ -4150,7 +4150,7 @@ class TestScheduler(ZuulTestCase):
         self.worker.hold_jobs_in_build = True
         self.config.set('zuul', 'layout_config',
                         'tests/fixtures/layout-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.registerJobs()
 
         # The pipeline triggers every second, so we should have seen
@@ -4182,7 +4182,7 @@ class TestScheduler(ZuulTestCase):
         # queued through so that end of test assertions pass.
         self.config.set('zuul', 'layout_config',
                         'tests/fixtures/layout-no-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.registerJobs()
         self.waitUntilSettled()
         # If APScheduler is in mid-event when we remove the job, we
@@ -4491,7 +4491,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         self.executor_server.hold_jobs_in_build = True
         self.commitConfigUpdate('common-config', 'layouts/timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # We expect that one build for each branch (master and stable) appears.
         for _ in iterate_timeout(30, 'Wait for two builds that are hold'):
@@ -4509,7 +4509,7 @@ class TestScheduler(ZuulTestCase):
 
         self.commitConfigUpdate('common-config',
                                 'layouts/no-timer.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         self.executor_server.hold_jobs_in_build = False
         self.executor_server.release()
@@ -5044,7 +5044,7 @@ class TestScheduler(ZuulTestCase):
 
         self.commitConfigUpdate('org/common-config',
                                 'layouts/rate-limit-reconfigure2.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         # D's remaining job should still be queued
@@ -5075,7 +5075,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         self.commitConfigUpdate('org/common-config',
                                 'layouts/reconfigure-window2.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         tenant = self.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         # Even though we have configured a smaller window, the value
@@ -5083,7 +5083,7 @@ class TestScheduler(ZuulTestCase):
         self.assertEqual(queue.window, 20)
         self.assertTrue(len(self.builds), 4)
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         tenant = self.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 20)
@@ -5122,7 +5122,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         self.commitConfigUpdate('org/common-config',
                                 'layouts/reconfigure-window-fixed2.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         tenant = self.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
@@ -5133,7 +5133,7 @@ class TestScheduler(ZuulTestCase):
         # next pass through the queue processor.
         self.assertEqual(len(self.builds), 4)
 
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         tenant = self.sched.abide.tenants.get('tenant-one')
         queue = tenant.layout.pipelines['gate'].queues[0]
         self.assertEqual(queue.window, 1)
@@ -5181,7 +5181,7 @@ class TestScheduler(ZuulTestCase):
         self.waitUntilSettled()
         self.commitConfigUpdate('org/common-config',
                                 'layouts/reconfigure-window-fixed2.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         self.log.debug("Reconfiguration complete")
 
@@ -5196,7 +5196,7 @@ class TestScheduler(ZuulTestCase):
         # run and marked B inactive; run another reconfiguration so
         # that we're testing what happens when we reconfigure after
         # the active window having shrunk.
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # Unpause the node requests now
         self.fake_nodepool.unpause()
@@ -5237,13 +5237,13 @@ class TestScheduler(ZuulTestCase):
         # Remove job2
         self.commitConfigUpdate('org/common-config',
                                 'layouts/reconfigure-remove-add2.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.assertTrue(len(self.builds), 1)
 
         # Add job2 back
         self.commitConfigUpdate('org/common-config',
                                 'layouts/reconfigure-remove-add.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.assertTrue(len(self.builds), 2)
 
         self.executor_server.hold_jobs_in_build = False
@@ -5386,7 +5386,7 @@ For CI problems and help debugging, contact ci@example.org"""
         to the correct reporter"""
         self.updateConfigLayout(
             'tests/fixtures/layout-merge-failure.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.registerJobs()
 
         # Check a test failure isn't reported to SMTP
@@ -5623,7 +5623,7 @@ For CI problems and help debugging, contact ci@example.org"""
 
         # Now reload the configuration (simulate a HUP) to check the pipeline
         # comes out of disabled
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         tenant = self.sched.abide.tenants.get('tenant-one')
 
@@ -6056,7 +6056,7 @@ For CI problems and help debugging, contact ci@example.org"""
         self.waitUntilSettled()
 
         self.commitConfigUpdate('common-config', 'layouts/no-jobs.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         self.fake_nodepool.unpause()
@@ -6822,7 +6822,7 @@ class TestSchedulerSuccessURL(ZuulTestCase):
 
     def test_success_url(self):
         "Ensure bad build params are ignored"
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.init_repo('org/docs')
 
         A = self.fake_gerrit.addFakeChange('org/docs', 'master', 'A')
@@ -7522,7 +7522,7 @@ class TestSemaphore(ZuulTestCase):
                         tenant.semaphore_handler.semaphores)
 
         # reconfigure without layout change
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         tenant = self.sched.abide.tenants.get('tenant-one')
 
@@ -7533,7 +7533,7 @@ class TestSemaphore(ZuulTestCase):
         self.commitConfigUpdate(
             'common-config',
             'config/semaphore/zuul-reconfiguration.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
         tenant = self.sched.abide.tenants.get('tenant-one')
 
@@ -7565,7 +7565,7 @@ class TestSemaphore(ZuulTestCase):
         self.commitConfigUpdate(
             'common-config',
             'config/semaphore/git/common-config/zuul-remove-job.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         # Release job project-test1 which should be the only job left
@@ -7612,7 +7612,7 @@ class TestSemaphore(ZuulTestCase):
         self.commitConfigUpdate(
             'common-config',
             'config/semaphore/git/common-config/zuul-remove-job.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
         self.waitUntilSettled()
 
         # Now we can unpause nodepool
@@ -8095,7 +8095,7 @@ class TestSchedulerFailFast(ZuulTestCase):
         # Commit new config that removes project-test1
         self.commitConfigUpdate('common-config',
                                 'layouts/fail-fast-reconfigure.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # Release project-test1
         self.executor_server.release('project-test1')
@@ -8265,7 +8265,8 @@ class TestSchedulerSmartReconfiguration(ZuulTestCase):
 
         self.newTenantConfig('config/multi-tenant/main-reconfig.yaml')
 
-        self.sched_app.smartReconfigure(command_socket=command_socket)
+        self.scheds.execute(
+            lambda app: app.smartReconfigure(command_socket=command_socket))
 
         # Wait for smart reconfiguration. Only tenant-two should be
         # reconfigured. Note that waitUntilSettled is not

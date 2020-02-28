@@ -308,7 +308,7 @@ class TestConnectionsBadSQL(ZuulDBTestCase):
         "Test the SQL reporter fails gracefully when unable to connect"
         self.config.set('zuul', 'layout_config',
                         'tests/fixtures/layout-sql-reporter.yaml')
-        self.sched.reconfigure(self.config)
+        self.scheds.execute(lambda app: app.sched.reconfigure(app.config))
 
         # Trigger a reporter. If no errors are raised, the reporter has been
         # disabled correctly
