@@ -44,7 +44,7 @@ FROM opendevorg/python-base as zuul
 COPY --from=builder /output/ /output
 RUN echo "deb http://ftp.debian.org/debian stretch-backports main" >> /etc/apt/sources.list \
   && apt-get update \
-  && apt-get install -t stretch-backports -y bubblewrap \
+  && apt-get install -t stretch-backports -y bubblewrap socat \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 RUN /output/install-from-bindep \
