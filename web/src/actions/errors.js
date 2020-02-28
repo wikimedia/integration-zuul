@@ -26,7 +26,7 @@ export const addError = error => ({
 
 export const addApiError = error => {
   const d = {
-    url: error.request.responseURL || error.url
+    url: (error && error.request && error.request.responseURL) || error.url
   }
   if (error.response) {
     d.text = error.response.statusText
