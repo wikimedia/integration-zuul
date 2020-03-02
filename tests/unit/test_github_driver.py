@@ -1599,6 +1599,10 @@ class TestGithubAppDriver(ZuulGithubAppTestCase):
         """Using the checks API only works with app authentication"""
         project = "org/project3"
         github = self.fake_github.getGithubClient(None)
+        repo = github.repo_from_project('org/project3')
+        repo._set_branch_protection(
+            'master', contexts=['tenant-one/checks-api-reporting',
+                                'tenant-one/gate'])
 
         # pipeline reports pull request status both on start and success
         self.executor_server.hold_jobs_in_build = True
@@ -1641,6 +1645,11 @@ class TestGithubAppDriver(ZuulGithubAppTestCase):
             MatchesRegex(r'.*Build succeeded.*', re.DOTALL)
         )
         self.assertIsNotNone(check_run["completed_at"])
+
+        # Tell gate to merge to test checks requirements
+        self.fake_github.emitEvent(A.getCommentAddedEvent('merge me'))
+        self.waitUntilSettled()
+        self.assertTrue(A.is_merged)
 
     @simple_layout("layouts/reporting-github.yaml", driver="github")
     def test_update_non_existing_check_run(self):
