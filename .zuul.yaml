@@ -195,6 +195,7 @@
         - zuul-tox-docs
         - tox-pep8
         - tox-py35:
+            pre-run: playbooks/fix-tox.yaml
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
@@ -251,6 +252,7 @@
         - zuul-tox-docs
         - tox-pep8
         - tox-py35:
+            pre-run: playbooks/fix-tox.yaml
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
