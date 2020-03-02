@@ -13,6 +13,7 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+from collections import defaultdict
 
 import github3.exceptions
 import re
@@ -33,9 +34,13 @@ class FakeUser(object):
 
 
 class FakeBranch(object):
-    def __init__(self, branch='master', protected=False):
+    def __init__(self, fake_repo, branch='master', protected=False):
         self.name = branch
-        self.protected = protected
+        self._fake_repo = fake_repo
+
+    @property
+    def protected(self):
+        return self.name in self._fake_repo._branch_protection_rules
 
     def as_dict(self):
         return {
@@ -174,7 +179,7 @@ class FakeCommit(object):
 class FakeRepository(object):
     def __init__(self, name, data):
         self._api = FAKE_BASE_URL
-        self._branches = [FakeBranch()]
+        self._branches = [FakeBranch(self)]
         self._commits = {}
         self.data = data
         self.name = name
@@ -188,6 +193,9 @@ class FakeRepository(object):
         # would do in case the permission is not sufficient or missing at all.
         self._permissions = {}
 
+        # List of branch protection rules
+        self._branch_protection_rules = defaultdict(FakeBranchProtectionRule)
+
         # fail the next commit requests with 404
         self.fail_not_found = 0
 
@@ -197,11 +205,15 @@ class FakeRepository(object):
             return [b for b in self._branches if b.protected]
         return self._branches
 
-    def _set_branch_protection(self, branch_name, protected):
-        for branch in self._branches:
-            if branch.name == branch_name:
-                branch.protected = protected
-                return
+    def _set_branch_protection(self, branch_name, protected=True,
+                               contexts=None):
+        if not protected and branch_name in self._branch_protection_rules:
+            del self._branch_protection_rules[branch_name]
+            return
+
+        rule = self._branch_protection_rules[branch_name]
+        rule.pattern = branch_name
+        rule.required_contexts = contexts or []
 
     def _set_permission(self, key, value):
         # NOTE (felix): Currently, this is only used to mock a repo with
@@ -221,7 +233,7 @@ class FakeRepository(object):
         return client.session.get(url, headers)
 
     def _create_branch(self, branch):
-        self._branches.append((FakeBranch(branch=branch)))
+        self._branches.append((FakeBranch(self, branch=branch)))
 
     def _delete_branch(self, branch_name):
         self._branches = [b for b in self._branches if b.name != branch_name]
@@ -376,14 +388,15 @@ class FakeRepository(object):
             return None
 
     def get_url_protection(self, branch):
-        contexts = self.data.required_contexts.get((self.name, branch), [])
-        if not contexts:
+        rule = self._branch_protection_rules.get(branch)
+
+        if not rule:
             # Note that GitHub returns 404 if branch protection is off so do
             # the same here as well
             return FakeResponse({}, 404)
         data = {
             'required_status_checks': {
-                'contexts': contexts
+                'contexts': rule.required_contexts
             }
         }
         return FakeResponse(data)
@@ -552,11 +565,17 @@ class FakeGithubSession(object):
         return repo.get_url(request, params=params)
 
 
+class FakeBranchProtectionRule:
+
+    def __init__(self):
+        self.pattern = None
+        self.required_contexts = []
+
+
 class FakeGithubData(object):
     def __init__(self, pull_requests):
         self.pull_requests = pull_requests
         self.repos = {}
-        self.required_contexts = {}
 
 
 class FakeGithubClient(object):
