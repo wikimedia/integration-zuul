@@ -2450,7 +2450,8 @@ class AnsibleJob(object):
         if self.executor_variables_file is not None:
             cmd.extend(['-e@%s' % self.executor_variables_file])
 
-        cmd.extend(['-e', '@' + self.jobdir.ansible_vars_blacklist])
+        if not playbook.trusted:
+            cmd.extend(['-e', '@' + self.jobdir.ansible_vars_blacklist])
 
         self.emitPlaybookBanner(playbook, 'START', phase)
 
