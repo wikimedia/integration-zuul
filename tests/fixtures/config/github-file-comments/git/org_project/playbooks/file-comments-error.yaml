@@ -19,6 +19,9 @@
                 - line: 7  # No message provided
                 - line: 9999
                   message: Line is not part of the file
+                - line: 3
+                  message: Invalid level will fall back to warning
+                  level: invalid-level
               missingfile.txt:
                 - line: 1
                   message: "Missing file"

@@ -246,9 +246,22 @@ class TestFileComments(AnsibleZuulTestCase):
                          'SUCCESS')
         self.assertEqual(self.getJobFromHistory('file-comments-error').result,
                          'SUCCESS')
-        self.assertEqual(len(A.comments), 3)
+        self.assertEqual(len(A.comments), 4)
         comments = sorted(A.comments, key=lambda x: x['line'])
-        self.assertEqual(comments[0],
+        self.assertEqual(
+            comments[0],
+            {
+                "file": "path/to/file.py",
+                "line": 2,
+                "message": "levels are ignored by gerrit",
+                "reviewer": {
+                    "email": "zuul@example.com",
+                    "name": "Zuul",
+                    "username": "jenkins",
+                },
+            },
+        )
+        self.assertEqual(comments[1],
                          {'file': 'otherfile.txt',
                           'line': 21,
                           'message': 'This is a much longer message.\n\n'
@@ -257,7 +270,7 @@ class TestFileComments(AnsibleZuulTestCase):
                                        'name': 'Zuul',
                                        'username': 'jenkins'}}
         )
-        self.assertEqual(comments[1],
+        self.assertEqual(comments[2],
                          {'file': 'path/to/file.py',
                           'line': 42,
                           'message': 'line too long',
@@ -265,7 +278,7 @@ class TestFileComments(AnsibleZuulTestCase):
                                        'name': 'Zuul',
                                        'username': 'jenkins'}}
         )
-        self.assertEqual(comments[2],
+        self.assertEqual(comments[3],
                          {'file': 'path/to/file.py',
                           'line': 82,
                           'message': 'line too short',

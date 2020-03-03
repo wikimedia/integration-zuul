@@ -1777,7 +1777,7 @@ class TestCheckRunAnnotations(ZuulGithubAppTestCase, AnsibleZuulTestCase):
         )
 
         annotations = check_run["output"]["annotations"]
-        self.assertEqual(4, len(annotations))
+        self.assertEqual(6, len(annotations))
 
         self.assertEqual(annotations[0], {
             "path": "README",
@@ -1787,19 +1787,27 @@ class TestCheckRunAnnotations(ZuulGithubAppTestCase, AnsibleZuulTestCase):
             "end_line": 1,
         })
 
-        # As the columns are not part of the same line, they are ignored in the
-        # annotation. Otherwise Github will complain about the request.
         self.assertEqual(annotations[1], {
             "path": "README",
             "annotation_level": "warning",
+            "message": "Line annotation with level",
+            "start_line": 2,
+            "end_line": 2,
+        })
+
+        # As the columns are not part of the same line, they are ignored in the
+        # annotation. Otherwise Github will complain about the request.
+        self.assertEqual(annotations[2], {
+            "path": "README",
+            "annotation_level": "notice",
             "message": "simple range annotation",
             "start_line": 4,
             "end_line": 6,
         })
 
-        self.assertEqual(annotations[2], {
+        self.assertEqual(annotations[3], {
             "path": "README",
-            "annotation_level": "warning",
+            "annotation_level": "failure",
             "message": "Columns must be part of the same line",
             "start_line": 7,
             "end_line": 7,
@@ -1810,10 +1818,18 @@ class TestCheckRunAnnotations(ZuulGithubAppTestCase, AnsibleZuulTestCase):
         # From the invalid/error file comments, only the "line out of file"
         # should remain. All others are excluded as they would result in
         # invalid Github requests, making the whole check run update fail.
-        self.assertEqual(annotations[3], {
+        self.assertEqual(annotations[4], {
             "path": "README",
             "annotation_level": "warning",
             "message": "Line is not part of the file",
             "end_line": 9999,
             "start_line": 9999
+        })
+
+        self.assertEqual(annotations[5], {
+            "path": "README",
+            "annotation_level": "warning",
+            "message": "Invalid level will fall back to warning",
+            "start_line": 3,
+            "end_line": 3,
         })

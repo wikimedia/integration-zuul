@@ -48,6 +48,16 @@ GITHUB_BASE_URL = 'https://api.github.com'
 PREVIEW_JSON_ACCEPT = 'application/vnd.github.machine-man-preview+json'
 PREVIEW_DRAFT_ACCEPT = 'application/vnd.github.shadow-cat-preview+json'
 
+# NOTE (felix): Using log levels for file comments / annotations is IMHO more
+# convenient than the values Github expects. Having in mind that those comments
+# most probably come from various linters, "info", "warning" and "error"
+# should be more general terms than "notice", "warning" and "failure".
+ANNOTATION_LEVELS = {
+    "info": "notice",
+    "warning": "warning",
+    "error": "failure",
+}
+
 
 def _sign_request(body, secret):
     signature = 'sha1=' + hmac.new(
@@ -2011,19 +2021,20 @@ class GithubConnection(BaseConnection):
                         start_column = rng.get("start_character")
                         end_column = rng.get("end_character")
 
-                # TODO (felix): Make annotation_level configurable via
-                # file_comments in zuul_return. Other reporters like Gerrit
-                # might ignore the field if they don't support it.
-                # Accepted values are "notice", "warning", "failure".
-                # A "failure" annotation won't declare the check run as
-                # failure.
+                # Map the level coming from zuul_return to the ones Github
+                # expects. Each Github annotation must provide a level, so
+                # we fall back to "warning" in case no or an invalid level
+                # is provided.
+                annotation_level = ANNOTATION_LEVELS.get(
+                    comment.get("level"), "warning"
+                )
 
                 # A Github check annotation requires at least the following
                 # attributes: "path", "start_line", "end_line", "message" and
                 # "annotation_level"
                 raw_annotation = {
                     "path": fn,
-                    "annotation_level": "warning",
+                    "annotation_level": annotation_level,
                     "message": comment["message"],
                     "start_line": start_line,
                     "end_line": end_line,

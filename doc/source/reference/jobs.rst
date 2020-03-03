@@ -881,10 +881,12 @@ change, set the **zuul.file_comments** value.  For example:
               path/to/file.py:
                 - line: 42
                   message: "Line too long"
+                  level: info
                 - line: 82
                   message: "Line too short"
                 - line: 119
                   message: "This block is indented too far."
+                  level: warning
                   range:
                     start_line: 117
                     start_character:    0
@@ -893,7 +895,8 @@ change, set the **zuul.file_comments** value.  For example:
 
 Not all reporters currently support line comments (or all of the
 features of line comments); in these cases, reporters will simply
-ignore this data.
+ignore this data. The ``level`` is optional, but if provided must
+be one of ``info``, ``warning``, ``error``.
 
 Zuul will attempt to automatically translate the supplied line numbers
 to the corresponding lines in the original change as written (they may
