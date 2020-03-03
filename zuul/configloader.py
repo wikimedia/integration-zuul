@@ -1151,6 +1151,7 @@ class PipelineParser(object):
         'merge-failure': 'merge_failure_actions',
         'no-jobs': 'no_jobs_actions',
         'disabled': 'disabled_actions',
+        'dequeue': 'dequeue_actions',
     }
 
     def __init__(self, pcontext):
@@ -1200,6 +1201,7 @@ class PipelineParser(object):
                     'merge-failure-message': str,
                     'no-jobs-message': str,
                     'footer-message': str,
+                    'dequeue-message': str,
                     'dequeue-on-new-patchset': bool,
                     'ignore-dependencies': bool,
                     'post-review': bool,
@@ -1218,7 +1220,7 @@ class PipelineParser(object):
         pipeline['reject'] = self.getDriverSchema('reject')
         pipeline['trigger'] = vs.Required(self.getDriverSchema('trigger'))
         for action in ['enqueue', 'start', 'success', 'failure',
-                       'merge-failure', 'no-jobs', 'disabled']:
+                       'merge-failure', 'no-jobs', 'disabled', 'dequeue']:
             pipeline[action] = self.getDriverSchema('reporter')
         return vs.Schema(pipeline)
 
@@ -1247,6 +1249,9 @@ class PipelineParser(object):
                                           "Starting {pipeline.name} jobs.")
         pipeline.enqueue_message = conf.get('enqueue-message', "")
         pipeline.no_jobs_message = conf.get('no-jobs-message', "")
+        pipeline.dequeue_message = conf.get(
+            "dequeue-message", "Build canceled."
+        )
         pipeline.dequeue_on_new_patchset = conf.get(
             'dequeue-on-new-patchset', True)
         pipeline.ignore_dependencies = conf.get(

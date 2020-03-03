@@ -213,11 +213,16 @@ class GithubReporter(BaseReporter):
         pr_number = item.change.number
         sha = item.change.patchset
 
-        # Check if the buildset is finished or not. In case it's finished, we
-        # must provide additional parameters when updating the check_run via
-        # the Github API later on.
-        completed = item.current_build_set.result is not None
         status = self._check
+        # We declare a item as completed if it either has a result
+        # (success|failure) or a dequeue reporter is called (cancelled in case
+        # of Github checks API). For the latter one, the item might or might
+        # not have a result, but we still must set a conclusion on the check
+        # run. Thus, we cannot rely on the buildset's result only, but also
+        # check the state the reporter is going to report.
+        completed = (
+            item.current_build_set.result is not None or status == "cancelled"
+        )
 
         log.debug(
             "Updating check for change %s, params %s, context %s, message: %s",
@@ -313,6 +318,6 @@ def getSchema():
         'unlabel': scalar_or_list(str),
         'review': v.Any('approve', 'request-changes', 'comment'),
         'review-body': str,
-        'check': v.Any("in_progress", "success", "failure"),
+        'check': v.Any("in_progress", "success", "failure", "cancelled"),
     })
     return github_reporter
