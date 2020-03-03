@@ -1696,7 +1696,17 @@ class GithubConnection(BaseConnection):
         # we allow additional successful status contexts we don't care about.
         return required_contexts.issubset(successful)
 
+    @cachetools.cached(cache=cachetools.TTLCache(maxsize=2048, ttl=3600),
+                       key=lambda self, login, project:
+                       (self.connection_name, login))
     def getUser(self, login, project):
+        """
+        Get a Github user
+
+        The returned user only contains static information so this can be
+        cached. For the cache omit the project as this is only used for
+        requesting the data and doesn't affect the properties of the user.
+        """
         return GithubUser(login, self, project)
 
     def getRepoPermission(self, project, login):
