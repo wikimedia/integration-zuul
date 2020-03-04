@@ -3594,7 +3594,7 @@ class ZuulTestCase(BaseTestCase):
         os.makedirs(self.jobdir_root)
 
         # Make per test copy of Configuration.
-        self.setup_config()
+        self.config = self.setup_config(self.config_file)
         self.private_key_file = os.path.join(self.test_root, 'test_id_rsa')
         if not os.path.exists(self.private_key_file):
             src_private_key_file = os.environ.get(
@@ -3824,28 +3824,28 @@ class ZuulTestCase(BaseTestCase):
         self.connections = zuul.lib.connections.ConnectionRegistry()
         self.connections.configure(self.config, source_only=source_only)
 
-    def setup_config(self):
+    def setup_config(self, config_file: str):
         # This creates the per-test configuration object.  It can be
         # overridden by subclasses, but should not need to be since it
         # obeys the config_file and tenant_config_file attributes.
-        self.config = configparser.ConfigParser()
-        self.config.read(os.path.join(FIXTURE_DIR, self.config_file))
+        config = configparser.ConfigParser()
+        config.read(os.path.join(FIXTURE_DIR, config_file))
 
         sections = ['zuul', 'scheduler', 'executor', 'merger']
         for section in sections:
-            if not self.config.has_section(section):
-                self.config.add_section(section)
+            if not config.has_section(section):
+                config.add_section(section)
 
-        if not self.setupSimpleLayout():
+        if not self.setupSimpleLayout(config):
             tenant_config = None
             for cfg_attr in ('tenant_config', 'tenant_config_script'):
                 if hasattr(self, cfg_attr + '_file'):
                     if getattr(self, cfg_attr + '_file'):
                         value = getattr(self, cfg_attr + '_file')
-                        self.config.set('scheduler', cfg_attr, value)
+                        config.set('scheduler', cfg_attr, value)
                         tenant_config = value
                     else:
-                        self.config.remove_option('scheduler', cfg_attr)
+                        config.remove_option('scheduler', cfg_attr)
 
             if tenant_config:
                 git_path = os.path.join(
@@ -3858,10 +3858,11 @@ class ZuulTestCase(BaseTestCase):
                         self.copyDirToRepo(project,
                                            os.path.join(git_path, reponame))
         # Make test_root persist after ansible run for .flag test
-        self.config.set('executor', 'trusted_rw_paths', self.test_root)
-        self.setupAllProjectKeys()
+        config.set('executor', 'trusted_rw_paths', self.test_root)
+        self.setupAllProjectKeys(config)
+        return config
 
-    def setupSimpleLayout(self):
+    def setupSimpleLayout(self, config: ConfigParser):
         # If the test method has been decorated with a simple_layout,
         # use that instead of the class tenant_config_file.  Set up a
         # single config-project with the specified layout, and
@@ -3905,15 +3906,17 @@ class ZuulTestCase(BaseTestCase):
         if not os.path.exists(root):
             os.makedirs(root)
         f = tempfile.NamedTemporaryFile(dir=root, delete=False)
-        config = [{'tenant':
-                   {'name': 'tenant-one',
-                    'source': {driver:
-                               {'config-projects': ['org/common-config'],
-                                'untrusted-projects': untrusted_projects}}}}]
-        f.write(yaml.dump(config).encode('utf8'))
+        temp_config = [{
+            'tenant': {
+                'name': 'tenant-one',
+                'source': {
+                    driver: {
+                        'config-projects': ['org/common-config'],
+                        'untrusted-projects': untrusted_projects}}}}]
+        f.write(yaml.dump(temp_config).encode('utf8'))
         f.close()
-        self.config.set('scheduler', 'tenant_config',
-                        os.path.join(FIXTURE_DIR, f.name))
+        config.set('scheduler', 'tenant_config',
+                   os.path.join(FIXTURE_DIR, f.name))
 
         self.init_repo('org/common-config')
         self.addCommitToRepo('org/common-config', 'add content from fixture',
@@ -3921,11 +3924,11 @@ class ZuulTestCase(BaseTestCase):
 
         return True
 
-    def setupAllProjectKeys(self):
+    def setupAllProjectKeys(self, config: ConfigParser):
         if self.create_project_keys:
             return
 
-        path = self.config.get('scheduler', 'tenant_config')
+        path = config.get('scheduler', 'tenant_config')
         with open(os.path.join(FIXTURE_DIR, path)) as f:
             tenant_config = yaml.safe_load(f.read())
         for tenant in tenant_config:
@@ -4633,7 +4636,7 @@ class ZuulTestCase(BaseTestCase):
         f.close()
         self.config.set('scheduler', 'tenant_config',
                         os.path.join(FIXTURE_DIR, f.name))
-        self.setupAllProjectKeys()
+        self.setupAllProjectKeys(self.config)
 
     def addTagToRepo(self, project, name, sha):
         path = os.path.join(self.upstream_root, project)
@@ -4729,7 +4732,7 @@ class ZuulTestCase(BaseTestCase):
             with open(source_path, mode='rb') as source_tenant_config:
                 new_tenant_config.write(source_tenant_config.read())
         self.config['scheduler']['tenant_config'] = self.tenant_config_file
-        self.setupAllProjectKeys()
+        self.setupAllProjectKeys(self.config)
         self.log.debug(
             'tenant_config_file = {}'.format(self.tenant_config_file))
 
@@ -4829,39 +4832,41 @@ class SSLZuulTestCase(ZuulTestCase):
 
 
 class ZuulDBTestCase(ZuulTestCase):
-    def setup_config(self):
-        super(ZuulDBTestCase, self).setup_config()
-        for section_name in self.config.sections():
+    def setup_config(self, config_file: str):
+        config = super(ZuulDBTestCase, self).setup_config(config_file)
+        for section_name in config.sections():
             con_match = re.match(r'^connection ([\'\"]?)(.*)(\1)$',
                                  section_name, re.I)
             if not con_match:
                 continue
 
-            if self.config.get(section_name, 'driver') == 'sql':
-                if (self.config.get(section_name, 'dburi') ==
+            if config.get(section_name, 'driver') == 'sql':
+                if (config.get(section_name, 'dburi') ==
                     '$MYSQL_FIXTURE_DBURI$'):
                     f = MySQLSchemaFixture()
                     self.useFixture(f)
-                    self.config.set(section_name, 'dburi', f.dburi)
-                elif (self.config.get(section_name, 'dburi') ==
+                    config.set(section_name, 'dburi', f.dburi)
+                elif (config.get(section_name, 'dburi') ==
                       '$POSTGRESQL_FIXTURE_DBURI$'):
                     f = PostgresqlSchemaFixture()
                     self.useFixture(f)
-                    self.config.set(section_name, 'dburi', f.dburi)
+                    config.set(section_name, 'dburi', f.dburi)
+        return config
 
 
 class ZuulGithubAppTestCase(ZuulTestCase):
-    def setup_config(self):
-        super().setup_config()
-        for section_name in self.config.sections():
+    def setup_config(self, config_file: str):
+        config = super(ZuulGithubAppTestCase, self).setup_config(config_file)
+        for section_name in config.sections():
             con_match = re.match(r'^connection ([\'\"]?)(.*)(\1)$',
                                  section_name, re.I)
             if not con_match:
                 continue
 
-            if self.config.get(section_name, 'driver') == 'github':
-                if (self.config.get(section_name, 'app_key',
-                                    fallback=None) ==
+            if config.get(section_name, 'driver') == 'github':
+                if (config.get(section_name, 'app_key',
+                               fallback=None) ==
                     '$APP_KEY_FIXTURE$'):
-                    self.config.set(section_name, 'app_key',
-                                    os.path.join(FIXTURE_DIR, 'app_key'))
+                    config.set(section_name, 'app_key',
+                               os.path.join(FIXTURE_DIR, 'app_key'))
+        return config

@@ -11,6 +11,7 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+from configparser import ConfigParser
 
 import fixtures
 import logging
@@ -28,7 +29,7 @@ class TenantParserTestCase(ZuulTestCase):
                       'project-template', 'nodeset', 'secret'])
     UNTRUSTED_SET = CONFIG_SET - set(['pipeline'])
 
-    def setupAllProjectKeys(self):
+    def setupAllProjectKeys(self, config: ConfigParser):
         for project in ['common-config', 'org/project1', 'org/project2']:
             self.setupProjectKeys('gerrit', project)
 
@@ -332,9 +333,6 @@ class TestTenantExcludeAll(TenantParserTestCase):
 
 class TestSplitConfig(ZuulTestCase):
     tenant_config_file = 'config/split-config/main.yaml'
-
-    def setup_config(self):
-        super(TestSplitConfig, self).setup_config()
 
     def test_split_config(self):
         tenant = self.sched.abide.tenants.get('tenant-one')
