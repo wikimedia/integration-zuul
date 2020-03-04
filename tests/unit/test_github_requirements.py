@@ -14,7 +14,7 @@
 
 import time
 
-from tests.base import ZuulTestCase, simple_layout
+from tests.base import ZuulGithubAppTestCase, ZuulTestCase, simple_layout
 
 
 class TestGithubRequirements(ZuulTestCase):
@@ -588,3 +588,46 @@ class TestGithubRequirements(ZuulTestCase):
         self.waitUntilSettled()
         self.assertEqual(len(self.history), 2)
         self.assertEqual(self.history[1].name, 'project12-status')
+
+
+class TestGithubAppRequirements(ZuulGithubAppTestCase):
+    """Test pipeline and trigger requirements with app authentication"""
+    config_file = 'zuul-github-driver.conf'
+
+    @simple_layout("layouts/requirements-github.yaml", driver="github")
+    def test_pipeline_require_check_run(self):
+        "Test pipeline requirement: status (reported via a check run)"
+        project = "org/project16"
+        github = self.fake_github.getGithubClient()
+        repo = github.repo_from_project(project)
+
+        A = self.fake_github.openFakePullRequest(project, "master", "A")
+        # A comment event that we will keep submitting to trigger
+        comment = A.getCommentAddedEvent("trigger me")
+        self.fake_github.emitEvent(comment)
+        self.waitUntilSettled()
+
+        # No status from zuul, so nothing should be enqueued
+        self.assertEqual(len(self.history), 0)
+
+        # An error check run should also not cause it to be enqueued
+        repo.create_check_run(
+            A.head_sha,
+            "tenant-one/check",
+            conclusion="failure",
+            app="check-run",
+        )
+        self.fake_github.emitEvent(comment)
+        self.waitUntilSettled()
+        self.assertEqual(len(self.history), 0)
+
+        # A success check run goes in, ready to be enqueued
+        repo.create_check_run(
+            A.head_sha,
+            "tenant-one/check",
+            conclusion="success",
+            app="check-run",
+        )
+        self.fake_github.emitEvent(comment)
+        self.waitUntilSettled()
+        self.assertEqual(len(self.history), 1)

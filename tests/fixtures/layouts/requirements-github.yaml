@@ -89,6 +89,25 @@
         check: success
 
 - pipeline:
+    name: require_check_run
+    manager: independent
+    require:
+      github:
+        status:
+          # Github does not differentiate between status and check run
+          # in case of branch protection and required status checks.
+          - check-run:tenant-one/check:success
+    trigger:
+      github:
+        - event: pull_request
+          action: comment
+          comment: trigger me
+    success:
+      github:
+        check: success
+
+
+- pipeline:
     name: trigger
     manager: independent
     trigger:
@@ -367,6 +386,10 @@
     name: project15-check-run
     run: playbooks/project15-check-run.yaml
 
+- job:
+    name: project16-require-check-run
+    run: playbooks/project16-require-check-run.yaml
+
 - project:
     name: org/project1
     pipeline:
@@ -465,3 +488,9 @@
     trigger_check_run:
       jobs:
         - project15-check-run
+
+- project:
+    name: org/project16
+    require_check_run:
+      jobs:
+        - project16-require-check-run

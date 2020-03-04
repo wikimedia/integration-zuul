@@ -2085,6 +2085,17 @@ class GithubConnection(BaseConnection):
                 statuses.append("%s:%s:%s" % stuple)
                 seen.append("%s:%s" % (stuple[0], stuple[1]))
 
+        # Although Github differentiates commit statuses and commit checks via
+        # their respective APIs, the branch protection the status section
+        # (below the comments of a PR) do not differentiate between both. Thus,
+        # to mimic this behaviour also in Zuul, a required_status in the
+        # pipeline config could map to either a status or a check.
+        for check in self.getCommitChecks(project.name, sha, event):
+            ctuple = _check_as_tuple(check)
+            if "{}:{}".format(ctuple[0], ctuple[1]) not in seen:
+                statuses.append("{}:{}:{}".format(*ctuple))
+                seen.append("{}:{}".format(ctuple[0], ctuple[1]))
+
         return statuses
 
     def getWebController(self, zuul_web):
