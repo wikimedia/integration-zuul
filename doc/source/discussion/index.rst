@@ -16,3 +16,4 @@ configure it to meet your needs.
    gating
    encryption
    tenant-scoped-rest-api
+   github-checks-api
