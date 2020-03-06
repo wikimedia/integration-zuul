@@ -95,10 +95,10 @@ class GithubReporter(BaseReporter):
             if self._create_comment or errors_received:
                 self.addPullComment(item)
             if (self._merge):
-                self.mergePull(item)
-                if not item.change.is_merged:
-                    msg = self._formatItemReportMergeFailure(item)
-                    self.addPullComment(item, msg)
+                try:
+                    self.mergePull(item)
+                except Exception as e:
+                    self.addPullComment(item, str(e))
 
     def _formatItemReportJobs(self, item):
         # Return the list of jobs portion of the report
@@ -161,8 +161,7 @@ class GithubReporter(BaseReporter):
         if merge_mode not in self.merge_modes:
             mode = [x[0] for x in MERGER_MAP.items() if x[1] == merge_mode][0]
             self.log.warning('Merge mode %s not supported by Github', mode)
-            # TODO(tobiash): report error to user
-            return
+            raise MergeFailure('Merge mode %s not supported by Github' % mode)
 
         merge_mode = self.merge_modes[merge_mode]
         project = item.change.project.name
@@ -179,13 +178,15 @@ class GithubReporter(BaseReporter):
                                           zuul_event_id=item.event)
                 item.change.is_merged = True
                 return
-            except MergeFailure:
+            except MergeFailure as e:
                 log.exception('Merge attempt of change %s  %s/2 failed.',
                               item.change, i, exc_info=True)
+                error_message = str(e)
                 if i == 1:
                     time.sleep(2)
         log.warning('Merge of change %s failed after 2 attempts, giving up',
                     item.change)
+        raise MergeFailure(error_message)
 
     def addReview(self, item):
         log = get_annotated_logger(self.log, item.event)

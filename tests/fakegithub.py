@@ -28,6 +28,16 @@ from tests.fake_graphql import FakeGithubQuery
 FAKE_BASE_URL = 'https://example.com/api/v3/'
 
 
+class ErrorResponse:
+    status_code = 0
+    message = ''
+
+    def json(self):
+        return {
+            'message': self.message
+        }
+
+
 class FakeUser(object):
     def __init__(self, login):
         self.login = login
@@ -276,16 +286,7 @@ class FakeRepository(object):
         if self.fail_not_found > 0:
             self.fail_not_found -= 1
 
-            class Response:
-                status_code = 0
-                message = ''
-
-                def json(self):
-                    return {
-                        'message': self.message
-                    }
-
-            resp = Response()
+            resp = ErrorResponse()
             resp.status_code = 404
             resp.message = 'Not Found'
 
@@ -471,6 +472,23 @@ class FakePull(object):
         # since we don't know all commits of a pr we just return here a list
         # with the head_sha as the only commit
         return [self.head]
+
+    def merge(self, commit_message=None, sha=None, merge_method=None):
+        conn = self._fake_pull_request.github
+        pr = self._fake_pull_request
+
+        # record that this got reported
+        conn.reports.append((pr.project, pr.number, 'merge', merge_method))
+        if conn.merge_failure:
+            raise Exception('Unknown merge failure')
+        if conn.merge_not_allowed_count > 0:
+            conn.merge_not_allowed_count -= 1
+            resp = ErrorResponse()
+            resp.status_code = 403
+            resp.message = 'Merge not allowed'
+            raise github3.exceptions.MethodNotAllowed(resp)
+        pr.setMerged(commit_message)
+        return True
 
     def as_dict(self):
         pr = self._fake_pull_request
