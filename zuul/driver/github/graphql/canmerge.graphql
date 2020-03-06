@@ -1,0 +1,40 @@
+query canMergeData(
+  $owner: String!
+  $repo: String!
+  $pull: Int!
+  $head_sha: String!
+) {
+  repository(owner: $owner, name: $repo) {
+    branchProtectionRules(first: 100) {
+      nodes {
+        pattern
+        requiredStatusCheckContexts
+        requiresApprovingReviews
+        requiresCodeOwnerReviews
+      }
+    }
+    pullRequest(number: $pull) {
+      isDraft
+    }
+    object(expression: $head_sha) {
+      ... on Commit {
+        checkSuites(first: 100) {
+          nodes {
+            checkRuns(first: 100) {
+              nodes {
+                name
+                conclusion
+              }
+            }
+          }
+        }
+        status {
+          contexts {
+            state
+            context
+          }
+        }
+      }
+    }
+  }
+}

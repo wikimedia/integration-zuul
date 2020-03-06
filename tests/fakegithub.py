@@ -19,8 +19,11 @@ import github3.exceptions
 import re
 import time
 
+import graphene
 from requests import HTTPError
 from requests.structures import CaseInsensitiveDict
+
+from tests.fake_graphql import FakeGithubQuery
 
 FAKE_BASE_URL = 'https://example.com/api/v3/'
 
@@ -537,6 +540,8 @@ class FakeGithubSession(object):
     def __init__(self, data):
         self._data = data
         self.headers = CaseInsensitiveDict()
+        self._base_url = None
+        self.schema = graphene.Schema(query=FakeGithubQuery)
 
     def build_url(self, *args):
         fakepath = '/'.join(args)
@@ -555,6 +560,17 @@ class FakeGithubSession(object):
             # unknown entity to process
             return None
 
+    def post(self, url, data=None, headers=None, params=None, json=None):
+
+        if json and json.get('query'):
+            query = json.get('query')
+            variables = json.get('variables')
+            result = self.schema.execute(
+                query, variables=variables, context=self._data)
+            return FakeResponse({'data': result.data}, 200)
+
+        return FakeResponse(None, 404)
+
     def get_repo(self, request, params=None):
         org, project, request = request.split('/', 2)
         project_name = '{}/{}'.format(org, project)
@@ -570,6 +586,8 @@ class FakeBranchProtectionRule:
     def __init__(self):
         self.pattern = None
         self.required_contexts = []
+        self.require_reviews = False
+        self.require_codeowners_review = False
 
 
 class FakeGithubData(object):
