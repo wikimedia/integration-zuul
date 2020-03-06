@@ -892,6 +892,7 @@ class Scheduler(threading.Thread):
             self.log.info("Tenant reconfiguration beginning for %s due to "
                           "projects %s",
                           event.tenant_name, event.project_branches)
+            start = time.monotonic()
             # If a change landed to a project, clear out the cached
             # config of the changed branch before reconfiguring.
             for (project, branch) in event.project_branches:
@@ -910,7 +911,9 @@ class Scheduler(threading.Thread):
             self.abide = abide
         finally:
             self.layout_lock.release()
-        self.log.info("Tenant reconfiguration complete")
+        duration = round(time.monotonic() - start, 3)
+        self.log.info("Tenant reconfiguration complete (duration: %s seconds)",
+                      duration)
 
     def _reenqueueGetProject(self, tenant, item):
         project = item.change.project
