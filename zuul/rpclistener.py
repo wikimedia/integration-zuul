@@ -303,7 +303,8 @@ class RPCListener(object):
                              '"%s" to claims %s')
                 self.log.debug(
                     debug_msg % (rule, tenant, json.dumps(claims)))
-                authorized = self.sched.abide.admin_rules[rule](claims)
+                authorized = self.sched.abide.admin_rules[rule](claims,
+                                                                tenant)
                 if authorized:
                     if '__zuul_uid_claim' in claims:
                         uid = claims['__zuul_uid_claim']
