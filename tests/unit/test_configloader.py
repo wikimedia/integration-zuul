@@ -331,6 +331,41 @@ class TestTenantExcludeAll(TenantParserTestCase):
             "No error should have been accumulated")
 
 
+class TestTenantConfigBranches(ZuulTestCase):
+    tenant_config_file = 'config/tenant-parser/simple.yaml'
+
+    def _validate_job(self, job, branch):
+        tenant_one = self.sched.abide.tenants.get('tenant-one')
+        jobs = tenant_one.layout.getJobs(job)
+        self.assertEquals(len(jobs), 1)
+        self.assertIn(jobs[0].source_context.branch, branch)
+
+    def test_tenant_config_load_branch(self):
+        """
+        Tests that when specifying branches for a project only those branches
+        are parsed.
+        """
+        # Job must be defined in master
+        common_job = 'common-config-job'
+        self._validate_job(common_job, 'master')
+
+        self.log.debug('Creating branches')
+        self.create_branch('common-config', 'stable')
+        self.create_branch('common-config', 'feat_x')
+
+        self.sched.reconfigure(self.config)
+
+        # Job must be defined in master
+        self._validate_job(common_job, 'master')
+
+        # Reconfigure with load-branch stable for common-config
+        self.newTenantConfig('config/tenant-parser/branch.yaml')
+        self.sched.reconfigure(self.config)
+
+        # Now job must be defined on stable branch
+        self._validate_job(common_job, 'stable')
+
+
 class TestSplitConfig(ZuulTestCase):
     tenant_config_file = 'config/split-config/main.yaml'
 
