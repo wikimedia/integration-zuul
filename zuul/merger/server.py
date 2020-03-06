@@ -22,7 +22,7 @@ from zuul.lib.gearworker import ZuulGearWorker
 from zuul.merger import merger
 
 
-COMMANDS = ['stop']
+COMMANDS = ['stop', 'pause', 'unpause']
 
 
 class MergeServer(object):
@@ -44,7 +44,10 @@ class MergeServer(object):
             merge_root, connections, merge_email, merge_name, speed_limit,
             speed_time, git_timeout=git_timeout)
         self.command_map = dict(
-            stop=self.stop)
+            stop=self.stop,
+            pause=self.pause,
+            unpause=self.unpause,
+        )
         command_socket = get_default(
             self.config, 'merger', 'command_socket',
             '/var/lib/zuul/merger.socket')
@@ -84,6 +87,14 @@ class MergeServer(object):
 
     def join(self):
         self.gearworker.join()
+
+    def pause(self):
+        self.log.debug('Pausing')
+        self.gearworker.unregister()
+
+    def unpause(self):
+        self.log.debug('Resuming')
+        self.gearworker.register()
 
     def runCommand(self):
         while self._command_running:

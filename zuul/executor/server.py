@@ -2652,7 +2652,7 @@ class ExecutorServer(object):
             }
             self.merger_gearworker = ZuulGearWorker(
                 'Zuul Executor Merger',
-                'zuul.ExecutorServer',
+                'zuul.ExecutorServer.MergeWorker',
                 'merger',
                 self.config,
                 self.merger_jobs,
@@ -2673,7 +2673,7 @@ class ExecutorServer(object):
 
         self.executor_gearworker = ZuulGearWorker(
             'Zuul Executor Server',
-            'zuul.ExecutorServer',
+            'zuul.ExecutorServer.ExecuteWorker',
             'executor',
             self.config,
             self.executor_jobs,
@@ -2812,10 +2812,16 @@ class ExecutorServer(object):
         self.executor_gearworker.join()
 
     def pause(self):
+        self.log.debug('Pausing')
         self.pause_sensor.pause = True
+        if self.merger_gearworker is not None:
+            self.merger_gearworker.unregister()
 
     def unpause(self):
+        self.log.debug('Resuming')
         self.pause_sensor.pause = False
+        if self.merger_gearworker is not None:
+            self.merger_gearworker.register()
 
     def graceful(self):
         # TODOv3: implement

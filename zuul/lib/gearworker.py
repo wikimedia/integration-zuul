@@ -53,11 +53,18 @@ class ZuulGearWorker:
                                tcp_keepintvl=30, tcp_keepcnt=5)
         self.log.debug('Waiting for server')
         self.gearman.waitForServer()
+        self.register()
+        self.thread.start()
 
-        self.log.debug('Registering')
+    def register(self):
+        self.log.debug('Registering jobs')
         for job in self.jobs:
             self.gearman.registerFunction(job)
-        self.thread.start()
+
+    def unregister(self):
+        self.log.debug('Unregistering jobs')
+        for job in self.jobs:
+            self.gearman.unRegisterFunction(job)
 
     def stop(self):
         self._running = False
