@@ -3455,7 +3455,7 @@ class SchedulerTestApp:
         self.merge_client = RecordingMergeClient(self.config, self.sched)
         self.nodepool = zuul.nodepool.Nodepool(self.sched)
         self.zk = zuul.zk.ZooKeeper(enable_cache=True)
-        self.zk.connect(self.zk_config, timeout=30.0)
+        self.zk.connect(self.zk_config, timeout=60.0)
 
         self.sched.setExecutor(self.executor_client)
         self.sched.setMerger(self.merge_client)
