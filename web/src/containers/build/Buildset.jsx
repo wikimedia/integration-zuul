@@ -56,27 +56,29 @@ class Buildset extends React.Component {
       }
     })
 
-    buildset.builds.forEach(build => {
-      const row = []
-      buildColumns.forEach(column => {
-        if (column === 'job') {
-          row.push(build.job_name)
-        } else if (column === 'duration') {
-          row.push(moment.duration(build.duration, 'seconds')
-                   .format('h [hr] m [min] s [sec]'))
-        } else if (column === 'voting') {
-          row.push(build.voting ? 'true' : 'false')
-        } else if (column === 'result') {
-          row.push(<Link
-                     to={this.props.tenant.linkPrefix + '/build/' + build.uuid}>
-                     {build.result}
-                   </Link>)
-        } else {
-          row.push(build[column])
-        }
+    if (buildset.builds) {
+      buildset.builds.forEach(build => {
+        const row = []
+        buildColumns.forEach(column => {
+          if (column === 'job') {
+            row.push(build.job_name)
+          } else if (column === 'duration') {
+            row.push(moment.duration(build.duration, 'seconds')
+                     .format('h [hr] m [min] s [sec]'))
+          } else if (column === 'voting') {
+            row.push(build.voting ? 'true' : 'false')
+          } else if (column === 'result') {
+            row.push(<Link
+                       to={this.props.tenant.linkPrefix + '/build/' + build.uuid}>
+                       {build.result}
+                     </Link>)
+          } else {
+            row.push(build[column])
+          }
+        })
+        buildRows.push(row)
       })
-      buildRows.push(row)
-    })
+    }
 
     return (
       <React.Fragment>
@@ -95,30 +97,31 @@ class Buildset extends React.Component {
             </table>
           </Panel.Body>
         </Panel>
-        <Panel>
-          <Panel.Heading>Builds</Panel.Heading>
-          <Panel.Body>
-            <table className="table table-striped table-bordered">
-              <thead>
-                <tr>
-                  {buildColumns.map(item => (
-                    <td key={item}>{item}</td>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {buildset.builds.map((item, idx) => (
-                  <tr key={idx} className={item.result === 'SUCCESS' ? 'success': 'warning'}>
-                    {buildRows[idx].map((item, idx) => (
-                      <td key={idx}>{item}</td>
+        {buildset.builds &&
+          <Panel>
+            <Panel.Heading>Builds</Panel.Heading>
+            <Panel.Body>
+              <table className="table table-striped table-bordered">
+                <thead>
+                  <tr>
+                    {buildColumns.map(item => (
+                      <td key={item}>{item}</td>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </Panel.Body>
-        </Panel>
-
+                </thead>
+                <tbody>
+                  {buildset.builds.map((item, idx) => (
+                    <tr key={idx} className={item.result === 'SUCCESS' ? 'success': 'warning'}>
+                      {buildRows[idx].map((item, idx) => (
+                        <td key={idx}>{item}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel.Body>
+          </Panel>
+        }
       </React.Fragment>
     )
   }

@@ -332,9 +332,11 @@ const fetchBuildset = (tenant, buildset) => dispatch => {
   dispatch(requestBuildset())
   return API.fetchBuildset(tenant.apiPrefix, buildset)
     .then(response => {
-      response.data.builds.forEach(build => {
-        dispatch(receiveBuild(build.uuid, build))
-      })
+      if (response.data.builds) {
+        response.data.builds.forEach(build => {
+          dispatch(receiveBuild(build.uuid, build))
+        })
+      }
       dispatch(receiveBuildset(buildset, response.data))
     })
     .catch(error => dispatch(failedBuildset(error)))
