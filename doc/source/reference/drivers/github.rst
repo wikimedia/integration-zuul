@@ -516,3 +516,45 @@ enqueued into the pipeline.
       provided criteria the pull request can not be entered into the
       pipeline.  It follows the same syntax as
       :attr:`pipeline.require.<github source>.review`
+
+Reference pipelines configuration
+---------------------------------
+
+Branch protection rules
+.......................
+
+The rules prevent Pull requests to be merged on defined branches if they are
+not met. For instance a branch might require that specific status are marked
+as ``success`` before allowing the merge of the Pull request.
+
+Zuul provides the attribute tenant.untrusted-projects.exclude-unprotected-branches.
+This attribute is by default set to ``false`` but we recommend to set it to
+``true`` for the whole tenant. By doing so Zuul will benefit from:
+
+ - exluding in-repo development branches used to open Pull requests. This will
+   prevent Zuul to fetch and read useless branches data to find Zuul
+   configuration files.
+ - reading protection rules configuration from the Github API for a given branch
+   to define whether a Pull request must enter the gate pipeline. As of now
+   Zuul only takes in account "Require status checks to pass before merging" and
+   the checked status checkboxes.
+
+With the use of the reference pipelines below, the Zuul project recommends to
+set the minimum following settings:
+
+ - attribute tenant.untrusted-projects.exclude-unprotected-branches to ``true``
+   in the tenant (main.yaml) configuration file.
+ - on each Github repository, activate the branch protections rules and
+   configure the name of the protected branches. Furthermore set
+   "Require status checks to pass before merging" and check the status labels
+   checkboxes (at least ```<tenant>/check```) that must be marked as success in
+   order for Zuul to make the Pull request enter the gate pipeline to be merged.
+
+
+Reference pipelines
+...................
+
+Here is an example of standard pipelines you may want to define:
+
+.. literalinclude:: /examples/pipelines/github-reference-pipelines.yaml
+   :language: yaml
