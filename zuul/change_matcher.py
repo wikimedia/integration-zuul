@@ -58,29 +58,29 @@ class ProjectMatcher(AbstractChangeMatcher):
 
 
 class BranchMatcher(AbstractChangeMatcher):
+    fullmatch = False
 
     def matches(self, change):
         if hasattr(change, 'branch'):
-            if self.regex.match(change.branch):
-                return True
+            # an implied branch matcher must do a fullmatch to work correctly
+            if self.fullmatch:
+                if self.regex.fullmatch(change.branch):
+                    return True
+            else:
+                if self.regex.match(change.branch):
+                    return True
             return False
         if self.regex.match(change.ref):
             return True
+        if hasattr(change, 'containing_branches'):
+            for branch in change.containing_branches:
+                if self.regex.fullmatch(branch):
+                    return True
         return False
 
 
-class ImpliedBranchMatcher(AbstractChangeMatcher):
-    """
-    A branch matcher that only considers branch refs, and always
-    succeeds on other types (e.g., tags).
-    """
-
-    def matches(self, change):
-        if hasattr(change, 'branch'):
-            if self.regex.fullmatch(change.branch):
-                return True
-            return False
-        return True
+class ImpliedBranchMatcher(BranchMatcher):
+    fullmatch = True
 
 
 class FileMatcher(AbstractChangeMatcher):

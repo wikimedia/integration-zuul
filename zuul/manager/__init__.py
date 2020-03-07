@@ -1027,6 +1027,7 @@ class PipelineManager(object):
     def onMergeCompleted(self, event):
         build_set = event.build_set
         item = build_set.item
+        item.change.containing_branches = event.item_in_branches
         build_set.merge_state = build_set.COMPLETE
         build_set.repo_state = event.repo_state
         if event.merged:
