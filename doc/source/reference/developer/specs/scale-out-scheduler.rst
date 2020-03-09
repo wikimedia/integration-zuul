@@ -226,7 +226,7 @@ In order to prepare for distributed pipeline execution we need to use Zookeeper
 for scheduling jobs on the executors. This is needed so that any scheduler can
 take over a pipeline execution without having to restart jobs.
 
-As discribed above the executor will look for builds. These will be stored in
+As described above the executor will look for builds. These will be stored in
 ``/zuul/builds/<sequence>``. The builds will contain every information that is
 needed to run the job. The builds are stored outside of the pipeline itself
 for two reasons. First the executors should not need to do a deep search when
