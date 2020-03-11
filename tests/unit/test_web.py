@@ -17,6 +17,7 @@ import json
 import os
 import urllib.parse
 import socket
+import textwrap
 import time
 import jwt
 
@@ -27,6 +28,7 @@ import zuul.rpcclient
 
 from tests.base import ZuulTestCase, ZuulDBTestCase, AnsibleZuulTestCase
 from tests.base import ZuulWebFixture, FIXTURE_DIR, iterate_timeout
+from tests.base import simple_layout
 
 
 class FakeConfig(object):
@@ -1118,6 +1120,30 @@ class TestBuildInfo(ZuulDBTestCase, BaseTestWeb):
         project_merge_build = [x for x in buildset["builds"]
                                if x["job_name"] == "project-merge"][0]
         self.assertEqual('SUCCESS', project_merge_build['result'])
+
+    @simple_layout('layouts/sql-build-error.yaml')
+    def test_build_error(self):
+        conf = textwrap.dedent(
+            """
+            - job:
+                name: test-job
+                run: playbooks/dne.yaml
+
+            - project:
+                name: org/project
+                check:
+                  jobs:
+                    - test-job
+            """)
+
+        file_dict = {'.zuul.yaml': conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        builds = self.get_url("api/tenant/tenant-one/builds").json()
+        self.assertIn('Unable to find playbook',
+                      builds[0]['error_detail'])
 
 
 class TestArtifacts(ZuulDBTestCase, BaseTestWeb, AnsibleZuulTestCase):

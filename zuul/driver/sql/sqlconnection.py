@@ -300,6 +300,7 @@ class SQLConnection(BaseConnection):
             voting = sa.Column(sa.Boolean)
             log_url = sa.Column(sa.String(255))
             node_name = sa.Column(sa.String(255))
+            error_detail = sa.Column(sa.TEXT())
             buildset = orm.relationship(BuildSetModel, backref="builds")
 
             def createArtifact(self, *args, **kw):
