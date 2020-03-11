@@ -149,10 +149,17 @@ class Scheduler(zuul.cmd.ZuulDaemonApp):
         zookeeper_hosts = get_default(self.config, 'zookeeper', 'hosts', None)
         if not zookeeper_hosts:
             raise Exception("The zookeeper hosts config value is required")
+        zookeeper_tls_key = get_default(self.config, 'zookeeper', 'tls_key')
+        zookeeper_tls_cert = get_default(self.config, 'zookeeper', 'tls_cert')
+        zookeeper_tls_ca = get_default(self.config, 'zookeeper', 'tls_ca')
         zookeeper_timeout = float(get_default(self.config, 'zookeeper',
                                               'session_timeout', 10.0))
-
-        zookeeper.connect(zookeeper_hosts, timeout=zookeeper_timeout)
+        zookeeper.connect(
+            zookeeper_hosts,
+            timeout=zookeeper_timeout,
+            tls_cert=zookeeper_tls_cert,
+            tls_key=zookeeper_tls_key,
+            tls_ca=zookeeper_tls_ca)
 
         self.configure_connections()
         self.sched.setExecutor(gearman)

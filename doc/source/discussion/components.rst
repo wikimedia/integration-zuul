@@ -64,7 +64,7 @@ TCP port 4730 by default.
 The Zuul scheduler communicates with Nodepool via the ZooKeeper
 protocol.  Nodepool requires an external ZooKeeper cluster, and the
 Zuul scheduler needs to be able to connect to the hosts in that
-cluster on TCP port 2181.
+cluster on TCP port 2181 or 2281.
 
 Both the Nodepool launchers and Zuul executors need to be able to
 communicate with the hosts which nodepool provides.  If these are on
@@ -193,6 +193,17 @@ The following sections of ``zuul.conf`` are used by all Zuul components:
 
       The ZooKeeper session timeout, in seconds.
 
+   .. attr:: tls_cert
+
+      If using TLS, the path to the PEM encoded certificate file.
+
+   .. attr:: tls_key
+
+      If using TLS, the path to the PEM encoded key file.
+
+   .. attr:: tls_ca
+
+      If using TLS, the path to the PEM encoded CA certificate file.
 
 .. _scheduler:
 
