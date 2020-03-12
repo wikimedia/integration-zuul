@@ -35,6 +35,7 @@ python3-devel [compile test platform:rpm]
 python3.7 [test platform:ubuntu-bionic]
 python3.7-dev [test platform:ubuntu-bionic]
 bubblewrap [!platform:ubuntu-xenial]
+socat
 libre2-dev [compile test platform:dpkg]
 libre2-5 [platform:debian-buster]
 libre2-4 [platform:ubuntu-bionic]
