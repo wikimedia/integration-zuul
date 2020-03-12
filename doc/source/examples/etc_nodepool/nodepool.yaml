@@ -1,5 +1,10 @@
 zookeeper-servers:
   - host: zk
+    port: 2281
+zookeeper-tls:
+  cert: /var/certs/certs/client.pem
+  key: /var/certs/keys/clientkey.pem
+  ca: /var/certs/certs/cacert.pem
 
 labels:
   - name: ubuntu-bionic

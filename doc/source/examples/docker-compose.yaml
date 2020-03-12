@@ -27,11 +27,17 @@ services:
       - "sshkey:/var/ssh:z"
       - "nodessh:/var/node:z"
       - "./playbooks/:/var/playbooks/:z"
+      - "certs:/var/certs:z"
+      - "../../../tools/:/var/zuul-tools/:z"
     # NOTE(pabelanger): Be sure to update this line each time we change the
     # default version of ansible for Zuul.
     command: "/usr/local/lib/zuul/ansible/2.8/bin/ansible-playbook /var/playbooks/setup.yaml"
   zk:
     image: zookeeper
+    hostname: examples_zk_1.examples_default
+    volumes:
+      - "certs:/var/certs:z"
+      - "./zoo.cfg:/conf/zoo.cfg:z"
   mysql:
     image: mariadb
     environment:
@@ -59,6 +65,7 @@ services:
       - "./etc_zuul/:/etc/zuul/:z"
       - "./playbooks/:/var/playbooks/:z"
       - "sshkey:/var/ssh:z"
+      - "certs:/var/certs:z"
   web:
     command: "sh -c '/var/playbooks/wait-to-start-gearman.sh && zuul-web -f'"
     depends_on:
@@ -72,6 +79,7 @@ services:
     volumes:
       - "./etc_zuul/:/etc/zuul/:z"
       - "./playbooks/:/var/playbooks/:z"
+      - "certs:/var/certs:z"
   executor:
     privileged: true
     environment:
@@ -103,6 +111,7 @@ services:
     image: zuul/nodepool-launcher
     volumes:
       - "./etc_nodepool/:/etc/nodepool/:z"
+      - "certs:/var/certs:z"
     ports:
       - "8022:8022"
   logs:
@@ -122,3 +131,4 @@ volumes:
   sshkey:
   nodessh:
   logs:
+  certs:
