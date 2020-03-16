@@ -216,7 +216,7 @@
                     ZUUL_TEST_ROOT: /tmp/zuul-test
                 tox_environment:
                     ZUUL_TEST_ROOT: /tmp/zuul-test
-        - tox-py37:
+        - tox-py38:
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
@@ -273,7 +273,7 @@
                     ZUUL_TEST_ROOT: /tmp/zuul-test
                 tox_environment:
                     ZUUL_TEST_ROOT: /tmp/zuul-test
-        - tox-py37:
+        - tox-py38:
             irrelevant-files:
               - zuul/cmd/migrate.py
               - playbooks/zuul-migrate/.*
