@@ -4581,6 +4581,35 @@ class TestSecretPassToParent(ZuulTestCase):
         ])
         self.assertIn('does not allow post-review', B.messages[0])
 
+    def test_secret_pass_to_parent_missing(self):
+        in_repo_conf = textwrap.dedent(
+            """
+            - job:
+                name: parent-job-without-secret
+                pre-run: playbooks/pre.yaml
+                run: playbooks/run.yaml
+                post-run: playbooks/post.yaml
+
+            - job:
+                name: test-job
+                parent: trusted-parent-job-without-secret
+                secrets:
+                  - name: my_secret
+                    secret: missing-secret
+                    pass-to-parent: true
+
+            - project:
+                check:
+                  jobs:
+                    - test-job
+            """)
+        file_dict = {'zuul.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project', 'master', 'A',
+                                           files=file_dict)
+        self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+        self.assertIn('Secret missing-secret not found', A.messages[0])
+
     def test_secret_override(self):
         # Test that secrets passed to parents don't override existing
         # secrets.
