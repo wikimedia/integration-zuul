@@ -459,6 +459,11 @@ create a second post-run playbook for it.  Copy the following to
 .. literalinclude:: /examples/zuul-config/playbooks/base/post-logs.yaml
    :language: yaml
 
+The first role in this playbook generates some metadata about the logs
+which are about to be uploaded.  Zuul uses this metadata in its web
+interface to nicely render the logs and other information about the
+build.
+
 This tutorial is running an Apache webserver in a container which will
 serve build logs from a volume that is shared with the Zuul executor.
 That volume is mounted at `/srv/static/logs`, which is the default
@@ -467,12 +472,12 @@ files to a remote server via SCP; see the role documentation for how
 to configure it.  For this simple case, the only option we need to
 provide is the URL where the logs can ultimately be found.
 
-.. note:: Zuul-jobs also contains a `role
-          <https://zuul-ci.org/docs/zuul-jobs/roles.html#role-upload-logs-swift>`_
-          to upload logs to an OpenStack Object Storage (swift)
-          container.  If you create a role to upload logs to another
-          system, please feel free to contribute it to the zuul-jobs
-          repository for others to use.
+.. note:: Zuul-jobs also contains `roles
+          <https://zuul-ci.org/docs/zuul-jobs/log-roles.html>`_ to
+          upload logs to a OpenStack Object Storage (swift) or Google
+          Cloud Storage containers.  If you create a role to upload
+          logs to another system, please feel free to contribute it to
+          the zuul-jobs repository for others to use.
 
 .. _upload-logs: https://zuul-ci.org/docs/zuul-jobs/roles.html#role-upload-logs
 
