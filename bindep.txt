@@ -50,8 +50,7 @@ git
 rsync
 curl
 gettext [platform:apk]
-unzip [platform:apk]
-unzip [platform:rpm]
+unzip
 bzip2
 openssh-client [platform:debian platform:apk]
 openssh [platform:rpm]
