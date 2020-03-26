@@ -343,7 +343,6 @@ class KubeFwd(object):
                  '--context=%s' % self.context,
                  '-n', self.namespace,
                  'port-forward',
-                 '--address', '127.0.0.1',
                  'pod/%s' % self.pod, ':19885'],
                 close_fds=True,
                 stdout=subprocess.PIPE,
