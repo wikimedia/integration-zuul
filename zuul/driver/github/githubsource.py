@@ -95,7 +95,7 @@ class GithubSource(BaseSource):
         return self.connection.getChangesDependingOn(change, projects, tenant)
 
     def getCachedChanges(self):
-        return self.connection._change_cache.values()
+        return list(self.connection._change_cache.values())
 
     def getProject(self, name):
         p = self.connection.getProject(name)
