@@ -1607,6 +1607,8 @@ class Job(ConfigObject):
             decrypted_secrets = []
             for secret_use in secrets_for_parents:
                 secret = layout.secrets.get(secret_use.name)
+                if secret is None:
+                    raise Exception("Secret %s not found" % (secret_use.name,))
                 decrypted_secret = secret.decrypt(
                     other.source_context.project.private_secrets_key)
                 decrypted_secret.name = secret_use.alias
