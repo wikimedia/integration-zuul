@@ -12,12 +12,29 @@ installations of Pagure.
 Configure Pagure
 ----------------
 
-Pagure's project owner must give project Admin access to the Pagure's user
-that own the API key defined in the Zuul configuration. The API key
-must at least have the ``Modify an existing project`` access.
+The user's API token configured in zuul.conf must have the following
+ACL rights:
 
-Furthermore Project owner must set the web hook target url in project settings
-such as: ``http://<zuul-web>/zuul/api/connection/<conn-name>/payload``
+- "Merge a pull-request" set to on (optional, only for gating)
+- "Flag a pull-request" set to on
+- "Comment on a pull-request" set to on
+- "Modify an existing project" set to on
+
+Each project to be integrated with Zuul needs:
+
+- "Web hook target" set to
+  http://<zuul-web>/zuul/api/connection/<conn-name>/payload
+- "Notify on pull-request flag" set to on
+- "Pull requests" set to on
+- "Open metadata access to all" set to off (optional, expected if approval
+  based on PR a metadata tag)
+- "Minimum score to merge pull-request" set to the same value than
+  the score requierement (optional, expected if score requierement is
+  defined in a pipeline)
+
+Furthermore, the user must be added as project collaborator **admin** to
+be able to read the project's webhook token. This token is used
+to validate webhook's payload.
 
 Connection Configuration
 ------------------------
@@ -63,6 +80,18 @@ The supported options in ``zuul.conf`` connections are:
       :default: https://{baseurl}
 
       Path to the Pagure Git repositories. Used to clone.
+
+   .. attr:: source_whitelist
+      :default: ''
+
+      A comma separated list of source ip adresses from which webhook
+      calls are whitelisted. If the source is not whitelisted, then
+      call payload's signature is verified using the project webhook
+      token. An admin access to the project is required by Zuul to read
+      the token. White listing a source of hook calls allows Zuul to
+      react to events without any authorizations. This setting should
+      not be used in production.
+
 
 Trigger Configuration
 ---------------------
