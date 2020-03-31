@@ -18,7 +18,7 @@ extends:
   - plugin:react/recommended
 settings:
   react:
-    version: "16.4"
+    version: "16.13"
 env:
   jest/globals: true
   browser: true

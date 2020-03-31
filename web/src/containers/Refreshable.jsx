@@ -44,6 +44,8 @@ class Refreshable extends React.Component {
     const { remoteData } = this.props
     return (
       <Spinner loading={ remoteData.isFetching }>
+        {/* Lint warning jsx-a11y/anchor-is-valid */}
+        {/* eslint-disable-next-line */}
         <a className="refresh" onClick={() => {this.updateData(true)}}>
           <Icon type="fa" name="refresh" /> refresh&nbsp;&nbsp;
         </a>
