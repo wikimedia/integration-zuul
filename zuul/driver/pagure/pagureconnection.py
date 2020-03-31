@@ -566,9 +566,9 @@ class PagureConnection(BaseConnection):
         self.log.debug("Building project %s api_client" % project)
         return PagureAPIClient(self.baseurl, self.api_token, project)
 
-    def get_project_webhook_token(self, project):
+    def get_project_webhook_token(self, project, force_refresh=False):
         token = self.webhook_tokens.get(project)
-        if token:
+        if token and not force_refresh:
             self.log.debug(
                 "Fetching project %s webhook token from cache" % project)
             return token
@@ -851,30 +851,36 @@ class PagureWebController(BaseWebController):
         if forwarded_ip and forwarded_ip in self.connection.source_whitelist:
             return True
 
+    def _validate(self, body, token, request_signature):
+        signature, payload = _sign_request(body, token)
+        if not hmac.compare_digest(str(signature), str(request_signature)):
+            self.log.info(
+                "Missmatch (Payload Signature: %s, Request Signature: %s)" % (
+                    signature, request_signature))
+            return False
+        return True
+
     def _validate_signature(self, body, headers):
         try:
             request_signature = headers['x-pagure-signature']
         except KeyError:
-            raise cherrypy.HTTPError(401, 'x-pagure-signature header missing.')
+            raise cherrypy.HTTPError(
+                401, 'x-pagure-signature header missing.')
 
         project = headers['x-pagure-project']
         token = self.connection.get_project_webhook_token(project)
-        if not token:
-            raise cherrypy.HTTPError(
-                401, 'no webhook token for %s.' % project)
-
-        signature, payload = _sign_request(body, token)
-
-        if not hmac.compare_digest(str(signature), str(request_signature)):
-            self.log.debug(
-                "Missmatch (Payload Signature: %s, Request Signature: %s)" % (
-                    signature, request_signature))
-            raise cherrypy.HTTPError(
-                401,
-                'Request signature does not match calculated payload '
-                'signature. Check that secret is correct.')
-
-        return payload
+        if not self._validate(body, token, request_signature):
+            # Give a second attempt as a token could have been
+            # re-generated server side. Refresh the token then retry.
+            self.log.info(
+                "Refresh cached webhook token and re-check signature")
+            token = self.connection.get_project_webhook_token(
+                project, force_refresh=True)
+            if not self._validate(body, token, request_signature):
+                raise cherrypy.HTTPError(
+                    401,
+                    'Request signature does not match calculated payload '
+                    'signature. Check that secret is correct.')
 
     @cherrypy.expose
     @cherrypy.tools.json_out(content_type='application/json; charset=utf-8')
