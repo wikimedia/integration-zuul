@@ -59,7 +59,7 @@ class GitlabSource(BaseSource):
         raise NotImplementedError()
 
     def getCachedChanges(self):
-        return self.connection._change_cache.values()
+        return list(self.connection._change_cache.values())
 
     def getProject(self, name):
         p = self.connection.getProject(name)

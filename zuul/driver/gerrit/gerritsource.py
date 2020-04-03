@@ -107,8 +107,8 @@ class GerritSource(BaseSource):
         return changes
 
     def getCachedChanges(self):
-        for x in self.connection._change_cache.values():
-            for y in x.values():
+        for x in list(self.connection._change_cache.values()):
+            for y in list(x.values()):
                 yield y
 
     def getProject(self, name):
