@@ -21,7 +21,8 @@ FILE_COMMENT = {
         'start_character': int,
         'end_line': int,
         'end_character': int,
-    }
+    },
+    'level': str,
 }
 
 FILE_COMMENTS = {str: [FILE_COMMENT]}

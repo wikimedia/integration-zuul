@@ -9,6 +9,9 @@
                   message: line too long
                 - line: 82
                   message: line too short
+                - line: 2
+                  message: levels are ignored by gerrit
+                  level: warning
               otherfile.txt:
                 - line: 21
                   message: |
