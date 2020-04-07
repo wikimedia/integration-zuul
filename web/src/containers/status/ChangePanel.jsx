@@ -73,6 +73,24 @@ class ChangePanel extends React.Component {
     return <span className={status}>{text}</span>
   }
 
+  jobStrResult (job) {
+    let result = job.result ? job.result.toLowerCase() : null
+    if (result === null) {
+      if (job.url === null) {
+        if (job.queued === false) {
+          result = 'waiting'
+        } else {
+          result = 'queued'
+        }
+      } else if (job.paused !== null && job.paused) {
+        result = 'paused'
+      } else {
+        result = 'in progress'
+      }
+    }
+    return result
+  }
+
   renderChangeLink (change) {
     let changeId = change.id || 'NA'
     let changeTitle = changeId
@@ -106,10 +124,7 @@ class ChangePanel extends React.Component {
     return (
       <div className='progress zuul-change-total-result'>
         {change.jobs.map((job, idx) => {
-          let result = job.result ? job.result.toLowerCase() : null
-          if (result === null) {
-            result = job.url ? 'in progress' : 'queued'
-          }
+          let result = this.jobStrResult(job)
           if (result !== 'queued') {
             let className = ''
             switch (result) {
@@ -121,12 +136,14 @@ class ChangePanel extends React.Component {
                 className = ' progress-bar-danger'
                 break
               case 'unstable':
+              case 'retry_limit':
+              case 'post_failure':
+              case 'node_failure':
                 className = ' progress-bar-warning'
                 break
               case 'paused':
+              case 'skipped':
                 className = ' progress-bar-info'
-                break
-              case 'in progress':
                 break
               default:
                 break
@@ -250,20 +267,7 @@ class ChangePanel extends React.Component {
       name = <span className='zuul-job-name'>{job_name}</span>
     }
     let resultBar
-    let result = job.result ? job.result.toLowerCase() : null
-    if (result === null) {
-      if (job.url === null) {
-        if (job.queued === false) {
-          result = 'waiting'
-        } else {
-          result = 'queued'
-        }
-      } else if (job.paused !== null && job.paused) {
-        result = 'paused'
-      } else {
-        result = 'in progress'
-      }
-    }
+    let result = this.jobStrResult(job)
     if (result === 'in progress') {
       resultBar = this.renderJobProgressBar(
         job.elapsed_time, job.remaining_time)
