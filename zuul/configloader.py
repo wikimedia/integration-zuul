@@ -31,6 +31,7 @@ import zuul.manager.independent
 import zuul.manager.supercedent
 from zuul.lib import encryption
 from zuul.lib.keystorage import KeyStorage
+from zuul.lib.logutil import get_annotated_logger
 from zuul.lib.re2util import filter_allowed_disallowed
 
 
@@ -2319,7 +2320,9 @@ class ConfigLoader(object):
 
     def createDynamicLayout(self, tenant, files, ansible_manager,
                             include_config_projects=False,
-                            scheduler=None, connections=None):
+                            scheduler=None, connections=None,
+                            zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
         loading_errors = model.LoadingErrors()
         if include_config_projects:
             config = model.ParsedConfig()
@@ -2337,7 +2340,7 @@ class ConfigLoader(object):
 
         layout = model.Layout(tenant)
         layout.loading_errors = loading_errors
-        self.log.debug("Created layout id %s", layout.uuid)
+        log.debug("Created layout id %s", layout.uuid)
         if not include_config_projects:
             # NOTE: the actual pipeline objects (complete with queues
             # and enqueued items) are copied by reference here.  This
