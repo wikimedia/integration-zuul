@@ -3,7 +3,7 @@
     workspace: /tmp/quickstart-test
     local: false
   roles:
-    - name: install-docker
+    - name: ensure-docker
       use_upstream_docker: false
       docker_compose_install: true
     - use-buildset-registry
