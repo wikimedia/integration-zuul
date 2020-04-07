@@ -520,13 +520,14 @@ class PipelineManager(object):
         return relevant_errors
 
     def _loadDynamicLayout(self, item):
+        log = get_annotated_logger(self.log, item.event)
         # Load layout
         # Late import to break an import loop
         import zuul.configloader
         loader = zuul.configloader.ConfigLoader(
             self.sched.connections, self.sched, None, None)
 
-        self.log.debug("Loading dynamic layout")
+        log.debug("Loading dynamic layout")
 
         (trusted_updates, untrusted_updates) = item.includesConfigUpdates()
         build_set = item.current_build_set
@@ -540,23 +541,25 @@ class PipelineManager(object):
             # catch syntax errors in config repos even though we won't
             # actually run with that config.
             if trusted_updates:
-                self.log.debug("Loading dynamic layout (phase 1)")
+                log.debug("Loading dynamic layout (phase 1)")
                 trusted_layout = loader.createDynamicLayout(
                     item.pipeline.tenant,
                     build_set.files,
                     self.sched.ansible_manager,
-                    include_config_projects=True)
+                    include_config_projects=True,
+                    zuul_event_id=None)
                 trusted_errors = len(trusted_layout.loading_errors) > 0
 
             # Then create the config a second time but without changes
             # to config repos so that we actually use this config.
             if untrusted_updates:
-                self.log.debug("Loading dynamic layout (phase 2)")
+                log.debug("Loading dynamic layout (phase 2)")
                 untrusted_layout = loader.createDynamicLayout(
                     item.pipeline.tenant,
                     build_set.files,
                     self.sched.ansible_manager,
-                    include_config_projects=False)
+                    include_config_projects=False,
+                    zuul_event_id=None)
                 untrusted_errors = len(untrusted_layout.loading_errors) > 0
 
             # Configuration state handling switchboard. Intentionally verbose
@@ -567,12 +570,12 @@ class PipelineManager(object):
             # No errors found at all use dynamic untrusted layout
             if (trusted_layout and not trusted_errors and
                     untrusted_layout and not untrusted_errors):
-                self.log.debug("Loading dynamic layout complete")
+                log.debug("Loading dynamic layout complete")
                 return untrusted_layout
             # No errors in untrusted only layout update
             elif (not trusted_layout and
                     untrusted_layout and not untrusted_errors):
-                self.log.debug("Loading dynamic layout complete")
+                log.debug("Loading dynamic layout complete")
                 return untrusted_layout
             # No errors in trusted only layout update
             elif (not untrusted_layout and
@@ -580,12 +583,12 @@ class PipelineManager(object):
                 # We're a change to a config repo (with no untrusted
                 # config items ahead), so just use the current pipeline
                 # layout.
-                self.log.debug("Loading dynamic layout complete")
+                log.debug("Loading dynamic layout complete")
                 return item.queue.pipeline.tenant.layout
             # Untrusted layout only works with trusted updates
             elif (trusted_layout and not trusted_errors and
                     untrusted_layout and untrusted_errors):
-                self.log.info("Configuration syntax error in dynamic layout")
+                log.info("Configuration syntax error in dynamic layout")
                 # The config is good if we include config-projects,
                 # but is currently invalid if we omit them.  Instead
                 # of returning the whole error message, just leave a
@@ -610,7 +613,7 @@ class PipelineManager(object):
                 if relevant_errors:
                     item.setConfigErrors(relevant_errors)
                     return None
-                self.log.info(
+                log.info(
                     "Configuration syntax error not related to "
                     "change context. Error won't be reported.")
                 return untrusted_layout
@@ -624,7 +627,7 @@ class PipelineManager(object):
                 if relevant_errors:
                     item.setConfigErrors(relevant_errors)
                     return None
-                self.log.info(
+                log.info(
                     "Configuration syntax error not related to "
                     "change context. Error won't be reported.")
                 # We're a change to a config repo with errors not relevant
@@ -635,7 +638,7 @@ class PipelineManager(object):
                                 "not accounted for.")
 
         except Exception:
-            self.log.exception("Error in dynamic layout")
+            log.exception("Error in dynamic layout")
             item.setConfigError("Unknown configuration error")
             return None
 
