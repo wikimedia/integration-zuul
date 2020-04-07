@@ -1232,19 +1232,33 @@ class FakePagurePullRequest(object):
         return self._getPullRequestEvent(
             'pull-request.tag.added', pull_data_field='pull_request')
 
-    def getPullRequestStatusSetEvent(self, status):
+    def getPullRequestStatusSetEvent(self, status, username="zuul"):
         self.addFlag(
-            status, "https://url", "Build %s" % status)
+            status, "https://url", "Build %s" % status, username)
         return self._getPullRequestEvent('pull-request.flag.added')
 
-    def addFlag(self, status, url, comment, username="Pingou"):
+    def insertFlag(self, flag):
+        to_pop = None
+        for i, _flag in enumerate(self.flags):
+            if _flag['uid'] == flag['uid']:
+                to_pop = i
+        if to_pop is not None:
+            self.flags.pop(to_pop)
+        self.flags.insert(0, flag)
+
+    def addFlag(self, status, url, comment, username="zuul"):
+        flag_uid = "%s-%s-%s" % (username, self.number, self.project)
         flag = {
-            "username": username,
+            "username": "Zuul CI",
+            "user": {
+                "name": username
+            },
+            "uid": flag_uid[:32],
             "comment": comment,
             "status": status,
             "url": url
         }
-        self.flags.insert(0, flag)
+        self.insertFlag(flag)
         self._updateTimeStamp()
 
     def editInitialComment(self, initial_comment):
@@ -1402,13 +1416,18 @@ class FakePagureAPIClient(pagureconnection.PagureAPIClient):
             pr.is_merged = True
             return {}, 200, "", "POST"
 
+        match = re.match(r'.+/api/0/-/whoami$', url)
+        if match:
+            return {"username": "zuul"}, 200, "", "POST"
+
         if not params:
             return self.gen_error("POST")
 
         match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/flag$', url)
         if match:
             pr = self._get_pr(match)
-            pr.flags.insert(0, params)
+            params['user'] = {"name": "zuul"}
+            pr.insertFlag(params)
 
         match = re.match(r'.+/api/0/(.+)/pull-request/(\d+)/comment$', url)
         if match:
@@ -1435,9 +1454,12 @@ class FakePagureConnection(pagureconnection.PagureConnection):
         self.cloneurl = self.upstream_root
 
     def get_project_api_client(self, project):
-        return FakePagureAPIClient(
+        client = FakePagureAPIClient(
             self.baseurl, None, project,
             pull_requests_db=self.pull_requests)
+        if not self.username:
+            self.set_my_username(client)
+        return client
 
     def get_project_webhook_token(self, project):
         return 'fake_webhook_token-%s' % project

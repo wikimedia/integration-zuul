@@ -61,9 +61,8 @@ class TestPagureDriver(ZuulTestCase):
         self.assertThat(
             A.comments[1]['comment'],
             MatchesRegex(r'.*\[project-test2 \]\(.*\).*', re.DOTALL))
-        self.assertEqual(2, len(A.flags))
+        self.assertEqual(1, len(A.flags))
         self.assertEqual('success', A.flags[0]['status'])
-        self.assertEqual('pending', A.flags[1]['status'])
 
     @simple_layout('layouts/basic-pagure.yaml', driver='pagure')
     def test_pull_request_updated(self):
@@ -491,6 +490,31 @@ class TestPagureDriver(ZuulTestCase):
         self.fake_pagure.emitEvent(A.getPullRequestUpdatedEvent())
         self.waitUntilSettled()
         self.assertEqual(1, len(self.history))
+
+    @simple_layout('layouts/requirements-pagure.yaml', driver='pagure')
+    def test_flag_require(self):
+
+        A = self.fake_pagure.openFakePullRequest(
+            'org/project7', 'master', 'A')
+
+        # CI status from other CIs must not be handled
+        self.fake_pagure.emitEvent(
+            A.getPullRequestStatusSetEvent("success", username="notzuul"))
+        self.waitUntilSettled()
+        self.assertEqual(0, len(self.history))
+        self.assertEqual(1, len(A.flags))
+
+        self.fake_pagure.emitEvent(
+            A.getPullRequestStatusSetEvent("failure"))
+        self.waitUntilSettled()
+        self.assertEqual(0, len(self.history))
+        self.assertEqual(2, len(A.flags))
+
+        self.fake_pagure.emitEvent(
+            A.getPullRequestStatusSetEvent("success"))
+        self.waitUntilSettled()
+        self.assertEqual(1, len(self.history))
+        self.assertEqual(2, len(A.flags))
 
     @simple_layout('layouts/requirements-pagure.yaml', driver='pagure')
     def test_pull_request_closed(self):
