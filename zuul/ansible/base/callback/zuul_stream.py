@@ -267,6 +267,9 @@ class CallbackModule(default.CallbackModule):
                 if task.loop:
                     # Don't try to stream from loops
                     continue
+                if play_vars[host].get('ansible_connection') in ('winrm',):
+                    # The winrm connections don't support streaming for now
+                    continue
                 if play_vars[host].get('ansible_connection') in ('kubectl', ):
                     # Stream from the forwarded port on kubectl conns
                     port = play_vars[host]['zuul']['resources'][
