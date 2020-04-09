@@ -131,4 +131,5 @@ Name                    Freenode Nick
 Andreas Jaeger          AJaeger
 David Moreau Simard     dmsimard
 Mohammed Naser          mnaser
+Albin Vass              avass
 ======================  =============
