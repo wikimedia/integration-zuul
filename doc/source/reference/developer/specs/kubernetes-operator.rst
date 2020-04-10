@@ -343,6 +343,46 @@ pods that need them.
         keyfile:
           secretName: mqttSecrets
 
+Executor job volume
+-------------------
+
+To manage the executor job volumes, the CR also accepts a list of volumes
+to be bind mounted in the job bubblewrap contexts:
+
+::
+
+  name: Text
+  context: <trusted | untrusted>
+  access: <ro | rw>
+  path: /path
+  volume: Kubernetes.Volume
+
+
+For example, to expose a GCP authdaemon token, the Zuul CR can be defined as
+
+::
+
+  apiVersion: zuul-ci.org/v1alpha1
+  kind: Zuul
+  spec:
+    ...
+    job_volumes:
+      - context: trusted
+        access: ro
+        path: /authdaemon/token
+        volume:
+          name: gcp-auth
+          hostPath:
+            path: /var/authdaemon/executor
+            type: DirectoryOrCreate
+
+Which would result in a new executor mountpath along with this zuul.conf change:
+
+::
+
+   trusted_ro_paths=/authdaemon/token
+
+
 Logging
 -------
 
