@@ -69,7 +69,6 @@ Name                    Freenode Nick
 ======================  =============
 Clark Boylan            clarkb
 Clint Byrum             SpamapS
-David Shrewsbury        Shrews
 Ian Wienand             ianw
 James E. Blair          corvus
 Jens Harbott            frickler
