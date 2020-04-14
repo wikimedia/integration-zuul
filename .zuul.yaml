@@ -99,12 +99,10 @@
 # because that is where the docker-compose file is located.
 - job:
     name: zuul-quick-start
+    parent: opendev-buildset-registry-consumer
     description: Run the commands in the Zuul quick-start documentation.
     run: playbooks/quick-start/run.yaml
     post-run: playbooks/quick-start/post.yaml
-    requires:
-      - zuul-container-image
-      - nodepool-container-image
     required-projects:
       - zuul/zuul
 
@@ -248,6 +246,7 @@
         - zuul-tox-remote:
             timeout: 2700  # 45 minutes
         - zuul-quick-start:
+            requires: nodepool-container-image
             dependencies: zuul-build-image
         - nodepool-zuul-functional:
             voting: false
@@ -305,6 +304,7 @@
         - zuul-tox-remote:
             timeout: 2700  # 45 minutes
         - zuul-quick-start:
+            requires: nodepool-container-image
             dependencies: zuul-upload-image
         - zuul-build-python-release
         - build-javascript-content-tarball:
