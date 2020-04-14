@@ -1069,17 +1069,13 @@ class StreamManager(object):
 class ZuulWeb(object):
     log = logging.getLogger("zuul.web.ZuulWeb")
 
-    def __init__(self, listen_address, listen_port,
-                 gear_server, gear_port,
-                 ssl_key=None, ssl_cert=None, ssl_ca=None,
-                 static_cache_expiry=3600,
-                 connections=None,
-                 info=None,
-                 static_path=None,
-                 zk_hosts=None,
-                 authenticators=None,
-                 command_socket=None,
-                 ):
+    def __init__(self, listen_address, listen_port, gear_server,
+                 gear_port, ssl_key=None, ssl_cert=None, ssl_ca=None,
+                 static_cache_expiry=3600, connections=None,
+                 info=None, static_path=None, zk_hosts=None,
+                 zk_timeout=None, zk_tls_cert=None, zk_tls_key=None,
+                 zk_tls_ca=None, authenticators=None,
+                 command_socket=None):
         self.start_time = time.time()
         self.listen_address = listen_address
         self.listen_port = listen_port
@@ -1095,7 +1091,10 @@ class ZuulWeb(object):
                                             client_id='Zuul Web Server')
         self.zk = zuul.zk.ZooKeeper(enable_cache=True)
         if zk_hosts:
-            self.zk.connect(hosts=zk_hosts, read_only=True)
+            self.zk.connect(hosts=zk_hosts, read_only=True,
+                            timeout=zk_timeout, tls_cert=zk_tls_cert,
+                            tls_key=zk_tls_key, tls_ca=zk_tls_ca)
+
         self.connections = connections
         self.authenticators = authenticators
         self.stream_manager = StreamManager()

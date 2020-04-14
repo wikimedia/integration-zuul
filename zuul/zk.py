@@ -115,7 +115,8 @@ class ZooKeeper(object):
             self.log.warning("Retrying zookeeper connection")
             self._last_retry_log = now
 
-    def connect(self, hosts, read_only=False, timeout=10.0):
+    def connect(self, hosts, read_only=False, timeout=10.0,
+                tls_cert=None, tls_key=None, tls_ca=None):
         '''
         Establish a connection with ZooKeeper cluster.
 
@@ -127,10 +128,22 @@ class ZooKeeper(object):
         :param bool read_only: If True, establishes a read-only connection.
         :param float timeout: The ZooKeeper session timeout, in
             seconds (default: 10.0).
+        :param str tls_key: Path to TLS key
+        :param str tls_cert: Path to TLS cert
+        :param str tls_ca: Path to TLS CA cert
         '''
+
         if self.client is None:
-            self.client = KazooClient(hosts=hosts, read_only=read_only,
-                                      timeout=timeout)
+            args = dict(hosts=hosts,
+                        read_only=read_only,
+                        timeout=timeout,
+            )
+            if tls_key:
+                args['use_ssl'] = True
+                args['keyfile'] = tls_key
+                args['certfile'] = tls_cert
+                args['ca'] = tls_ca
+            self.client = KazooClient(**args)
             self.client.add_listener(self._connection_listener)
             # Manually retry initial connection attempt
             while True:

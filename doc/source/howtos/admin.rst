@@ -7,3 +7,4 @@ Admin How-to Guides
    installation
    zuul-from-scratch
    troubleshooting
+   zookeeper
