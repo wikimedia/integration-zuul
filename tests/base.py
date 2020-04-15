@@ -3180,7 +3180,7 @@ class ZuulWebFixture(fixtures.Fixture):
         self.authenticators = zuul.lib.auth.AuthenticatorRegistry()
         self.authenticators.configure(config)
         if info is None:
-            self.info = zuul.model.WebInfo()
+            self.info = zuul.model.WebInfo.fromConfig(config)
         else:
             self.info = info
         self.zk_hosts = zk_hosts
