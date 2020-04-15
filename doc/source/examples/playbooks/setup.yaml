@@ -1,6 +1,10 @@
 - hosts: localhost
   gather_facts: false
   tasks:
+    - name: Generate ZooKeeper certs
+      shell: |
+        /var/zuul-tools/zk-ca.sh /var/certs examples_zk_1.examples_default
+        chmod -R a+rX /var/certs
     - name: Wait for Gerrit to start
       wait_for:
         host: gerrit
