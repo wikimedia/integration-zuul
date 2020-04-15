@@ -2117,7 +2117,9 @@ class AnsibleJob(object):
     def runAnsible(self, cmd, timeout, playbook, ansible_version,
                    wrapped=True, cleanup=False):
         config_file = playbook.ansible_config
-        env_copy = os.environ.copy()
+        env_copy = {key: value
+                    for key, value in os.environ.copy().items()
+                    if not key.startswith("ZUUL_")}
         env_copy.update(self.ssh_agent.env)
         if self.ara_callbacks:
             env_copy['ARA_LOG_CONFIG'] = self.jobdir.logging_json

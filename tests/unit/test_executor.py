@@ -816,6 +816,21 @@ class TestExecutorFacts(AnsibleZuulTestCase):
         self.assertEqual(18, len(date_time))
 
 
+class TestExecutorEnvironment(AnsibleZuulTestCase):
+    tenant_config_file = 'config/zuul-environment-filter/main.yaml'
+
+    @mock.patch.dict('os.environ', {'ZUUL_TEST_VAR': 'some-value',
+                                    'TEST_VAR': 'not-empty'})
+    def test_zuul_environment_filter(self):
+        A = self.fake_gerrit.addFakeChange('common-config', 'master', 'A')
+        self.fake_gerrit.addEvent(A.getChangeMergedEvent())
+        self.waitUntilSettled()
+
+        self.assertEqual(
+            self.getJobFromHistory('zuul-environment-filter').result,
+            'SUCCESS')
+
+
 class TestExecutorStart(ZuulTestCase):
     tenant_config_file = 'config/single-tenant/main.yaml'
 
