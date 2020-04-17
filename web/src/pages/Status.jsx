@@ -13,6 +13,7 @@
 // License for the specific language governing permissions and limitations
 // under the License.
 
+import * as moment from 'moment-timezone'
 import * as React from 'react'
 import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
@@ -33,6 +34,7 @@ class StatusPage extends Refreshable {
   static propTypes = {
     location: PropTypes.object,
     tenant: PropTypes.object,
+    timezone: PropTypes.string,
     remoteData: PropTypes.object,
     dispatch: PropTypes.func
   }
@@ -111,6 +113,12 @@ class StatusPage extends Refreshable {
       this.visibilityChangeEvent, this.visibilityListener)
   }
 
+  componentDidUpdate (prevProps) {
+    if (this.props.timezone !== prevProps.timezo) {
+      this.loadState()
+    }
+  }
+
   setFilter = (filter) => {
     this.filter.value = filter
     this.setState({filter: filter})
@@ -184,7 +192,7 @@ class StatusPage extends Refreshable {
         <p>Zuul version: <span>{status.zuul_version}</span></p>
         {status.last_reconfigured ? (
           <p>Last reconfigured: <span>
-              {new Date(status.last_reconfigured).toString()}
+              {moment.utc(status.last_reconfigured).tz(this.props.timezone).format('llll')}
           </span></p>) : ''}
       </React.Fragment>
     )
@@ -258,5 +266,6 @@ class StatusPage extends Refreshable {
 
 export default connect(state => ({
   tenant: state.tenant,
+  timezone: state.timezone,
   remoteData: state.status,
 }))(StatusPage)

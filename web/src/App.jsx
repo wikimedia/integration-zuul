@@ -31,12 +31,12 @@ import {
 import * as moment from 'moment'
 
 import ErrorBoundary from './containers/ErrorBoundary'
+import SelectTz from './containers/timezone/SelectTz'
 import logo from './images/logo.png'
-import { routes } from './routes'
-import { fetchConfigErrorsAction } from './actions/configErrors'
-import { setTenantAction } from './actions/tenant'
 import { clearError } from './actions/errors'
-
+import { fetchConfigErrorsAction } from './actions/configErrors'
+import { routes } from './routes'
+import { setTenantAction } from './actions/tenant'
 
 class App extends React.Component {
   static propTypes = {
@@ -44,6 +44,7 @@ class App extends React.Component {
     configErrors: PropTypes.array,
     info: PropTypes.object,
     tenant: PropTypes.object,
+    timezone: PropTypes.string,
     location: PropTypes.object,
     history: PropTypes.object,
     dispatch: PropTypes.func
@@ -166,7 +167,7 @@ class App extends React.Component {
              type='error'
              onDismiss={() => {this.props.dispatch(clearError(error.id))}}
              >
-           <span title={moment(error.date).format()}>
+           <span title={moment.utc(error.date).tz(this.props.timezone).format()}>
                <strong>{error.text}</strong> ({error.status})&nbsp;
                    {error.url}
              </span>
@@ -273,6 +274,9 @@ class App extends React.Component {
                   </Link>
                 </li>
               )}
+              <li>
+              <SelectTz/>
+              </li>
             </ul>
             {showErrors && this.renderConfigErrors(configErrors)}
           </div>
@@ -299,6 +303,7 @@ export default withRouter(connect(
     errors: state.errors,
     configErrors: state.configErrors,
     info: state.info,
-    tenant: state.tenant
+    tenant: state.tenant,
+    timezone: state.timezone
   })
 )(App))
