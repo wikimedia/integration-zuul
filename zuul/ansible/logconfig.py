@@ -106,6 +106,10 @@ _DEFAULT_SERVER_LOGGING_CONFIG = {
             'handlers': ['console'],
             'level': 'WARN',
         },
+        'alembic.runtime.migration': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
         'alembic': {
             'handlers': ['console'],
             'level': 'WARN',
