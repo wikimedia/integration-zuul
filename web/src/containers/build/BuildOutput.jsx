@@ -68,21 +68,17 @@ class BuildOutput extends React.Component {
             <pre key="msg">{task.msg}</pre>
           )}
           {task.exception && (
-            <pre key="exc">{task.exception}</pre>
+            <pre key="exc" style={{ color: 'red' }}>{task.exception}</pre>
           )}
           {task.stdout_lines && task.stdout_lines.length > 0 && (
-            <span key="stdout" style={{whiteSpace: 'pre'}} title="stdout">
-              {task.stdout_lines.slice(-42).map((line, idx) => (
-                <span key={idx}>{line}<br/></span>))}
-              <br />
-            </span>
+            <pre key="stdout" style={{ whiteSpace: 'pre-wrap' }} title="stdout">
+              {task.stdout_lines.slice(-42).join('\n')}
+            </pre>
           )}
           {task.stderr_lines && task.stderr_lines.length > 0 && (
-            <span key="stderr" style={{whiteSpace: 'pre'}} title="stderr">
-              {task.stderr_lines.slice(-42).map((line, idx) => (
-                <span key={idx}>{line}<br/></span>))}
-              <br />
-            </span>
+            <pre key="stderr" style={{whiteSpace: 'pre-wrap', color: 'red'}} title="stderr">
+              {task.stderr_lines.slice(-42).join('\n')}
+            </pre>
           )}
         </Panel.Body>
       </Panel>
