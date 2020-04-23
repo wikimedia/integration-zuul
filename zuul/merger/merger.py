@@ -189,6 +189,42 @@ class Repo(object):
                 config_writer.set_value('user', 'email', self.email)
             if self.username:
                 config_writer.set_value('user', 'name', self.username)
+
+            # By default automatic garbage collection in git runs
+            # asynchronously in the background. This can lead to broken repos
+            # caused by a race in the following scenario:
+            #  1. git fetch (eventually triggers async gc)
+            #  2. zuul deletes all refs as part of reset
+            #  3. git gc looks for unreachable objects
+            #  4. zuul re-creates all refs as part of reset
+            #  5. git gc deletes unreachable objects it found
+            # Result is a repo with refs pointing to not existing objects.
+            # To prevent this race autoDetach can be disabled so git fetch
+            # returns after the gc finished.
+            config_writer.set_value('gc', 'autoDetach', 'false')
+
+            # Lower the threshold of how many loose objects can trigger
+            # automatic garbage collection. With the default value of 6700
+            # we observed that with some repos automatic garbage collection
+            # simply refused to do its job because it refuses to prune if the
+            # number of unreachable objects it needs to prune exceeds a certain
+            # threshold. Thus lower the threshold to trigger automatic garbage
+            # collection more often.
+            config_writer.set_value('gc', 'auto', '512')
+
+            # By default garbage collection keeps unreachable objects for two
+            # weeks. However we don't need to carry around any unreachable
+            # objects so just prune them all when gc kicks in.
+            config_writer.set_value('gc', 'pruneExpire', 'now')
+
+            # By default git keeps a reflog of each branch for 90 days. Objects
+            # that are reachable from a reflog entry are not considered
+            # unrechable and thus won't be pruned for 90 days. This can blow up
+            # the repo significantly over time. Since the reflog is only really
+            # useful for humans working with repos we can just drop all the
+            # reflog when gc kicks in.
+            config_writer.set_value('gc', 'reflogExpire', 'now')
+
             config_writer.write()
         if rewrite_url:
             self._git_set_remote_url(repo, self.remote_url)
