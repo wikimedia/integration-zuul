@@ -13,6 +13,7 @@
 import logging
 import textwrap
 import urllib
+from abc import ABCMeta
 
 from zuul import exceptions
 from zuul import model
@@ -43,7 +44,7 @@ class StaticChangeQueueContextManager(object):
         pass
 
 
-class PipelineManager(object):
+class PipelineManager(metaclass=ABCMeta):
     """Abstract Base Class for enqueing and processing Changes in a Pipeline"""
 
     def __init__(self, sched, pipeline):

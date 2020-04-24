@@ -29,6 +29,7 @@ from zuul.lib import yamlutil as yaml
 import zuul.manager.dependent
 import zuul.manager.independent
 import zuul.manager.supercedent
+import zuul.manager.serial
 from zuul.lib import encryption
 from zuul.lib.keystorage import KeyStorage
 from zuul.lib.logutil import get_annotated_logger
@@ -1178,6 +1179,7 @@ class PipelineParser(object):
     def getSchema(self):
         manager = vs.Any('independent',
                          'dependent',
+                         'serial',
                          'supercedent')
 
         precedence = vs.Any('normal', 'low', 'high')
@@ -1291,6 +1293,9 @@ class PipelineParser(object):
                 self.pcontext.scheduler, pipeline)
         elif manager_name == 'independent':
             manager = zuul.manager.independent.IndependentPipelineManager(
+                self.pcontext.scheduler, pipeline)
+        elif manager_name == 'serial':
+            manager = zuul.manager.serial.SerialPipelineManager(
                 self.pcontext.scheduler, pipeline)
         elif manager_name == 'supercedent':
             manager = zuul.manager.supercedent.SupercedentPipelineManager(

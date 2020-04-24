@@ -63,7 +63,18 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
    .. attr:: manager
       :required:
 
-      There are three schemes for managing pipelines:
+      There are several schemes for managing pipelines.  The following
+      table summarizes their features; each is described in detail
+      below.
+
+      ===========  ============  =====  =============  =========
+      Manager      Dependencies  Merge  Shared Queues  Window
+      ===========  ============  =====  =============  =========
+      Independent  No            No     No             Unlimited
+      Dependent    Yes           Yes    Yes            Variable
+      Serial       No            No     Yes            1
+      Supercedent  No            No     Project-ref    1
+      ===========  ============  =====  =============  =========
 
       .. value:: independent
 
@@ -107,6 +118,22 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
          For more detail on the theory and operation of Zuul's
          dependent pipeline manager, see: :doc:`/discussion/gating`.
 
+      .. value:: serial
+
+         This pipeline manager supports shared queues (like depedent
+         pipelines) but only one item in each shared queue is
+         processed at a time.
+
+         This may be useful for post-merge pipelines which perform
+         partial production deployments (i.e., there are jobs with
+         file matchers which only deploy to affected parts of the
+         system).  In such a case it is important for every change to
+         be processed, but they must still be processed one at a time
+         in order to ensure that the production system is not
+         inadvertently regressed.  Support for shared queues ensures
+         that if multiple projects are involved deployment runs still
+         execute sequentially.
+
       .. value:: supercedent
 
          This is like an independent pipeline, in that every item is
@@ -124,11 +151,12 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
          these cases, build resources can be conserved by avoiding
          building intermediate versions.
 
-         .. note:: Since this pipeline filters intermediate buildsets using
-                   it in combination with file filters on jobs is dangerous.
-                   In this case jobs of in between buildsets can be
-                   unexpectedly skipped entirely. If file filters are needed
-                   the independent pipeline manager should be used.
+         .. note:: Since this pipeline filters intermediate buildsets
+                   using it in combination with file filters on jobs
+                   is dangerous.  In this case jobs of in between
+                   buildsets can be unexpectedly skipped entirely. If
+                   file filters are needed the ``independent`` or
+                   ``serial`` pipeline managers should be used.
 
    .. attr:: post-review
       :default: false
