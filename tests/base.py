@@ -638,8 +638,11 @@ class FakeGerritChange(object):
 
         path = os.path.join(self.upstream_root, self.project)
         repo = git.Repo(path)
-        repo.heads[self.branch].commit = \
-            repo.commit(self.patchsets[-1]['revision'])
+
+        repo.head.reference = self.branch
+        zuul.merger.merger.reset_repo_to_head(repo)
+        repo.git.merge('-s', 'resolve', self.patchsets[-1]['ref'])
+        repo.heads[self.branch].commit = repo.head.commit
 
     def setReported(self):
         self.reported += 1
