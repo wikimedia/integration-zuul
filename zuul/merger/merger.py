@@ -310,7 +310,7 @@ class Repo(object):
     def _cleanup_leaked_ref_dirs(local_path, log, messages):
         for root, dirs, files in os.walk(
                 os.path.join(local_path, '.git/refs'), topdown=False):
-            if not os.listdir(root):
+            if not os.listdir(root) and not root.endswith('.git/refs'):
                 if log:
                     log.debug("Cleaning empty ref dir %s", root)
                 else:
