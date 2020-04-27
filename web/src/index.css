@@ -272,3 +272,32 @@ pre.zuul-log-output
 .highlight {
   background: rgb(255, 255, 204);
 }
+
+details.foldable pre {
+    white-space: pre-wrap;
+}
+
+details.stderr pre {
+    color: #9b0000;
+}
+
+/* Used to make the "more/less" fold,  look like a normal hyperlink */
+details.foldable summary
+{
+    color: #0088ce;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+details.foldable summary:hover
+{
+    text-decoration: underline;
+}
+
+details.foldable summary::before {
+    content: "more";
+}
+
+details.foldable[open] summary::before {
+    content: "less";
+}
