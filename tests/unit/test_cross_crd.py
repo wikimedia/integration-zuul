@@ -438,8 +438,12 @@ class TestGerritToGithubCRD(ZuulTestCase):
         A.data['commitMessage'] = '%s\n\nDepends-On: %s\n' % (
             A.subject, B.url)
 
-        # Make sure zuul has seen an event on B.
+        # Make sure zuul has seen an event on B. This is necessary
+        # in order to populate our fake github project db.
         self.fake_github.emitEvent(B.getPullRequestEditedEvent())
+        # Note we wait until settled here as the event processing for
+        # the next event may not have the updated db yet otherwise.
+        self.waitUntilSettled()
         self.fake_gerrit.addEvent(A.getPatchsetCreatedEvent(1))
         self.waitUntilSettled()
 
@@ -900,6 +904,9 @@ class TestGithubToGerritCRD(ZuulTestCase):
 
         # Make sure zuul has seen an event on B.
         self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        # Note we wait until settled here as the event processing for
+        # the next event may not have the updated db yet otherwise.
+        self.waitUntilSettled()
         self.fake_github.emitEvent(A.getPullRequestEditedEvent())
         self.waitUntilSettled()
 
