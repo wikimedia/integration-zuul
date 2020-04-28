@@ -28,7 +28,7 @@ iso8601
 psutil
 fb-re2>=1.0.6
 paho-mqtt
-cherrypy
+cherrypy==18.3.0; # last version to support cheroot below
 ws4py
 routes
 pathspec
