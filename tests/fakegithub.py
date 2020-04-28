@@ -555,8 +555,8 @@ class FakeResponse(object):
 
 class FakeGithubSession(object):
 
-    def __init__(self, data):
-        self._data = data
+    def __init__(self, client):
+        self.client = client
         self.headers = CaseInsensitiveDict()
         self._base_url = None
         self.schema = graphene.Schema(query=FakeGithubQuery)
@@ -584,7 +584,7 @@ class FakeGithubSession(object):
             query = json.get('query')
             variables = json.get('variables')
             result = self.schema.execute(
-                query, variables=variables, context=self._data)
+                query, variables=variables, context=self.client._data)
             return FakeResponse({'data': result.data}, 200)
 
         return FakeResponse(None, 404)
@@ -593,8 +593,7 @@ class FakeGithubSession(object):
         org, project, request = request.split('/', 2)
         project_name = '{}/{}'.format(org, project)
 
-        client = FakeGithubClient(self._data)
-        repo = client.repo_from_project(project_name)
+        repo = self.client.repo_from_project(project_name)
 
         return repo.get_url(request, params=params)
 
@@ -618,7 +617,7 @@ class FakeGithubClient(object):
     def __init__(self, data, inst_id=None):
         self._data = data
         self._inst_id = inst_id
-        self.session = FakeGithubSession(data)
+        self.session = FakeGithubSession(self)
 
     def user(self, login):
         return FakeUser(login)
