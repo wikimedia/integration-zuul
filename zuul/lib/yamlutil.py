@@ -14,14 +14,15 @@ from yaml import YAMLObject, YAMLError  # noqa: F401
 
 try:
     # Explicit type ignore to deal with provisional import failure
+    # Details at https://github.com/python/mypy/issues/1153
     from yaml import cyaml  # type: ignore
     import _yaml
     SafeLoader = cyaml.CSafeLoader
     SafeDumper = cyaml.CSafeDumper
     Mark = _yaml.Mark
 except ImportError:
-    SafeLoader = yaml.SafeLoader
-    SafeDumper = yaml.SafeDumper
+    SafeLoader = yaml.SafeLoader  # type: ignore
+    SafeDumper = yaml.SafeDumper  # type: ignore
     Mark = yaml.Mark
 
 
