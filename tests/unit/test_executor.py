@@ -842,3 +842,27 @@ class TestExecutorStart(ZuulTestCase):
 
     def test_executor_start(self):
         self.assertFalse(os.path.exists(self.junk_dir))
+
+
+class TestExecutorExtraPackages(AnsibleZuulTestCase):
+    tenant_config_file = 'config/single-tenant/main.yaml'
+
+    test_package = 'pywinrm'
+
+    def setUp(self):
+        super(TestExecutorExtraPackages, self).setUp()
+        import subprocess
+        ansible_manager = self.executor_server.ansible_manager
+        for version in ansible_manager._supported_versions:
+            command = [ansible_manager.getAnsibleCommand(version, 'pip'),
+                       'uninstall', '-y', self.test_package]
+            subprocess.run(command)
+
+    @mock.patch('zuul.lib.ansible.ManagedAnsible.extra_packages',
+                new_callable=mock.PropertyMock)
+    def test_extra_packages(self, mock_extra_packages):
+        mock_extra_packages.return_value = [self.test_package]
+        ansible_manager = self.executor_server.ansible_manager
+        self.assertFalse(ansible_manager.validate())
+        ansible_manager.install()
+        self.assertTrue(ansible_manager.validate())
