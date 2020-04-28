@@ -48,6 +48,10 @@ from zuul.model import Ref, Tag, Branch, Project
 TIMEOUT = 30
 
 
+class HTTPConflictException(Exception):
+    message = "Received response 409"
+
+
 class GerritChangeData(object):
     """Compatability layer for SSH/HTTP
 
@@ -613,7 +617,9 @@ class GerritConnection(BaseConnection):
             auth=self.auth, timeout=TIMEOUT,
             headers={'User-Agent': self.user_agent})
         self.iolog.debug('Received: %s %s' % (r.status_code, r.text,))
-        if r.status_code != 200:
+        if r.status_code == 409:
+            raise HTTPConflictException()
+        elif r.status_code != 200:
             raise Exception("Received response %s" % (r.status_code,))
         ret = None
         if r.text and len(r.text) > 4:
@@ -637,7 +643,9 @@ class GerritConnection(BaseConnection):
             headers={'Content-Type': 'application/json;charset=UTF-8',
                      'User-Agent': self.user_agent})
         self.iolog.debug('Received: %s %s' % (r.status_code, r.text,))
-        if r.status_code != 200:
+        if r.status_code == 409:
+            raise HTTPConflictException()
+        elif r.status_code != 200:
             raise Exception("Received response %s" % (r.status_code,))
         ret = None
         if r.text and len(r.text) > 4:
@@ -1065,6 +1073,9 @@ class GerritConnection(BaseConnection):
                               (changeid, change.commit, uuid),
                               checkinfo)
                     break
+                except HTTPConflictException:
+                    log.exception("Conflict submitting check data to gerrit.")
+                    break
                 except Exception:
                     log.exception("Error submitting check data to gerrit, "
                                   "attempt %s", x)
@@ -1108,6 +1119,9 @@ class GerritConnection(BaseConnection):
                               (changeid, change.commit),
                               data)
                     break
+                except HTTPConflictException:
+                    log.exception("Conflict submitting data to gerrit.")
+                    break
                 except Exception:
                     log.exception(
                         "Error submitting data to gerrit, attempt %s", x)
@@ -1116,6 +1130,9 @@ class GerritConnection(BaseConnection):
             for x in range(1, 4):
                 try:
                     self.post('changes/%s/submit' % (changeid,), {})
+                    break
+                except HTTPConflictException:
+                    log.exception("Conflict submitting data to gerrit.")
                     break
                 except Exception:
                     log.exception(
@@ -1261,7 +1278,9 @@ class GerritConnection(BaseConnection):
                 auth=self.auth, timeout=TIMEOUT,
                 headers={'User-Agent': self.user_agent})
             self.iolog.debug('Received: %s %s' % (r.status_code, r.text,))
-            if r.status_code != 200:
+            if r.status_code == 409:
+                raise HTTPConflictException()
+            elif r.status_code != 200:
                 raise Exception("Received response %s" % (r.status_code,))
             out = r.text[r.text.find('\n') + 5:]
         else:
