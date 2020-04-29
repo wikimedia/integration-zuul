@@ -39,6 +39,9 @@ then
 fi
 pip install $*
 
+# Fail-fast if pip detects conflicts
+pip check
+
 # Check if we're installing zuul. If so install the managed ansible as well.
 if echo "$*" | grep -vq requirements.txt; then
     zuul-manage-ansible -v
