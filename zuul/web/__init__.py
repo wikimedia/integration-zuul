@@ -1248,6 +1248,9 @@ class ZuulWeb(object):
         self.command_socket.stop()
         self.command_thread.join()
 
+    def join(self):
+        self.command_thread.join()
+
     def runCommand(self):
         while self._command_running:
             try:
