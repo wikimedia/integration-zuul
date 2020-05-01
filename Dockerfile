@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM docker.io/opendevorg/python-builder as builder
+FROM docker.io/opendevorg/python-builder:3.8 as builder
 
 # Optional location of Zuul API endpoint.
 ARG REACT_APP_ZUUL_API
@@ -39,7 +39,7 @@ RUN mkdir /tmp/openshift-install \
   && echo $OPENSHIFT_SHA /tmp/openshift-install/openshift-client.tgz | sha256sum --check \
   && tar xvfz openshift-client.tgz --strip-components=1 -C /tmp/openshift-install
 
-FROM docker.io/opendevorg/python-base as zuul
+FROM docker.io/opendevorg/python-base:3.8 as zuul
 
 COPY --from=builder /output/ /output
 RUN /output/install-from-bindep \

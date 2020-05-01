@@ -130,8 +130,8 @@
     allowed-projects: zuul/zuul
     timeout: 2700  # 45 minutes
     requires:
-      - python-builder-container-image
-      - python-base-container-image
+      - python-builder-3.8-container-image
+      - python-base-3.8-container-image
     provides: zuul-container-image
     vars: &zuul_image_vars
       docker_images:
@@ -160,8 +160,8 @@
     description: Build Docker images and upload to Docker Hub.
     allowed-projects: zuul/zuul
     requires:
-      - python-builder-container-image
-      - python-base-container-image
+      - python-builder-3.8-container-image
+      - python-base-3.8-container-image
     provides: zuul-container-image
     secrets:
       name: docker_credentials
