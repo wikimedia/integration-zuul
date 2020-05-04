@@ -556,6 +556,7 @@ class Repo(object):
 
     def getFiles(self, files, dirs=[], branch=None, commit=None,
                  zuul_event_id=None):
+        log = get_annotated_logger(self.log, zuul_event_id)
         ret = {}
         repo = self.createRepoObject(zuul_event_id)
         if branch:
@@ -564,6 +565,9 @@ class Repo(object):
             tree = repo.commit(commit).tree
         for fn in files:
             if fn in tree:
+                if tree[fn].type != 'blob':
+                    log.warning(
+                        "%s: object %s is not a blob", self.local_path, fn)
                 ret[fn] = tree[fn].data_stream.read().decode('utf8')
             else:
                 ret[fn] = None
