@@ -3358,6 +3358,80 @@ class TestBrokenConfig(ZuulTestCase):
                       "A should have failed the check pipeline")
 
 
+class TestBrokenMultiTenantConfig(ZuulTestCase):
+    # Test we can deal with a broken multi-tenant config
+
+    tenant_config_file = 'config/broken-multi-tenant/main.yaml'
+
+    def test_loading_errors(self):
+        # This regression test came about when we discovered the following:
+
+        # * We cache configuration objects if they load without error
+        #   in their first tenant; that means that they can show up as
+        #   errors in later tenants, but as long as those other
+        #   tenants aren't proposing changes to that repo (which is
+        #   unlikely in this situation; this usually arises if the
+        #   tenant just wants to use some foreign jobs), users won't
+        #   be blocked by the error.
+        #
+        # * If a merge job for a dynamic config change arrives out of
+        #   order, we will build the new configuration and if there
+        #   are errors, we will compare it to the previous
+        #   configuration to determine if they are relevant, but that
+        #   caused an error since the previous layout had not been
+        #   calculated yet.  It's pretty hard to end up with
+        #   irrelevant errors except by virtue of the first point
+        #   above, which is why this test relies on a second tenant.
+
+        # This test has two tenants.  The first loads project2, and
+        # project3 without errors and all config objects are cached.
+        # The second tenant loads only project1 and project2.
+        # Project2 references a job that is defined in project3, so
+        # the tenant loads with an error, but proceeds.
+
+        # Don't run any merge jobs, so we can run them out of order.
+        self.gearman_server.hold_merge_jobs_in_queue = True
+
+        # Create a first change which modifies the config (and
+        # therefore will require a merge job).
+        in_repo_conf = textwrap.dedent(
+            """
+            - job: {'name': 'foo'}
+            """)
+        file_dict = {'.zuul.yaml': in_repo_conf}
+        A = self.fake_gerrit.addFakeChange('org/project1', 'master', 'A',
+                                           files=file_dict)
+
+        # Create a second change which also modifies the config.
+        B = self.fake_gerrit.addFakeChange('org/project1', 'master', 'B',
+                                           files=file_dict)
+        B.setDependsOn(A, 1)
+        self.fake_gerrit.addEvent(B.getPatchsetCreatedEvent(1))
+        self.waitUntilSettled()
+
+        # There should be a merge job for each change.
+        self.assertEqual(len(self.scheds.first.sched.merger.jobs), 2)
+
+        jobs = [job for job in self.gearman_server.getQueue()
+                if job.name.startswith(b'merger:')]
+        # Release the second merge job.
+        jobs[-1].waiting = False
+        self.gearman_server.wakeConnections()
+        self.waitUntilSettled()
+
+        # At this point we should still be waiting on the first
+        # change's merge job.
+        self.assertHistory([])
+
+        # Proceed.
+        self.gearman_server.hold_merge_jobs_in_queue = False
+        self.gearman_server.release()
+        self.waitUntilSettled()
+        self.assertHistory([
+            dict(name='base', result='SUCCESS', changes='1,1 2,1'),
+        ])
+
+
 class TestProjectKeys(ZuulTestCase):
     # Test that we can generate project keys
 

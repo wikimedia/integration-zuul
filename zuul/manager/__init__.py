@@ -563,19 +563,6 @@ class PipelineManager(metaclass=ABCMeta):
                     zuul_event_id=None)
                 untrusted_errors = len(untrusted_layout.loading_errors) > 0
 
-            # TODO (jeblair): remove this section of extra verbose
-            # debug logging when we have resolved the loading_errors
-            # bug.
-            log.debug("Dynamic layout: trusted errors: %s layout: %s",
-                      trusted_errors, trusted_layout)
-            if trusted_layout:
-                for err in trusted_layout.loading_errors.errors[:10]:
-                    log.debug(err.error)
-            log.debug("Dynamic layout: untrusted errors: %s layout: %s",
-                      untrusted_errors, untrusted_layout)
-            if untrusted_layout:
-                for err in untrusted_layout.loading_errors.errors[:10]:
-                    log.debug(err.error)
             # Configuration state handling switchboard. Intentionally verbose
             # and repetetive to be exceptionally clear that we handle all
             # possible cases correctly. Note we never return trusted_layout
@@ -666,6 +653,9 @@ class PipelineManager(metaclass=ABCMeta):
     def getLayout(self, item):
         if item.item_ahead:
             fallback_layout = item.item_ahead.layout
+            if fallback_layout is None:
+                # We're probably waiting on a merge job for the item ahead.
+                return None
         else:
             fallback_layout = item.pipeline.tenant.layout
         if not item.change.updatesConfig(item.pipeline.tenant):
