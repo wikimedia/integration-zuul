@@ -562,6 +562,19 @@ class PipelineManager(object):
                     zuul_event_id=None)
                 untrusted_errors = len(untrusted_layout.loading_errors) > 0
 
+            # TODO (jeblair): remove this section of extra verbose
+            # debug logging when we have resolved the loading_errors
+            # bug.
+            log.debug("Dynamic layout: trusted errors: %s layout: %s",
+                      trusted_errors, trusted_layout)
+            if trusted_layout:
+                for err in trusted_layout.loading_errors.errors[:10]:
+                    log.debug(err.error)
+            log.debug("Dynamic layout: untrusted errors: %s layout: %s",
+                      untrusted_errors, untrusted_layout)
+            if untrusted_layout:
+                for err in untrusted_layout.loading_errors.errors[:10]:
+                    log.debug(err.error)
             # Configuration state handling switchboard. Intentionally verbose
             # and repetetive to be exceptionally clear that we handle all
             # possible cases correctly. Note we never return trusted_layout
