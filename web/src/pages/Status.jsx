@@ -77,8 +77,8 @@ class StatusPage extends Refreshable {
       this.visibilityChangeEvent, this.visibilityListener, false)
   }
 
-  setCookie (name, value) {
-    document.cookie = name + '=' + value + '; path=/'
+  setCookie (name, value, pathname) {
+    document.cookie = name + '=' + value + '; path=' + pathname
   }
 
   updateData = (force) => {
@@ -114,7 +114,7 @@ class StatusPage extends Refreshable {
   setFilter = (filter) => {
     this.filter.value = filter
     this.setState({filter: filter})
-    this.setCookie('zuul_filter_string', filter)
+    this.setCookie('zuul_filter_string', filter, window.location.pathname)
   }
 
   handleKeyPress = (e) => {
@@ -127,7 +127,7 @@ class StatusPage extends Refreshable {
 
   handleCheckBox = (e) => {
     this.setState({expanded: e.target.checked})
-    this.setCookie('zuul_expand_by_default', e.target.checked)
+    this.setCookie('zuul_expand_by_default', e.target.checked, '/')
   }
 
   loadState = () => {
