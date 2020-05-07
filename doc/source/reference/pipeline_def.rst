@@ -67,14 +67,14 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       table summarizes their features; each is described in detail
       below.
 
-      ===========  ============  =====  =============  =========
-      Manager      Dependencies  Merge  Shared Queues  Window
-      ===========  ============  =====  =============  =========
-      Independent  No            No     No             Unlimited
-      Dependent    Yes           Yes    Yes            Variable
-      Serial       No            No     Yes            1
-      Supercedent  No            No     Project-ref    1
-      ===========  ============  =====  =============  =========
+      ===========  =============================  ============  =====  =============  =========
+      Manager      Use Case                       Dependencies  Merge  Shared Queues  Window
+      ===========  =============================  ============  =====  =============  =========
+      Independent  :term:`check`, :term:`post`    No            No     No             Unlimited
+      Dependent    :term:`gate`                   Yes           Yes    Yes            Variable
+      Serial       :term:`deploy`                 No            No     Yes            1
+      Supercedent  :term:`post`, :term:`promote`  No            No     Project-ref    1
+      ===========  =============================  ============  =====  =============  =========
 
       .. value:: independent
 
