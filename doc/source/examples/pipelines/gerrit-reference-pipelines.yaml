@@ -100,6 +100,24 @@
       sqlreporter:
 
 - pipeline:
+    name: deploy
+    description: |
+      This pipeline runs jobs that operate after each change is merged
+      in order to deploy to production.
+    manager: serial
+    precedence: high
+    post-review: True
+    trigger:
+      gerrit:
+        - event: change-merged
+    success:
+      gerrit: {}
+      sqlreporter:
+    failure:
+      gerrit: {}
+      sqlreporter:
+
+- pipeline:
     name: release
     description: |
       When a commit is tagged as a release, this pipeline runs jobs
