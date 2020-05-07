@@ -3021,7 +3021,8 @@ class QueueItem(object):
             new_job_dict = job.toDict(self.pipeline.tenant)
             # Ignore changes to file matchers since they don't affect
             # the content of the job.
-            for attr in ['files', 'irrelevant_files']:
+            for attr in ['files', 'irrelevant_files',
+                         'source_context', 'description']:
                 old_job_dict.pop(attr, None)
                 new_job_dict.pop(attr, None)
             if (new_job_dict != old_job_dict):
