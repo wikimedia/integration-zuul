@@ -26,14 +26,7 @@ class TestSerial(ZuulTestCase):
         A.setMerged()
         self.fake_gerrit.addEvent(A.getChangeMergedEvent())
         self.waitUntilSettled()
-        # The gerrit upstream repo simulation isn't perfect -- when
-        # change A is merged above, the master ref is updated to point
-        # to that change, it doesn't actually "merge" it.  The same is
-        # true for B, so if it didn't have A in its git history, then
-        # A would not appear in the jobs run for B.  We simulate the
-        # correct situation by setting A as the git parent of B.
-        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B',
-                                           parent='refs/changes/1/1/1')
+        B = self.fake_gerrit.addFakeChange('org/project', 'master', 'B')
         B.setMerged()
         self.fake_gerrit.addEvent(B.getChangeMergedEvent())
         self.waitUntilSettled()

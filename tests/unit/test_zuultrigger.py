@@ -220,6 +220,12 @@ class TestZuulTriggerProjectChangeMerged(ZuulTestCase):
         self.assertTrue("project:{org/project} status:open" in
                         self.fake_gerrit.queries)
 
+        # Ensure the gerrit driver has updated its cache after the
+        # previous comments were left:
+        self.fake_gerrit.addEvent(A.getChangeCommentEvent(2))
+        self.fake_gerrit.addEvent(B.getChangeCommentEvent(2))
+        self.waitUntilSettled()
+
         # Reconfigure and run the test again.  This is a regression
         # check to make sure that we don't end up with a stale trigger
         # cache that has references to projects from the old

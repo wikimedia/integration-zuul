@@ -36,6 +36,10 @@
     name: merge-check
     manager: independent
     ignore-dependencies: true
+    reject:
+      gerrit:
+        approval:
+          - Verified: -1
     trigger:
       zuul:
         - event: project-change-merged
