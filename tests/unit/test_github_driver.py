@@ -209,10 +209,26 @@ class TestGithubDriver(ZuulTestCase):
         sha = tag.commit.hexsha
         del repo
 
+        # Notify zuul about the new branch to load the config
+        self.fake_github.emitEvent(
+            self.fake_github.getPushEvent(
+                'org/project',
+                ref='refs/heads/%s' % 'tagbranch'))
+        self.waitUntilSettled()
+
+        # Record previous tenant reconfiguration time
+        before = self.scheds.first.sched.tenant_last_reconfigured.get(
+            'tenant-one', 0)
+
         self.fake_github.emitEvent(
             self.fake_github.getPushEvent('org/project', 'refs/tags/newtag',
                                           new_rev=sha))
         self.waitUntilSettled()
+
+        # Make sure the tenant hasn't been reconfigured due to the new tag
+        after = self.scheds.first.sched.tenant_last_reconfigured.get(
+            'tenant-one', 0)
+        self.assertEqual(before, after)
 
         build_params = self.builds[0].parameters
         self.assertEqual('refs/tags/newtag', build_params['zuul']['ref'])

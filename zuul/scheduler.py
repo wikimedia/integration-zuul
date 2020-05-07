@@ -1282,10 +1282,15 @@ class Scheduler(threading.Thread):
                 if ((event.branch_updated and
                      hasattr(change, 'files') and
                      change.updatesConfig(tenant)) or
-                    event.branch_created or
                     (event.branch_deleted and
                      self.abide.hasUnparsedBranchCache(event.project_name,
                                                        event.branch))):
+                    reconfigure_tenant = True
+
+                # The branch_created attribute is also true when a tag is
+                # created. Since we load config only from branches only trigger
+                # a tenant reconfiguration if the branch is set as well.
+                if event.branch_created and event.branch:
                     reconfigure_tenant = True
 
                 # If the driver knows the branch but we don't have a config, we
