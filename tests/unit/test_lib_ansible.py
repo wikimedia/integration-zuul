@@ -13,7 +13,6 @@
 # under the License.
 
 import collections
-import subprocess
 from unittest import mock
 
 from tests.base import BaseTestCase
@@ -23,8 +22,11 @@ from zuul.lib.ansible import AnsibleManager
 class TestLibAnsibleManager(BaseTestCase):
 
     @mock.patch('zuul.lib.ansible.AnsibleManager.load_ansible_config')
-    @mock.patch('zuul.lib.ansible.AnsibleManager.getAnsibleCommand')
-    def test_validate_remembers_failures(self, getAnsibleCommand, _):
+    @mock.patch('zuul.lib.ansible.AnsibleManager._validate_packages')
+    @mock.patch('zuul.lib.ansible.AnsibleManager._validate_ansible')
+    def test_validate_remembers_failures(self,
+                                         mock_validate_ansible,
+                                         mock_validate_packages, _):
 
         okish = mock.Mock(
             'subprocess.CompletedProcess',
@@ -33,17 +35,22 @@ class TestLibAnsibleManager(BaseTestCase):
 
         am = AnsibleManager()
         am._supported_versions = collections.OrderedDict([
-            ('1.0', subprocess.CalledProcessError(1, 'fake failure')),
-            ('2.8', okish),
+            ('1.0', False),
+            ('2.8', True),
         ])
 
-        with mock.patch('subprocess.run') as ansible:
-            ansible.side_effect = am._supported_versions.values()
-            self.assertFalse(
-                am.validate(),
-                'A valid ansible should not mask a previous failure')
+        mock_validate_packages.side_effect = am._supported_versions.values()
+        mock_validate_ansible.side_effect = am._supported_versions.values()
+        self.assertFalse(
+            am.validate(),
+            'A valid ansible should not mask a previous failure')
+
         self.assertEquals(
-            [mock.call('1.0', 'ansible'),
-             mock.call('2.8', 'ansible'),
+            [mock.call('1.0'),
+             mock.call('2.8')
             ],
-            getAnsibleCommand.mock_calls)
+            mock_validate_ansible.mock_calls)
+
+        self.assertEquals(
+            [mock.call('2.8')],
+            mock_validate_packages.mock_calls)
