@@ -22,9 +22,8 @@ if [[ ! $(command -v yarn) ]]
 then
     pip install nodeenv
     # Initialize nodeenv and tell it to re-use the currently active virtualenv
-    # TODO(jeblair): remove node version pin.  upath 1.0.4 objects to node >9.
     attempts=0
-    until nodeenv --python-virtualenv -n 10.16.0; do
+    until nodeenv --python-virtualenv -n 14.3.0 ; do
         ((attempts++))
         if [[ $attempts > 2 ]]
         then
