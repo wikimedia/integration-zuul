@@ -2203,7 +2203,7 @@ class AnsibleJob(object):
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                preexec_fn=os.setsid,
+                start_new_session=True,
                 env=env_copy,
             )
 
