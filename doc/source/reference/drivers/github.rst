@@ -499,6 +499,21 @@ enqueued into the pipeline.
       request.  The syntax is ``user:status:value``. This can also
       be a regular expression.
 
+      Zuul does not differentiate between a status reported via
+      status API or via checks API (which is also how Github behaves
+      in terms of branch protection and `status checks`__).
+      Thus, the status could be reported by a
+      :attr:`pipeline.<reporter>.<github source>.status` or a
+      :attr:`pipeline.<reporter>.<github source>.check`.
+
+      When a status is reported via the status API, Github will add
+      a ``[bot]`` to the name of the app that reported the status,
+      resulting in something like ``user[bot]:status:value``. For a
+      status reported via the checks API, the app's slug will be
+      used as is.
+
+   .. __: https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/about-status-checks#types-of-status-checks-on-github
+
    .. attr:: label
 
       A string value indicating that the pull request must have the
