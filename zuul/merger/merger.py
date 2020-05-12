@@ -340,15 +340,6 @@ class Repo(object):
             for message in messages:
                 log.debug(message)
 
-    def prune(self, zuul_event_id=None):
-        log = get_annotated_logger(self.log, zuul_event_id)
-        repo = self.createRepoObject(zuul_event_id)
-        origin = repo.remotes.origin
-        stale_refs = origin.stale_refs
-        if stale_refs:
-            log.debug("Pruning stale refs: %s", stale_refs)
-            git.refs.RemoteReference.delete(repo, force=True, *stale_refs)
-
     def getBranchHead(self, branch, zuul_event_id=None):
         repo = self.createRepoObject(zuul_event_id)
         branch_head = repo.heads[branch]
