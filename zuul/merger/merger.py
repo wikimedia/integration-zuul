@@ -287,20 +287,20 @@ class Repo(object):
         repo = Repo._createRepoObject(local_path, env)
         origin = repo.remotes.origin
 
-        # Reset the working directory to the default remote branch.
+        # Detach HEAD so we can work with references without interfering
+        # with any active branch. Any remote ref will do as long as it can
+        # be dereferenced to an existing commit.
         for ref in origin.refs:
-            if ref.remote_head != "HEAD":
-                continue
-            # Use the ref the remote HEAD is pointing to
-            head_ref = ref.ref
-            head = head_ref.remote_head
-            repo.create_head(head, head_ref, force=True)
-            if log:
-                log.debug("Reset to %s", head)
-            else:
-                messages.append("Reset to %s" % head)
-            repo.head.reference = head
-            break
+            try:
+                repo.head.reference = ref.commit
+                break
+            except Exception:
+                if log:
+                    log.debug("Unable to detach HEAD to %s", ref)
+                else:
+                    messages.append("Unable to detach HEAD to %s" % ref)
+        else:
+            raise Exception("Couldn't detach HEAD to any existing commit")
 
         # Delete local heads that no longer exist on the remote end
         remote_heads = {r.remote_head for r in origin.refs}
