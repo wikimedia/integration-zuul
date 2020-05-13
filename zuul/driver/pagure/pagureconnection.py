@@ -65,7 +65,6 @@ from zuul.driver.pagure.paguremodel import PagureTriggerEvent, PullRequest
 #
 # Repository settings (to be checked):
 # - Minimum score to merge pull-request = 0 or -1
-# - Notify on pull-request flag
 # - Pull requests
 # - Open metadata access to all (unchecked if approval)
 #
@@ -494,12 +493,12 @@ class PagureAPIClient():
         return resp[0]
 
     def get_webhook_token(self):
-        """ A project admin user's api token must be use with that endpoint
+        """ A project collaborator's api token must be used with that endpoint
         """
-        path = '%s/connector' % self.project
+        path = '%s/webhook/token' % self.project
         resp = self.get(self.base_url + path)
         self._manage_error(*resp)
-        return resp[0]['connector']['hook_token']
+        return resp[0]['webhook']['token']
 
 
 class PagureConnection(BaseConnection):

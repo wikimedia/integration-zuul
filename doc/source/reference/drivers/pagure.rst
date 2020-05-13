@@ -24,7 +24,6 @@ Each project to be integrated with Zuul needs:
 
 - "Web hook target" set to
   http://<zuul-web>/zuul/api/connection/<conn-name>/payload
-- "Notify on pull-request flag" set to on
 - "Pull requests" set to on
 - "Open metadata access to all" set to off (optional, expected if approval
   based on PR a metadata tag)
@@ -32,9 +31,11 @@ Each project to be integrated with Zuul needs:
   the score requierement (optional, expected if score requierement is
   defined in a pipeline)
 
-Furthermore, the user must be added as project collaborator **admin** to
-be able to read the project's webhook token. This token is used
-to validate webhook's payload.
+Furthermore, the user must be added as project collaborator
+(**ticket** access level), to be able to read the project's
+webhook token. This token is used to validate webhook's payload. But
+if Zuul is configured to merge pull requests then the access level
+must be **commit**.
 
 Connection Configuration
 ------------------------
