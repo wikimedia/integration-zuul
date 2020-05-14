@@ -1503,6 +1503,8 @@ class TenantParser(object):
     def fromYaml(self, abide, conf, ansible_manager):
         self.getSchema()(conf)
         tenant = model.Tenant(conf['name'])
+        pcontext = ParseContext(self.connections, self.scheduler,
+                                tenant, ansible_manager)
         if conf.get('max-nodes-per-job') is not None:
             tenant.max_nodes_per_job = conf['max-nodes-per-job']
         if conf.get('max-job-timeout') is not None:
@@ -1565,9 +1567,9 @@ class TenantParser(object):
         # Then convert the YAML to configuration objects which we
         # cache on the tenant.
         tenant.config_projects_config = self.parseConfig(
-            tenant, config_projects_config, loading_errors, ansible_manager)
+            tenant, config_projects_config, loading_errors, pcontext)
         tenant.untrusted_projects_config = self.parseConfig(
-            tenant, untrusted_projects_config, loading_errors, ansible_manager)
+            tenant, untrusted_projects_config, loading_errors, pcontext)
 
         # Combine the trusted and untrusted config objects
         parsed_config = model.ParsedConfig()
@@ -1893,10 +1895,7 @@ class TenantParser(object):
         tpc = tenant.project_configs[project.canonical_name]
         return tpc.load_classes
 
-    def parseConfig(self, tenant, unparsed_config, loading_errors,
-                    ansible_manager):
-        pcontext = ParseContext(self.connections, self.scheduler, tenant,
-                                ansible_manager)
+    def parseConfig(self, tenant, unparsed_config, loading_errors, pcontext):
         parsed_config = model.ParsedConfig()
 
         # Handle pragma items first since they modify the source context
@@ -2253,7 +2252,7 @@ class ConfigLoader(object):
 
     def _loadDynamicProjectData(self, config, project,
                                 files, trusted, tenant, loading_errors,
-                                ansible_manager):
+                                ansible_manager, pcontext):
         tpc = tenant.project_configs[project.canonical_name]
         if trusted:
             branches = ['master']
@@ -2326,27 +2325,29 @@ class ConfigLoader(object):
                             filterUntrustedProjectYAML(incdata, loading_errors)
 
                     config.extend(self.tenant_parser.parseConfig(
-                        tenant, incdata, loading_errors, ansible_manager))
+                        tenant, incdata, loading_errors, pcontext))
 
     def createDynamicLayout(self, tenant, files, ansible_manager,
                             include_config_projects=False,
                             scheduler=None, connections=None,
                             zuul_event_id=None):
         log = get_annotated_logger(self.log, zuul_event_id)
+        pcontext = ParseContext(self.connections, self.scheduler,
+                                tenant, ansible_manager)
         loading_errors = model.LoadingErrors()
         if include_config_projects:
             config = model.ParsedConfig()
             for project in tenant.config_projects:
                 self._loadDynamicProjectData(
                     config, project, files, True, tenant, loading_errors,
-                    ansible_manager)
+                    ansible_manager, pcontext)
         else:
             config = tenant.config_projects_config.copy()
 
         for project in tenant.untrusted_projects:
             self._loadDynamicProjectData(
                 config, project, files, False, tenant, loading_errors,
-                ansible_manager)
+                ansible_manager, pcontext)
 
         layout = model.Layout(tenant)
         layout.loading_errors = loading_errors
