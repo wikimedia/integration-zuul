@@ -82,6 +82,12 @@ The supported options in ``zuul.conf`` connections are:
 
       Path to the Pagure Git repositories. Used to clone.
 
+   .. attr:: app_name
+      :default: Zuul
+
+      Display name that will appear as the application name in front
+      of each CI status flag.
+
    .. attr:: source_whitelist
       :default: ''
 

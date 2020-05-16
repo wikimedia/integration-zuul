@@ -67,6 +67,18 @@
         status: 'success'
 
 - pipeline:
+    name: require-flag
+    manager: independent
+    require:
+      pagure:
+        status: success
+    trigger:
+      pagure:
+        - event: pg_pull_request
+          action: status
+          status: success
+
+- pipeline:
     name: require-trigger-pg-closed-merged
     precedence: high
     manager: independent
@@ -124,5 +136,11 @@
 - project:
     name: org/project6
     require-trigger-pg-closed-merged:
+      jobs:
+        - project-test
+
+- project:
+    name: org/project7
+    require-flag:
       jobs:
         - project-test

@@ -205,6 +205,7 @@ class PagureEventConnector(threading.Thread):
             'pull-request.closed': self._event_pull_request_closed,
             'pull-request.new': self._event_pull_request,
             'pull-request.flag.added': self._event_flag_added,
+            'pull-request.flag.updated': self._event_flag_added,
             'git.receive': self._event_ref_updated,
             'git.branch.creation': self._event_ref_created,
             'git.branch.deletion': self._event_ref_deleted,
@@ -437,6 +438,12 @@ class PagureAPIClient():
             ret.status_code, ret.text))
         return ret.json(), ret.status_code, ret.url, 'POST'
 
+    def whoami(self):
+        path = '-/whoami'
+        resp = self.post(self.base_url + path)
+        self._manage_error(*resp)
+        return resp[0]['username']
+
     def get_project_branches(self):
         path = '%s/git/branches' % self.project
         resp = self.get(self.base_url + path)
@@ -455,23 +462,29 @@ class PagureAPIClient():
         self._manage_error(*resp)
         return resp[0]
 
-    def get_pr_flags(self, number, last=False):
+    def get_pr_flags(self, number, owner, last=False):
         path = '%s/pull-request/%s/flag' % (self.project, number)
         resp = self.get(self.base_url + path)
         self._manage_error(*resp)
         data = resp[0]
+        owned_flags = [
+            flag for flag in data['flags']
+            if flag['user']['name'] == owner]
         if last:
-            if data['flags']:
-                return data['flags'][0]
+            if owned_flags:
+                return owned_flags[0]
             else:
                 return {}
         else:
-            return data['flags']
+            return owned_flags
 
-    def set_pr_flag(self, number, status, url, description):
+    def set_pr_flag(
+            self, number, status, url, description, app_name, username):
+        flag_uid = "%s-%s-%s" % (username, number, self.project)
         params = {
-            "username": "Zuul",
+            "username": app_name,
             "comment": "Jobs result is %s" % status,
+            "uid": flag_uid[:32],
             "status": status,
             "url": url}
         path = '%s/pull-request/%s/flag' % (self.project, number)
@@ -504,7 +517,6 @@ class PagureAPIClient():
 class PagureConnection(BaseConnection):
     driver_name = 'pagure'
     log = logging.getLogger("zuul.PagureConnection")
-    payload_path = 'payload'
 
     def __init__(self, driver, connection_name, connection_config):
         super(PagureConnection, self).__init__(
@@ -517,6 +529,9 @@ class PagureConnection(BaseConnection):
             'canonical_hostname', self.server)
         self.git_ssh_key = self.connection_config.get('sshkey')
         self.api_token = self.connection_config.get('api_token')
+        self.app_name = self.connection_config.get(
+            'app_name', 'Zuul')
+        self.username = None
         self.baseurl = self.connection_config.get(
             'baseurl', 'https://%s' % self.server).rstrip('/')
         self.cloneurl = self.connection_config.get(
@@ -561,9 +576,17 @@ class PagureConnection(BaseConnection):
     def eventDone(self):
         self.event_queue.task_done()
 
+    def set_my_username(self, client):
+        self.log.debug("Fetching my username ...")
+        self.username = client.whoami()
+        self.log.debug("My username is %s" % self.username)
+
     def get_project_api_client(self, project):
         self.log.debug("Building project %s api_client" % project)
-        return PagureAPIClient(self.baseurl, self.api_token, project)
+        client = PagureAPIClient(self.baseurl, self.api_token, project)
+        if not self.username:
+            self.set_my_username(client)
+        return client
 
     def get_project_webhook_token(self, project, force_refresh=False):
         token = self.webhook_tokens.get(project)
@@ -695,7 +718,7 @@ class PagureConnection(BaseConnection):
 
     def _hasRequiredStatusChecks(self, change):
         pagure = self.get_project_api_client(change.project.name)
-        flag = pagure.get_pr_flags(change.number, last=True)
+        flag = pagure.get_pr_flags(change.number, self.username, last=True)
         return True if flag.get('status', '') == 'success' else False
 
     def canMerge(self, change, allow_needs, event=None):
@@ -803,14 +826,15 @@ class PagureConnection(BaseConnection):
     def setCommitStatus(self, project, number, state, url='',
                         description='', context=''):
         pagure = self.get_project_api_client(project)
-        pagure.set_pr_flag(number, state, url, description)
+        pagure.set_pr_flag(
+            number, state, url, description, self.app_name, self.username)
         self.log.info("Set pull-request CI flag status : %s" % description)
         # Wait for 1 second as flag timestamp is by second
         time.sleep(1)
 
     def getCommitStatus(self, project, number):
         pagure = self.get_project_api_client(project)
-        flag = pagure.get_pr_flags(number, last=True)
+        flag = pagure.get_pr_flags(number, self.username, last=True)
         self.log.info(
             "Got pull-request CI status for PR %s on %s status: %s" % (
                 number, project, flag.get('status')))
