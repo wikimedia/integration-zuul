@@ -2679,7 +2679,7 @@ class ExecutorServer(BaseMergeServer):
         self.command_thread.daemon = True
         self.command_thread.start()
 
-        self.log.debug("Starting workers")
+        self.log.debug("Starting %s update workers" % self.update_workers)
         for i in range(self.update_workers):
             update_thread = threading.Thread(target=self._updateLoop,
                                              name='update')
