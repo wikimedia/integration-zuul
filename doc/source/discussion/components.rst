@@ -845,6 +845,31 @@ The following sections of ``zuul.conf`` are used by the executor:
       Value to pass to `git config user.name
       <https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup>`_.
 
+.. attr:: ansible_callback "<name>"
+
+   To whitelist ansible callback ``<name>``. Any attributes found is this section
+   will be added to the ``callback_<name>`` section in ansible.cfg.
+
+   An example of what configuring the builtin mail callback would look like.
+   The configuration in zuul.conf.
+
+   .. code-block:: ini
+
+      [ansible_callback "mail"]
+      to = user@example.org
+      sender = zuul@example.org
+
+   Would generate the following in ansible.cfg:
+
+   .. code-block:: ini
+
+      [defaults]
+      callback_whitelist = mail
+
+      [callback_mail]
+      to = user@example.org
+      sender = zuul@example.org
+
 Operation
 ~~~~~~~~~
 

@@ -861,6 +861,7 @@ class AnsibleJob(object):
         self.callback_dir = os.path.join(plugin_dir, 'callback')
         self.lookup_dir = os.path.join(plugin_dir, 'lookup')
         self.filter_dir = os.path.join(plugin_dir, 'filter')
+        self.ansible_callbacks = self.executor_server.ansible_callbacks
 
     def run(self):
         self.running = True
@@ -2076,6 +2077,11 @@ class AnsibleJob(object):
             # and reduces CPU load of the ansible process.
             config.write('internal_poll_interval = 0.01\n')
 
+            if self.ansible_callbacks:
+                config.write('callback_whitelist =\n')
+                for callback in self.ansible_callbacks.keys():
+                    config.write('    %s,\n' % callback)
+
             config.write('[ssh_connection]\n')
             # NOTE(pabelanger): Try up to 3 times to run a task on a host, this
             # helps to mitigate UNREACHABLE host errors with SSH.
@@ -2094,6 +2100,12 @@ class AnsibleJob(object):
                 "-o ServerAliveInterval=60 " \
                 "-o UserKnownHostsFile=%s" % self.jobdir.known_hosts
             config.write('ssh_args = %s\n' % ssh_args)
+
+            if self.ansible_callbacks:
+                for cb_name, cb_config in self.ansible_callbacks.items():
+                    config.write("[callback_%s]\n" % cb_name)
+                    for k, n in cb_config.items():
+                        config.write("%s = %s\n" % (k, n))
 
     def _ansibleTimeout(self, msg):
         self.log.warning(msg)
@@ -2550,6 +2562,17 @@ class ExecutorServer(BaseMergeServer):
         self.setup_timeout = int(get_default(self.config, 'executor',
                                              'ansible_setup_timeout', 60))
         self.zone = get_default(self.config, 'executor', 'zone')
+
+        self.ansible_callbacks = {}
+        for section_name in self.config.sections():
+            cb_match = re.match(r'^ansible_callback ([\'\"]?)(.*)(\1)$',
+                                section_name, re.I)
+            if not cb_match:
+                continue
+            cb_name = cb_match.group(2)
+            self.ansible_callbacks[cb_name] = dict(
+                self.config.items(section_name)
+            )
 
         # TODO(tobiash): Take cgroups into account
         self.update_workers = multiprocessing.cpu_count()
