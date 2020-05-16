@@ -366,8 +366,8 @@ itself. Status name, description, and context is taken from the pipeline.
    .. attr:: check
 
       If the reporter should utilize github's checks API to set the commit
-      status, this must be set to ``in_progress``, ``success`` or ``failure``
-      (depending on which status the reporter should report).
+      status, this must be set to ``in_progress``, ``success``, ``failure``
+      or ``cancelled`` (depending on which status the reporter should report).
 
    .. attr:: comment
       :default: true

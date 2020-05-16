@@ -169,6 +169,19 @@ class PipelineManager(metaclass=ABCMeta):
                 self.log.error("Reporting item start %s received: %s" %
                                (item, ret))
 
+    def reportDequeue(self, item):
+        if not self.pipeline._disabled:
+            self.log.info(
+                "Reporting dequeue, action %s item%s",
+                self.pipeline.dequeue_actions,
+                item,
+            )
+            ret = self.sendReport(self.pipeline.dequeue_actions, item)
+            if ret:
+                self.log.error(
+                    "Reporting item dequeue %s received: %s", item, ret
+                )
+
     def sendReport(self, action_reporters, item, message=None):
         """Sends the built message off to configured reporters.
 
@@ -371,6 +384,12 @@ class PipelineManager(metaclass=ABCMeta):
         log = get_annotated_logger(self.log, item.event)
         log.debug("Removing change %s from queue", item.change)
         item.queue.dequeueItem(item)
+        # In case a item is dequeued that doesn't have a result yet
+        # (success/failed/...) we report it as dequeued.
+        # Without this check, all items with a valid result would be reported
+        # twice.
+        if not item.current_build_set.result and item.live:
+            self.reportDequeue(item)
 
     def removeItem(self, item):
         log = get_annotated_logger(self.log, item.event)

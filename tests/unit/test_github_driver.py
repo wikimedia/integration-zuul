@@ -1685,6 +1685,61 @@ class TestGithubAppDriver(ZuulGithubAppTestCase):
         self.assertTrue(A.is_merged)
 
     @simple_layout("layouts/reporting-github.yaml", driver="github")
+    def test_reporting_checks_api_dequeue(self):
+        "Test that a dequeued change will be reported back to the check run"
+        project = "org/project3"
+        github = self.fake_github.getGithubClient(None)
+
+        client = zuul.rpcclient.RPCClient(
+            "127.0.0.1", self.gearman_server.port
+        )
+        self.addCleanup(client.shutdown)
+
+        self.executor_server.hold_jobs_in_build = True
+        A = self.fake_github.openFakePullRequest(project, "master", "A")
+        self.fake_github.emitEvent(A.getPullRequestOpenedEvent())
+        self.waitUntilSettled()
+
+        # We should have a pending check for the head sha
+        self.assertIn(
+            A.head_sha, github.repo_from_project(project)._commits.keys())
+        check_runs = self.fake_github.getCommitChecks(project, A.head_sha)
+
+        self.assertEqual(1, len(check_runs))
+        check_run = check_runs[0]
+
+        self.assertEqual("tenant-one/checks-api-reporting", check_run["name"])
+        self.assertEqual("in_progress", check_run["status"])
+        self.assertThat(
+            check_run["output"]["summary"],
+            MatchesRegex(r'.*Starting checks-api-reporting jobs.*', re.DOTALL)
+        )
+
+        # Use the client to dequeue the pending change
+        client.dequeue(
+            tenant="tenant-one",
+            pipeline="checks-api-reporting",
+            project="org/project3",
+            change="{},{}".format(A.number, A.head_sha),
+            ref=None,
+        )
+        self.waitUntilSettled()
+
+        # We should now have a cancelled check run for the head sha
+        check_runs = self.fake_github.getCommitChecks(project, A.head_sha)
+        self.assertEqual(1, len(check_runs))
+        check_run = check_runs[0]
+
+        self.assertEqual("tenant-one/checks-api-reporting", check_run["name"])
+        self.assertEqual("completed", check_run["status"])
+        self.assertEqual("cancelled", check_run["conclusion"])
+        self.assertThat(
+            check_run["output"]["summary"],
+            MatchesRegex(r'.*Build canceled.*', re.DOTALL)
+        )
+        self.assertIsNotNone(check_run["completed_at"])
+
+    @simple_layout("layouts/reporting-github.yaml", driver="github")
     def test_update_non_existing_check_run(self):
         project = "org/project3"
         github = self.fake_github.getGithubClient(None)

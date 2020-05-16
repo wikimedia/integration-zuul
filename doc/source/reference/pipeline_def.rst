@@ -219,6 +219,13 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
       The introductory text in reports when an item is dequeued
       without running any jobs.  Empty by default.
 
+   .. attr:: dequeue-message
+      :default: Build canceled.
+
+      The introductory text in reports when an item is dequeued.
+      The dequeue message only applies if the item was dequeued without
+      a result.
+
    .. attr:: footer-message
 
       Supplies additional information after test results.  Useful for
@@ -353,6 +360,12 @@ success, the pipeline reports back to Gerrit with ``Verified`` vote of
 
       These reporters describe what Zuul should do when a pipeline is
       disabled.  See ``disable-after-consecutive-failures``.
+
+   .. attr:: dequeue
+
+      These reporters describe what Zuul should do if an item is
+      dequeued. The dequeue reporters will only apply, if the item
+      was dequeued without a result.
 
    The following options can be used to alter Zuul's behavior to
    mitigate situations in which jobs are failing frequently (perhaps
