@@ -388,8 +388,8 @@ class GitlabConnection(BaseConnection):
             change.number = number
             # patchset is the tips commit of the PR
             change.patchset = patchset
-            change.url = url
-            change.uris = list(url)
+            change.url = url or self.getPullUrl(project.name, number)
+            change.uris = [change.url.split('://', 1)[-1]]  # remove scheme
         self._change_cache[key] = change
         try:
             log.debug("Getting change mr#%s from project %s" % (
