@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (c) 2017 Red Hat
 #
 # This module is free software: you can redistribute it and/or modify

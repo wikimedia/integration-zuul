@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright 2012 Hewlett-Packard Development Company, L.P.
 # Copyright 2013 OpenStack Foundation
 #

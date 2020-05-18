@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright 2012 Hewlett-Packard Development Company, L.P.
 # Copyright 2013 OpenStack Foundation
 #
@@ -735,7 +734,3 @@ class Client(zuul.cmd.ZuulApp):
 
 def main():
     Client().main()
-
-
-if __name__ == "__main__":
-    main()

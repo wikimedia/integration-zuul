@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright 2012 Hewlett-Packard Development Company, L.P.
 # Copyright 2013-2014 OpenStack Foundation
 #
@@ -120,7 +119,3 @@ class Executor(zuul.cmd.ZuulDaemonApp):
 
 def main():
     Executor().main()
-
-
-if __name__ == "__main__":
-    main()

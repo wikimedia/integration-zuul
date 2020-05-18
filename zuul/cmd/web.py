@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright 2017 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -134,7 +133,3 @@ class WebServer(zuul.cmd.ZuulDaemonApp):
 
 def main():
     WebServer().main()
-
-
-if __name__ == "__main__":
-    main()

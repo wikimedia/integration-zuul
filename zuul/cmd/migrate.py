@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # Copyright 2017 Red Hat, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -1744,7 +1742,3 @@ def main():
 
     ZuulMigrate(args.layout, args.job_config, args.nodepool_config,
                 args.outdir, args.mapping, args.syntax_check).run()
-
-
-if __name__ == '__main__':
-    main()

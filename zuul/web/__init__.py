@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright (c) 2017 Red Hat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1271,16 +1270,3 @@ class ZuulWeb(object):
             return
         self.repl.stop()
         self.repl = None
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    import zuul.lib.connections
-    import zuul.lib.auth.authenticators
-    connections = zuul.lib.connections.ConnectionRegistry()
-    auths = zuul.lib.auth.authenticators.AuthenticatorRegistry()
-    z = ZuulWeb(listen_address="127.0.0.1", listen_port=9000,
-                gear_server="127.0.0.1", gear_port=4730,
-                connections=connections, authenticators=auths)
-    z.start()
-    cherrypy.engine.block()

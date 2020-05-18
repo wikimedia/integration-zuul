@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Copyright 2019 BMW Group
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -96,7 +95,3 @@ class ManageAnsible(zuul.cmd.ZuulApp):
 
 def main():
     ManageAnsible().main()
-
-
-if __name__ == "__main__":
-    main()
