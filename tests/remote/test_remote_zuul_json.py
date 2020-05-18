@@ -20,12 +20,11 @@ import textwrap
 from tests.base import AnsibleZuulTestCase
 
 
-class TestZuulJSON26(AnsibleZuulTestCase):
+class FunctionalZuulJSONMixIn:
     tenant_config_file = 'config/remote-zuul-json/main.yaml'
     ansible_version = '2.6'
 
-    def setUp(self):
-        super().setUp()
+    def _setUp(self):
         self.fake_nodepool.remote_ansible = True
 
         ansible_remote = os.environ.get('ZUUL_REMOTE_IPV4')
@@ -144,12 +143,20 @@ class TestZuulJSON26(AnsibleZuulTestCase):
             dateutil.parser.parse(play_end_time)
 
 
-class TestZuulJSON27(TestZuulJSON26):
+class TestZuulJSON27(AnsibleZuulTestCase, FunctionalZuulJSONMixIn):
     ansible_version = '2.7'
 
+    def setUp(self):
+        super().setUp()
+        self._setUp()
 
-class TestZuulJSON28(TestZuulJSON27):
+
+class TestZuulJSON28(AnsibleZuulTestCase, FunctionalZuulJSONMixIn):
     ansible_version = '2.8'
+
+    def setUp(self):
+        super().setUp()
+        self._setUp()
 
     def test_json_task_action(self):
         job = self._run_job('no-log')
