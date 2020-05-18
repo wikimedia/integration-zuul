@@ -39,6 +39,9 @@ are required.
    # For openSUSE:
    sudo zypper install -y $(bindep -b compile)
 
+   # For Ubuntu:
+   sudo apt-get install -y $(bindep -b compile)
+
    # All:
    sudo pip3 install .
    popd

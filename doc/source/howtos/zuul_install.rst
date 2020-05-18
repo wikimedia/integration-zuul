@@ -41,6 +41,9 @@ required.
    # For openSUSE:
    $ zypper install -y $(bindep -b compile)
 
+   # For Ubuntu:
+   $ apt-get install -y $(bindep -b compile)
+
    # All:
    $ tools/install-js-tools.sh
 
