@@ -23,6 +23,7 @@ class FunctionalZuulStreamMixIn:
     tenant_config_file = 'config/remote-zuul-stream/main.yaml'
     # This should be overriden in child classes.
     ansible_version = '2.9'
+    wait_timeout = 120
 
     def _setUp(self):
         self.log_console_port = 19000 + int(self.ansible_version.split('.')[1])

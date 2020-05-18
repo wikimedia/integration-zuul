@@ -27,6 +27,7 @@ class FunctionalActionModulesMixIn:
     tenant_config_file = 'config/remote-action-modules/main.yaml'
     # This should be overriden in child classes.
     ansible_version = '2.9'
+    wait_timeout = 120
 
     def _setUp(self):
         self.fake_nodepool.remote_ansible = True
