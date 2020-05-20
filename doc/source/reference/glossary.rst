@@ -219,7 +219,7 @@ Glossary
 
    project pipeline
 
-      The application of jobs to a pipelines.  Project pipeline
+      The application of jobs to a pipeline.  Project pipeline
       entries often include filtering and matching rules specifying
       the conditions under which a job should result in a build, and
       any interdependencies those jobs may have on the build results
