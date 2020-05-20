@@ -365,6 +365,9 @@ class TestWeb(BaseTestWeb):
                 'tags': [],
                 'timeout': None,
                 'variables': {},
+                'extra_variables': {},
+                'group_variables': {},
+                'host_variables': {},
                 'variant_description': '',
                 'voting': True
             }, {
@@ -406,6 +409,9 @@ class TestWeb(BaseTestWeb):
                 'tags': [],
                 'timeout': None,
                 'variables': {},
+                'extra_variables': {},
+                'group_variables': {},
+                'host_variables': {},
                 'variant_description': 'stable',
                 'voting': True
             }], data)
@@ -445,6 +451,9 @@ class TestWeb(BaseTestWeb):
                 'tags': [],
                 'timeout': None,
                 'variables': {},
+                'extra_variables': {},
+                'group_variables': {},
+                'host_variables': {},
                 'variant_description': '',
                 'voting': True
             }], data)
@@ -563,6 +572,9 @@ class TestWeb(BaseTestWeb):
                   'tags': [],
                   'timeout': None,
                   'variables': {},
+                  'extra_variables': {},
+                  'group_variables': {},
+                  'host_variables': {},
                   'variant_description': '',
                   'voting': True}],
                 [{'abstract': False,
@@ -597,6 +609,9 @@ class TestWeb(BaseTestWeb):
                   'tags': [],
                   'timeout': None,
                   'variables': {},
+                  'extra_variables': {},
+                  'group_variables': {},
+                  'host_variables': {},
                   'variant_description': '',
                   'voting': True}],
                 [{'abstract': False,
@@ -631,6 +646,9 @@ class TestWeb(BaseTestWeb):
                   'tags': [],
                   'timeout': None,
                   'variables': {},
+                  'extra_variables': {},
+                  'group_variables': {},
+                  'host_variables': {},
                   'variant_description': '',
                   'voting': True}],
                 [{'abstract': False,
@@ -665,6 +683,9 @@ class TestWeb(BaseTestWeb):
                   'tags': [],
                   'timeout': None,
                   'variables': {},
+                  'extra_variables': {},
+                  'group_variables': {},
+                  'host_variables': {},
                   'variant_description': '',
                   'voting': True}]]
 
@@ -718,6 +739,9 @@ class TestWeb(BaseTestWeb):
                              'tags': [],
                              'timeout': None,
                              'variables': {},
+                             'extra_variables': {},
+                             'group_variables': {},
+                             'host_variables': {},
                              'variant_description': '',
                              'voting': True}
                         ]],

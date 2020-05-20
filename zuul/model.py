@@ -1261,6 +1261,9 @@ class Job(ConfigObject):
         else:
             d['semaphore'] = None
         d['variables'] = self.variables
+        d['extra_variables'] = self.extra_variables
+        d['host_variables'] = self.host_variables
+        d['group_variables'] = self.group_variables
         d['final'] = self.final
         d['abstract'] = self.abstract
         d['protected'] = self.protected
