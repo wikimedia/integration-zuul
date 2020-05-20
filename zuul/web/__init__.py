@@ -437,6 +437,8 @@ class ZuulWebAPI(object):
                              'reason': request['reason'],
                              'node_hold_expiration': request['node_expiration']
                             })
+            resp = cherrypy.response
+            resp.headers['Access-Control-Allow-Origin'] = '*'
             return result
 
     @cherrypy.expose
@@ -459,6 +461,8 @@ class ZuulWebAPI(object):
             if not request:
                 raise cherrypy.HTTPError(
                     404, 'Hold request %s does not exist.' % request_id)
+            resp = cherrypy.response
+            resp.headers['Access-Control-Allow-Origin'] = '*'
             return {
                 'id': request['id'],
                 'tenant': request['tenant'],
