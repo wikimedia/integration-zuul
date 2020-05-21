@@ -65,7 +65,7 @@
 
 - job:
     name: zuul-build-dashboard
-    parent: build-javascript-content
+    parent: build-javascript-deployment
     success-url: 'npm/html/'
     files:
       - web/.*
@@ -73,16 +73,26 @@
     vars:
       javascript_content_dir: "../zuul/web/static"
       zuul_work_dir: "{{ zuul.project.src_dir }}/web"
-      zuul_api_url: https://zuul.openstack.org
-      node_version: 10
+      create_tarball_directory: build
     run: playbooks/dashboard/run.yaml
 
 - job:
-    name: zuul-build-dashboard-multi-tenant
+    name: zuul-build-dashboard-openstack-whitelabel
+    parent: zuul-build-dashboard
+    vars:
+      zuul_api_url: https://zuul.openstack.org
+
+- job:
+    name: zuul-build-dashboard-software-factory
     parent: zuul-build-dashboard
     vars:
       zuul_api_url: https://softwarefactory-project.io/zuul
-      node_version: 10
+
+- job:
+    name: zuul-build-dashboard-opendev
+    parent: zuul-build-dashboard
+    vars:
+      zuul_api_url: https://zuul.opendev.org
 
 # This job is run on changes to both Zuul and Nodepool; any changes to
 # the other project will be picked up via image builds which appear in
@@ -178,7 +188,6 @@
     parent: build-python-release
     pre-run: playbooks/release/pre.yaml
     vars: &zuul_build_vars
-      node_version: 10
       release_python: python3
 
 - job:
@@ -188,6 +197,8 @@
     vars: *zuul_build_vars
 
 - project:
+    vars:
+      node_version: 14
     check:
       jobs:
         - zuul-build-image
@@ -217,15 +228,14 @@
                     ZUUL_TEST_ROOT: /tmp/zuul-test
                 tox_environment:
                     ZUUL_TEST_ROOT: /tmp/zuul-test
-        - zuul-build-dashboard
-        - zuul-build-dashboard-multi-tenant
-        - nodejs-npm-run-lint:
+        - zuul-build-dashboard-openstack-whitelabel
+        - zuul-build-dashboard-software-factory
+        - zuul-build-dashboard-opendev
+        - nodejs-run-lint:
             vars:
-              node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
-        - nodejs-npm-run-test:
+        - nodejs-run-test:
             vars:
-              node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
             success-url: 'npm/reports/bundle.html'
             files:
@@ -241,11 +251,6 @@
         - nodepool-zuul-functional:
             voting: false
         - zuul-build-python-release
-        - build-javascript-content-tarball:
-            vars:
-              node_version: 10
-              zuul_work_dir: "{{ zuul.project.src_dir }}/web"
-              create_tarball_directory: build
     gate:
       jobs:
         - zuul-upload-image
@@ -276,13 +281,11 @@
                 tox_environment:
                     ZUUL_TEST_ROOT: /tmp/zuul-test
         - zuul-build-dashboard
-        - nodejs-npm-run-lint:
+        - nodejs-run-lint:
             vars:
-              node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
-        - nodejs-npm-run-test:
+        - nodejs-run-test:
             vars:
-              node_version: 10
               zuul_work_dir: "{{ zuul.project.src_dir }}/web"
             success-url: 'npm/reports/bundle.html'
             files:
@@ -296,11 +299,6 @@
             requires: nodepool-container-image
             dependencies: zuul-upload-image
         - zuul-build-python-release
-        - build-javascript-content-tarball:
-            vars:
-              node_version: 10
-              zuul_work_dir: "{{ zuul.project.src_dir }}/web"
-              create_tarball_directory: build
     promote:
       jobs:
         - zuul-promote-image
@@ -308,7 +306,9 @@
         - opendev-promote-python:
             vars:
               download_artifact_job: zuul-build-python-release
-        - opendev-promote-javascript-content
+        - opendev-promote-javascript-deployment:
+            vars:
+              download_artifact_job: zuul-build-dashboard
     release:
       jobs:
         - zuul-release-python
