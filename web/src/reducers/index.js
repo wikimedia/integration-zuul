@@ -24,30 +24,32 @@ import jobs from './jobs'
 import labels from './labels'
 import logfile from './logfile'
 import nodes from './nodes'
+import openapi from './openapi'
 import project from './project'
 import projects from './projects'
 import status from './status'
 import tenant from './tenant'
 import tenants from './tenants'
-import openapi from './openapi'
+import timezone from './timezone'
 
 const reducers = {
-  change,
   build,
+  change,
+  configErrors,
+  errors,
   info,
   job,
   jobs,
   labels,
   logfile,
   nodes,
+  openapi,
   project,
   projects,
-  configErrors,
-  errors,
   status,
   tenant,
   tenants,
-  openapi,
+  timezone,
 }
 
 export default combineReducers(reducers)

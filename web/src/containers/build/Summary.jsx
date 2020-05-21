@@ -28,6 +28,7 @@ class Summary extends React.Component {
   static propTypes = {
     build: PropTypes.object,
     tenant: PropTypes.object,
+    timezone: PropTypes.string,
   }
 
   render () {
@@ -74,6 +75,9 @@ class Summary extends React.Component {
         } else {
           value = 'false'
         }
+      }
+      if (column === 'start_time' || column === 'end_time') {
+        value = moment.utc(value).tz(this.props.timezone).format('YYYY-MM-DD HH:mm:ss')
       }
       if (column === 'duration') {
           value = moment.duration(value, 'seconds')
@@ -124,4 +128,4 @@ class Summary extends React.Component {
 }
 
 
-export default connect(state => ({tenant: state.tenant}))(Summary)
+export default connect(state => ({tenant: state.tenant, timezone: state.timezone}))(Summary)

@@ -17,7 +17,7 @@ import PropTypes from 'prop-types'
 import { connect } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { Table } from 'patternfly-react'
-import * as moment from 'moment'
+import * as moment from 'moment-timezone'
 import 'moment-duration-format'
 
 import { fetchBuilds } from '../api'
@@ -26,12 +26,12 @@ import TableFilters from '../containers/TableFilters'
 
 class BuildsPage extends TableFilters {
   static propTypes = {
-    tenant: PropTypes.object
+    tenant: PropTypes.object,
+    timezone: PropTypes.string
   }
 
   constructor () {
     super()
-
     this.prepareTableHeaders()
     this.state = {
       builds: null,
@@ -60,7 +60,8 @@ class BuildsPage extends TableFilters {
   }
 
   componentDidUpdate (prevProps) {
-    if (this.props.tenant.name !== prevProps.tenant.name) {
+    if (this.props.tenant.name !== prevProps.tenant.name ||
+        this.props.timezone !== prevProps.timezone) {
       this.updateData(this.getFilterFromUrl())
     }
   }
@@ -84,6 +85,11 @@ class BuildsPage extends TableFilters {
         {moment.duration(value, 'seconds').format('h [hr] m [min] s [sec]')}
       </Table.Cell>
     )
+    const timeFormat = (value) => (
+      <Table.Cell>
+        {moment.utc(value).tz(this.props.timezone).format('YYYY-MM-DD HH:mm:ss')}
+      </Table.Cell>
+    )
     this.columns = []
     this.filterTypes = []
     const myColumns = [
@@ -103,6 +109,7 @@ class BuildsPage extends TableFilters {
         prop = 'job_name'
       } else if (column === 'start time') {
         prop = 'start_time'
+        formatter = timeFormat
       } else if (column === 'change') {
         prop = 'change'
         formatter = linkChangeFormat
@@ -169,4 +176,4 @@ class BuildsPage extends TableFilters {
   }
 }
 
-export default connect(state => ({tenant: state.tenant}))(BuildsPage)
+export default connect(state => ({tenant: state.tenant, timezone: state.timezone}))(BuildsPage)
