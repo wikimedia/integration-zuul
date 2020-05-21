@@ -113,12 +113,6 @@ class StatusPage extends Refreshable {
       this.visibilityChangeEvent, this.visibilityListener)
   }
 
-  componentDidUpdate (prevProps) {
-    if (this.props.timezone !== prevProps.timezo) {
-      this.loadState()
-    }
-  }
-
   setFilter = (filter) => {
     this.filter.value = filter
     this.setState({filter: filter})
