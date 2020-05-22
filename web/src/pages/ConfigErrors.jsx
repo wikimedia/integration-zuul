@@ -37,6 +37,8 @@ class ConfigErrorsPage extends React.Component {
     return (
       <React.Fragment>
         <div className="pull-right">
+          {/* Lint warning jsx-a11y/anchor-is-valid */}
+          {/* eslint-disable-next-line */}
           <a className="refresh" onClick={() => {this.updateData()}}>
             <Icon type="fa" name="refresh" /> refresh&nbsp;&nbsp;
           </a>
