@@ -4,6 +4,7 @@ importlib-resources==1.0.2
 # Early virtualenv 20 had bad file location assumptions
 virtualenv!=20.0.0,!=20.0.1,>20
 
+python-dateutil
 github3.py>=1.1.0
 PyYAML>=3.1.0
 paramiko>=2.0.1
