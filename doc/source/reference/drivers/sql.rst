@@ -1,5 +1,7 @@
 :title: SQL Driver
 
+.. _sql-driver:
+
 SQL
 ===
 
