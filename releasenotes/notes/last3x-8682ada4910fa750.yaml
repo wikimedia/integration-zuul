@@ -1,7 +1,7 @@
 ---
 prelude: |
   This is expected to be the last 3.x release of Zuul (barring any
-  unanticpated bugfix releases).
+  unanticipated bugfix releases).
 
   The next release of Zuul, 4.0.0, will require the following
   deployment changes:
