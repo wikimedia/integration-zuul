@@ -377,7 +377,7 @@ class GitlabConnection(BaseConnection):
     def _getChange(self, project, number, patchset=None,
                    refresh=False, url=None, event=None):
         log = get_annotated_logger(self.log, event)
-        key = (project.name, number, patchset)
+        key = (project.name, str(number), str(patchset))
         change = self._change_cache.get(key)
         if change and not refresh:
             log.debug("Getting change from cache %s" % str(key))
