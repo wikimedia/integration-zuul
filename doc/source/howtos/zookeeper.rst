@@ -18,6 +18,8 @@ The following general configuration setting in
 This instructs ZooKeeper to purge old snapshots every 6 hours.  This
 will avoid filling the disk.
 
+.. _zk-encrypted-connections:
+
 Encrypted Connections
 ---------------------
 
