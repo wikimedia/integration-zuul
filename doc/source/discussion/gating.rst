@@ -303,7 +303,11 @@ it will not be possible for A to merge until B does.
 
    If changes with cross-project dependencies do not share a change
    queue then Zuul is unable to enqueue them together, and the first
-   will be required to merge before the second is enqueued.
+   will be required to merge before the second can be enqueued. If the
+   second change is approved before the first is merged, Zuul can't act
+   on the approval and won't automatically enqueue the second change,
+   requiring a new approval event to enqueue it after the first change
+   merges.
 
 Independent Pipeline
 ~~~~~~~~~~~~~~~~~~~~
