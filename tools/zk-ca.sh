@@ -21,7 +21,8 @@ SERVER=$2
 
 SUBJECT='/C=US/ST=California/L=Oakland/O=Company Name/OU=Org'
 TOOLSDIR=$(dirname $0)
-CONFIG="-config $TOOLSDIR/openssl.cnf"
+ABSTOOLSDIR=$(cd $TOOLSDIR ;pwd)
+CONFIG="-config $ABSTOOLSDIR/openssl.cnf"
 
 make_ca() {
     mkdir $CAROOT/demoCA
