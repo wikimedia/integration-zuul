@@ -69,23 +69,17 @@ Add the following to ``/etc/zookeeper/zoo.cfg``:
 
    # Client TLS configuration
    secureClientPort=2281
-   ssl.keyStore.location=/etc/zookeeper/ca/keystores/zookeeper1.example.com.jks
-   ssl.keyStore.password=keystorepassword
+   ssl.keyStore.location=/etc/zookeeper/ca/keystores/zookeeper1.example.com.pem
    ssl.trustStore.location=/etc/zookeeper/ca/certs/cacert.pem
 
    # Server TLS configuration
    sslQuorum=true
-   ssl.quorum.keyStore.location=/etc/zookeeper/ca/keystores/zookeeper1.example.com.jks
+   ssl.quorum.keyStore.location=/etc/zookeeper/ca/keystores/zookeeper1.example.com.pem
    ssl.quorum.keyStore.password=keystorepassword
    ssl.quorum.trustStore.location=/etc/zookeeper/ca/certs/cacert.pem
 
 Change the name of the certificate filenames as appropriate for the
-host (e.g., ``zookeeper1.example.com.jks``).  Note that the keystore
-password ``keystorepassword``, which is set by the ``zk-ca.sh``
-script, does not need to be changed as long as file permissions
-provide sufficient protection.  The password is present because many
-Java utilities misbehave when interacting with keystores with empty or
-missing passwords.
+host (e.g., ``zookeeper1.example.com.pem``).
 
 In order to disable plaintext connections, ensure that the
 ``clientPort`` option does not appear in ``zoo.cfg``.  Use the new
