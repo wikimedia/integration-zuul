@@ -181,7 +181,7 @@ class LogStreamer(object):
             raise
 
     def stop(self):
-        if self.thd.isAlive():
+        if self.thd.is_alive():
             self.server.shutdown()
             self.server.server_close()
             self.thd.join()
