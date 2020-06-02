@@ -1200,6 +1200,10 @@ class GithubConnection(BaseConnection):
 
     def _getChange(self, project, number, patchset=None, refresh=False,
                    event=None):
+        # Note(tobiash): We force the pull request number to int centrally here
+        # because it can originate from different sources (github event, manual
+        # enqueue event) where some might just parse the string and forward it.
+        number = int(number)
         key = (project.name, number, patchset)
         change = self._change_cache.get(key)
         if change and not refresh:
