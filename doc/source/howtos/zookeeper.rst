@@ -75,7 +75,6 @@ Add the following to ``/etc/zookeeper/zoo.cfg``:
    # Server TLS configuration
    sslQuorum=true
    ssl.quorum.keyStore.location=/etc/zookeeper/ca/keystores/zookeeper1.example.com.pem
-   ssl.quorum.keyStore.password=keystorepassword
    ssl.quorum.trustStore.location=/etc/zookeeper/ca/certs/cacert.pem
 
 Change the name of the certificate filenames as appropriate for the
