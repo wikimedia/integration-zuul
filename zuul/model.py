@@ -245,6 +245,9 @@ class Pipeline(object):
     Reporter
         Communicates success and failure results somewhere
     """
+    STATE_NORMAL = 'normal'
+    STATE_ERROR = 'error'
+
     def __init__(self, name, tenant):
         self.name = name
         # Note that pipelines are not portable across tenants (new
@@ -287,6 +290,7 @@ class Pipeline(object):
         self.window_increase_factor = None
         self.window_decrease_type = None
         self.window_decrease_factor = None
+        self.state = self.STATE_NORMAL
 
     @property
     def actions(self):
@@ -355,7 +359,8 @@ class Pipeline(object):
 
     def formatStatusJSON(self, websocket_url=None):
         j_pipeline = dict(name=self.name,
-                          description=self.description)
+                          description=self.description,
+                          state=self.state)
         j_queues = []
         j_pipeline['change_queues'] = j_queues
         for queue in self.queues:
