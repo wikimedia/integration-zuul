@@ -2650,7 +2650,8 @@ class ExecutorServer(BaseMergeServer):
                 self.ansible_manager.install()
         self.ansible_manager.copyAnsibleFiles()
 
-        self.process_merge_jobs = self.config, 'executor', 'merge_jobs', True
+        self.process_merge_jobs = get_default(self.config, 'executor',
+                                              'merge_jobs', True)
 
         function_name = 'executor:execute'
         if self.zone:
