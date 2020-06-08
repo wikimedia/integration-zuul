@@ -50,8 +50,10 @@ class BaseMergeServer(metaclass=ABCMeta):
 
     def __init__(self, config, component, connections=None):
         self.connections = connections or {}
-        self.merge_email = get_default(config, 'merger', 'git_user_email')
-        self.merge_name = get_default(config, 'merger', 'git_user_name')
+        self.merge_email = get_default(config, 'merger', 'git_user_email',
+                                       'zuul.merger.default@example.com')
+        self.merge_name = get_default(config, 'merger', 'git_user_name',
+                                      'Zuul Merger Default')
         self.merge_speed_limit = get_default(
             config, 'merger', 'git_http_low_speed_limit', '1000')
         self.merge_speed_time = get_default(
