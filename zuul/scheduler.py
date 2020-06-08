@@ -1232,10 +1232,17 @@ class Scheduler(threading.Thread):
 
                 for tenant in self.abide.tenants.values():
                     for pipeline in tenant.layout.pipelines.values():
-                        while (pipeline.manager.processQueue() and
-                               not self._stopped):
-                            pass
-
+                        try:
+                            while (pipeline.manager.processQueue() and
+                                   not self._stopped):
+                                pass
+                        except Exception:
+                            self.log.exception(
+                                "Exception in pipeline processing:")
+                            pipeline.state = pipeline.STATE_ERROR
+                            # Continue processing other pipelines+tenants
+                        else:
+                            pipeline.state = pipeline.STATE_NORMAL
             except Exception:
                 self.log.exception("Exception in run handler:")
                 # There may still be more events to process
