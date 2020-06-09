@@ -270,23 +270,14 @@ class GithubReporter(BaseReporter):
         if change.title:
             message += change.title
 
-        account = getattr(change.source_event, 'account', None)
-        if not account:
-            return message
-
-        name = account['name']
-        email = account['email']
-        message += '\n\nReviewed-by: '
-
-        if name:
-            message += name
-        if email:
-            if name:
-                message += ' '
-            message += '<' + email + '>'
-        if name or email:
-            message += '\n             '
-        message += account['html_url']
+        if change.reviews:
+            review_users = []
+            for r in change.reviews:
+                name = r['by']['username']
+                email = r['by']['email']
+                review_users.append('Reviewed-by: {} <{}>'.format(name, email))
+            message += '\n\n'
+            message += '\n'.join(review_users)
 
         return message
 
