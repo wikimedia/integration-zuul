@@ -997,8 +997,8 @@ class GithubConnection(BaseConnection):
         if ((not expiry) or (not token) or (now >= expiry)):
             headers = self._get_app_auth_headers()
 
-            url = "%s/installations/%s/access_tokens" % (self.base_url,
-                                                         installation_id)
+            url = "%s/app/installations/%s/access_tokens" % (
+                self.base_url, installation_id)
 
             response = requests.post(url, headers=headers, json=None)
             response.raise_for_status()
