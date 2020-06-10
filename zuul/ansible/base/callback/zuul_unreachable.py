@@ -19,6 +19,16 @@
 # so just put in the __future__ statement.
 from __future__ import absolute_import
 
+DOCUMENTATION = '''
+     callback: zuul_unreachable
+     short_description: Zuul Unreachable
+     description:
+         - Zuul Unreachable
+     type: aggregate
+     extends_documentation_fragment:
+       - default_callback
+'''
+
 import os
 
 from ansible.plugins.callback import default
