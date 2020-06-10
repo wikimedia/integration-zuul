@@ -66,6 +66,8 @@
 - job:
     name: zuul-build-dashboard
     parent: build-javascript-deployment
+    description: |
+      Builds the zuul dashboard without an overridden API URL.
     success-url: 'npm/html/'
     files:
       - web/.*
@@ -79,18 +81,34 @@
 - job:
     name: zuul-build-dashboard-openstack-whitelabel
     parent: zuul-build-dashboard
+    description: |
+      Builds the zuul dashboard with API URL pointing to
+      https://zuul.openstack.org, which tests whitelabeled
+      deployments.
     vars:
       zuul_api_url: https://zuul.openstack.org
 
 - job:
     name: zuul-build-dashboard-software-factory
     parent: zuul-build-dashboard
+    description: |
+      Builds the zuul dashboard with API URL pointing to
+      https://softwarefactory-project.io/zuul, which tests
+      multi-tenant deployments on a suburl, as well as letting
+      us check that dashboard changes won't break the
+      softwarefactory service.
     vars:
       zuul_api_url: https://softwarefactory-project.io/zuul
 
 - job:
     name: zuul-build-dashboard-opendev
     parent: zuul-build-dashboard
+    description: |
+      Builds the zuul dashboard with API URL pointing to
+      https://zuul.opendev.org, which tests multi-tenant
+      deployments not on a suburl, as well as letting us
+      check that dashboard changes won't break the
+      OpenDev service.
     vars:
       zuul_api_url: https://zuul.opendev.org
 
