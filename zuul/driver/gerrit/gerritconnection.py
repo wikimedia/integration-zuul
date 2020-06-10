@@ -1467,8 +1467,14 @@ class GerritConnection(BaseConnection):
             self.poller_thread.join()
 
     def _start_poller_thread(self):
-        self.poller_thread = self._poller_class(self)
-        self.poller_thread.start()
+        if self.session is not None:
+            self.poller_thread = self._poller_class(self)
+            self.poller_thread.start()
+        else:
+            self.log.info(
+                "%s: Gerrit Poller is disabled because no "
+                "HTTP authentication is defined",
+                self.connection_name)
 
     def _stop_ref_watcher_thread(self):
         if self.ref_watcher_thread:
