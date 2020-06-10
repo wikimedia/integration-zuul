@@ -474,7 +474,7 @@ def zuul_run_command(self, args, zuul_log_id, check_rc=False, close_fds=True, ex
         if t:
             t.join(10)
             with Console(zuul_log_id) as console:
-                if t.isAlive():
+                if t.is_alive():
                     console.addLine("[Zuul] standard output/error still open "
                                     "after child exited")
             # ZUUL: stdout and stderr are in the console log file
@@ -495,7 +495,7 @@ def zuul_run_command(self, args, zuul_log_id, check_rc=False, close_fds=True, ex
     finally:
         if t:
             with Console(zuul_log_id) as console:
-                if t.isAlive():
+                if t.is_alive():
                     console.addLine("[Zuul] standard output/error still open "
                                     "after child exited")
                 if fail_json_kwargs:
