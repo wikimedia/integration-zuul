@@ -157,21 +157,30 @@
         - context: .
           repository: zuul/zuul
           target: zuul
+          tags:
+            # If zuul.tag is defined: [ '3', '3.19', '3.19.0' ].  Only works for 3-component tags.
+            # Otherwise: ['latest']
+            &imagetag "{{ zuul.tag is defined | ternary([zuul.get('tag', '').split('.')[0], '.'.join(zuul.get('tag', '').split('.')[:2]), zuul.get('tag', '')], ['latest']) }}"
         - context: .
           repository: zuul/zuul-executor
           target: zuul-executor
+          tags: *imagetag
         - context: .
           repository: zuul/zuul-fingergw
           target: zuul-fingergw
+          tags: *imagetag
         - context: .
           repository: zuul/zuul-merger
           target: zuul-merger
+          tags: *imagetag
         - context: .
           repository: zuul/zuul-scheduler
           target: zuul-scheduler
+          tags: *imagetag
         - context: .
           repository: zuul/zuul-web
           target: zuul-web
+          tags: *imagetag
 
 - job:
     name: zuul-upload-image
@@ -329,5 +338,13 @@
               download_artifact_job: zuul-build-dashboard
     release:
       jobs:
-        - zuul-release-python
-        - zuul-publish-tox-docs
+        # - zuul-release-python
+        # - zuul-publish-tox-docs
+        - upload-docker-image:
+            secrets:
+              name: docker_credentials
+              secret: zuul-dockerhub
+              pass-to-parent: true
+            vars:
+              <<: *zuul_image_vars
+              upload_docker_image_promote: false
