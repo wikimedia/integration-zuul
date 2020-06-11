@@ -4354,6 +4354,7 @@ class TestScheduler(ZuulTestCase):
             project='org/project1',
             change=None,
             ref='master')
+        self.waitUntilSettled()
         self.executor_server.release('.*')
         self.waitUntilSettled()
         job_names = [x.name for x in self.history]
