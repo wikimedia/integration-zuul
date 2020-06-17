@@ -51,8 +51,6 @@ class Repo(object):
         self._initialized = False
         try:
             self._ensure_cloned()
-            self._git_set_remote_url(
-                git.Repo(self.local_path), self.remote_url)
         except:
             self.log.exception("Unable to initialize repo for %s" % remote)
 
@@ -84,15 +82,10 @@ class Repo(object):
             config_writer.write()
         finally:
             config_writer._lock._release_lock()
-        self._git_set_remote_url(repo, self.remote_url)
         self._initialized = True
 
     def isInitialized(self):
         return self._initialized
-
-    def _git_set_remote_url(self, repo, url):
-        with repo.remotes.origin.config_writer as config_writer:
-            config_writer.set('url', url)
 
     def createRepoObject(self):
         try:
@@ -213,13 +206,6 @@ class Repo(object):
             origin.fetch()
         origin.fetch(tags=True, force=True)
 
-    def setRemoteUrl(self, url):
-        if self.remote_url == url:
-            return
-        self.log.debug("Set remote url to %s" % url)
-        self.remote_url = url
-        self._git_set_remote_url(self.createRepoObject(), self.remote_url)
-
 
 class Merger(object):
     log = logging.getLogger("zuul.Merger")
@@ -261,9 +247,7 @@ class Merger(object):
 
     def getRepo(self, project, url):
         if project in self.repos:
-            repo = self.repos[project]
-            repo.setRemoteUrl(url)
-            return repo
+            return self.repos[project]
         if not url:
             raise Exception("Unable to set up repo for project %s"
                             " without a url" % (project,))
