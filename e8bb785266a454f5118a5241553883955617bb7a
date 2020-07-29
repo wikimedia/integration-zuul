@@ -1,0 +1,8 @@
+Code-Review+1: Ahmon Dancy <adancy@wikimedia.org>
+Code-Review+2: Hashar <hashar@free.fr>
+Verified+2: Hashar <hashar@free.fr>
+Submitted-by: Hashar <hashar@free.fr>
+Submitted-at: Wed, 29 Jul 2020 18:38:07 +0000
+Reviewed-on: https://gerrit.wikimedia.org/r/c/integration/zuul/+/616858
+Project: integration/zuul
+Branch: refs/heads/patch-queue/debian/jessie-wikimedia
