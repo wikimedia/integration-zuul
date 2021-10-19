@@ -1,6 +1,29 @@
 {
   "comments": [
     {
+      "unresolved": true,
+      "key": {
+        "uuid": "40dff1d7_dfc26368",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 2
+      },
+      "lineNbr": 12,
+      "author": {
+        "id": 8328
+      },
+      "writtenOn": "2021-10-19T14:42:30Z",
+      "side": 1,
+      "message": "I would prefer not to refer to this commit as a revert since it does not return the requirements.txt file to the state it was in prior to commit e8bb785266a454f5118a5241553883955617bb7a.",
+      "range": {
+        "startLine": 7,
+        "startChar": 0,
+        "endLine": 12,
+        "endChar": 44
+      },
+      "revId": "45b079780d08e534f1963578d91ad139ab4e2613",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
       "unresolved": false,
       "key": {
         "uuid": "989e2527_4e001bd9",
