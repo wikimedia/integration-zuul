@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "989e2527_4e001bd9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 24
+      },
+      "writtenOn": "2021-10-19T11:31:34Z",
+      "side": 1,
+      "message": "I have no attention to rebuild integration/zuul since we already have the gear patch applied, but that would benefit integration/config test suite which installs Zuul from this zuul.git repository ;)",
+      "revId": "45b079780d08e534f1963578d91ad139ab4e2613",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    }
+  ]
+}
