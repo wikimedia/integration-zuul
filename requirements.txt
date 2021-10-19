@@ -13,7 +13,7 @@ extras
 statsd==2.1.2
 voluptuous>=0.7,<0.10
 futures==3.0.5
-git+https://gerrit.wikimedia.org/r/integration/gear.git@0.15.1+wmf1#egg=gear
+gear==0.16.0
 apscheduler==3.0.6
 PrettyTable>=0.6,<0.8
 babel>=1.0
